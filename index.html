@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d0f1a">
-<title>ROCKSIDE - prototype</title>
+<title>ROCKSIDE – 海音の冒険</title>
 <style>
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d0f1a;
   touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -92,8 +92,11 @@ const CONFIG = {
   enemy: {
     activateMargin: 40,   // px outside the camera where enemies start updating
     bulletDamage: 2,
-    walker: { hp: 2, speed: 0.5, damage: 2 },
-    hopper: { hp: 3, jumpVel: 4.5, hopSpeed: 1.2, waitFrames: 55, damage: 3 },
+    // hurtUp: the hurtbox (what shots/arrows hit) reaches this many px ABOVE the
+    // contact box, so a standing shot on the same floor (spawns ~17px above the
+    // feet) connects. Contact damage still uses the small body box (e.w x e.h).
+    walker: { hp: 2, speed: 0.5, damage: 2, hurtUp: 8 },   // contact 12x12, hurtbox 12x20
+    hopper: { hp: 3, jumpVel: 4.5, hopSpeed: 1.2, waitFrames: 55, damage: 3, hurtUp: 9 }, // contact 12x11, hurtbox 12x20
     flyer:  { hp: 2, speed: 0.5, bobAmp: 10, fireInterval: 130, bulletSpeed: 1.3, damage: 2, leash: 96 },
   },
 
@@ -417,7 +420,7 @@ function makeSprite(w, h, artFn, outline) {
 }
 function pick(spr, face, white) { return face >= 0 ? (white ? spr.wr : spr.r) : (white ? spr.wl : spr.l); }
 
-// ---- HERO: 海音 KANON - blue-haired water witch (28x30, faces right) ----
+// ---- HERO: 海音 UMINE - blue-haired water witch (28x30, faces right) ----
 // Placeholder pixel art evoking her silhouette: big navy witch hat with
 // lavender band, long light-blue hair, white dress, navy cape, moon staff.
 const HERO_W = 28, HERO_H = 30, HERO_CX = 16; // HERO_CX = body centre x in the right-facing frame
@@ -466,23 +469,27 @@ function artHero(R, pose, shoot) {
     R(gold, 21, 3 + by, 2, 1); R(gold, 23, 4 + by, 1, 4); R(gold, 21, 8 + by, 2, 1); R(crys, 21, 5 + by, 2, 2);
   }
 }
-// ---- WALKER: "TRUNDLEBOT" (16x16) ----
+// ---- WALKER: "TRUNDLEBOT" (16x22): body + treads in the bottom 16px, sensor mast on top ----
 function artWalker(R, f) {
-  R('#ff9a3c', 2, 3, 12, 8); R('#c8621e', 2, 9, 12, 2); R('#ffd08a', 3, 4, 5, 1);
-  R('#ffffff', 7, 5, 5, 4); R('#10223a', 10, 6, 2, 2);
-  R('#9aa3b8', 4, 1, 1, 2); R('#ff5d5d', 3, 0, 3, 1);
-  R('#3b3b4f', 1, 11, 14, 5); R('#5a5a75', 2, 11, 12, 1);
-  for (let i = 0; i < 3; i++) R('#b0b0cc', 2 + i * 4 + f * 2, 13, 2, 2);
+  const T = 6; // body offset (mast/sensor head live in the top 6px)
+  R('#6b7288', 4, 3, 2, 4 + T - 3); R('#9aa3b8', 4, 3, 1, 4 + T - 3);             // mast
+  R('#5b6278', 2, 0, 6, 3); R('#9aa3b8', 3, 0, 4, 1); R('#ff5d5d', 5, 1, 2, 1);  // sensor head + lamp
+  if ((f & 1) === 0) R('#ffd08a', 6, 1, 1, 1);
+  R('#ff9a3c', 2, 3 + T, 12, 8); R('#c8621e', 2, 9 + T, 12, 2); R('#ffd08a', 3, 4 + T, 5, 1);
+  R('#ffffff', 7, 5 + T, 5, 4); R('#10223a', 10, 6 + T, 2, 2);
+  R('#3b3b4f', 1, 11 + T, 14, 5); R('#5a5a75', 2, 11 + T, 12, 1);
+  for (let i = 0; i < 3; i++) R('#b0b0cc', 2 + i * 4 + f * 2, 13 + T, 2, 2);
 }
-// ---- HOPPER: "SPRINGO" (16x16), f=0 crouch, f=1 airborne ----
+// ---- HOPPER: "SPRINGO" (16x22), f=0 crouch, f=1 airborne; eyes on stalks ----
 function artHopper(R, f) {
-  const dy = f ? -4 : 0;
-  R('#5fd35a', 2, 7 + dy, 12, 6); R('#3a9a3a', 2, 11 + dy, 12, 2); R('#b6f5a0', 3, 8 + dy, 4, 1);
-  R('#5fd35a', 3, 4 + dy, 4, 4); R('#5fd35a', 9, 4 + dy, 4, 4);
-  R('#ffffff', 4, 5 + dy, 2, 2); R('#ffffff', 10, 5 + dy, 2, 2); R('#10223a', 5, 5 + dy, 1, 2); R('#10223a', 11, 5 + dy, 1, 2);
-  R('#1d4a1d', 8, 10 + dy, 4, 1);
-  if (!f) { R('#9aa3b8', 5, 13, 6, 1); R('#5b6278', 5, 14, 6, 1); R('#9aa3b8', 5, 15, 6, 1); }
-  else { for (let i = 0; i < 7; i++) R(i & 1 ? '#5b6278' : '#9aa3b8', 6, 9 + i, 4, 1); }
+  const T = 6, dy = f ? -4 : 0, ey = f ? 0 : 3; // body offset, airborne lift, eyeball top
+  R('#3a9a3a', 4, ey + 3, 2, 8 + T - ey - 3 + dy); R('#3a9a3a', 10, ey + 3, 2, 8 + T - ey - 3 + dy); // stalks
+  R('#5fd35a', 3, ey, 4, 4); R('#5fd35a', 9, ey, 4, 4);                                            // eyeballs
+  R('#ffffff', 4, ey + 1, 2, 2); R('#ffffff', 10, ey + 1, 2, 2); R('#10223a', 5, ey + 1, 1, 2); R('#10223a', 11, ey + 1, 1, 2);
+  R('#5fd35a', 2, 7 + T + dy, 12, 6); R('#3a9a3a', 2, 11 + T + dy, 12, 2); R('#b6f5a0', 3, 8 + T + dy, 4, 1);
+  R('#1d4a1d', 6, 10 + T + dy, 4, 1);
+  if (!f) { R('#9aa3b8', 5, 13 + T, 6, 1); R('#5b6278', 5, 14 + T, 6, 1); R('#9aa3b8', 5, 15 + T, 6, 1); }
+  else { for (let i = 0; i < 7; i++) R(i & 1 ? '#5b6278' : '#9aa3b8', 6, 9 + T + i, 4, 1); }
 }
 // ---- FLYER: "BUZZKITE" (16x14) ----
 function artFlyer(R, f) {
@@ -498,8 +505,8 @@ const OUT = [16, 14, 40];
   const poses = ['stand', 'run0', 'run1', 'run2', 'jump', 'hurt'];
   for (const p of poses) SPR.hero[p] = [makeSprite(HERO_W, HERO_H, R => artHero(R, p, 0), OUT), makeSprite(HERO_W, HERO_H, R => artHero(R, p, 1), OUT)];
   for (let f = 0; f < 2; f++) {
-    SPR.walker.push(makeSprite(16, 16, R => artWalker(R, f), [26, 15, 10]));
-    SPR.hopper.push(makeSprite(16, 16, R => artHopper(R, f), [12, 30, 14]));
+    SPR.walker.push(makeSprite(16, 22, R => artWalker(R, f), [26, 15, 10]));
+    SPR.hopper.push(makeSprite(16, 22, R => artHopper(R, f), [12, 30, 14]));
     SPR.flyer.push(makeSprite(16, 14, R => artFlyer(R, f), [30, 12, 44]));
   }
   // water bullet (droplet pointing right; flipped copy used for left)
@@ -718,7 +725,7 @@ function drawBubble(gx, gy, name, nameColor, text, alpha) {
   let bx = Math.round(tipX - bw / 2); bx = Math.max(Math.round(3 * s), Math.min(screen.width - bw - Math.round(3 * s), bx));
   let by = Math.round(tipY - bh - 7 * s); if (by < 27 * s) by = Math.round(27 * s);
   const lw = Math.max(2, Math.round(s * 0.9));
-  // never hide the player: the bubble turns see-through while Kanon's sprite is behind it
+  // never hide the player: the bubble turns see-through while Umine's sprite is behind it
   const px = (P.x - cam.x - 8) * s, py = (P.y + P.h - 32) * s;
   if (px < bx + bw && px + 32 * s > bx && py < by + bh && py + 32 * s > by) sctx.globalAlpha = alpha * 0.35;
   sctx.fillStyle = '#fffaf2'; sctx.strokeStyle = '#1a1830'; sctx.lineWidth = lw;
@@ -1030,10 +1037,10 @@ const bullets = []; for (let i = 0; i < 32; i++) bullets.push({ active: false, x
 const arrows = []; for (let i = 0; i < 8; i++) arrows.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, w: 5, h: 4, life: 0 });
 const parts = []; for (let i = 0; i < 128; i++) parts.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0, kind: 0, col: '#fff' });
 const enemies = spawns.map(s => {
-  const e = { type: s.type, c: s.c, r: s.r, x: 0, y: 0, w: 12, h: 12, ox: 2, oy: 4, vx: 0, vy: 0, hp: 1, face: -1, t: 0, fireT: 0,
+  const e = { type: s.type, c: s.c, r: s.r, x: 0, y: 0, w: 12, h: 12, ox: 2, oy: 10, hurtUp: CONFIG.enemy.walker.hurtUp || 0, vx: 0, vy: 0, hp: 1, face: -1, t: 0, fireT: 0,
     alive: true, active: false, flash: 0, onGround: false, homeX: 0, homeY: 0 };
-  if (s.type === 'H') { e.w = 12; e.h = 11; e.ox = 2; e.oy = 5; }
-  if (s.type === 'F') { e.w = 12; e.h = 9; e.ox = 2; e.oy = 4; }
+  if (s.type === 'H') { e.w = 12; e.h = 11; e.ox = 2; e.oy = 11; e.hurtUp = CONFIG.enemy.hopper.hurtUp || 0; }
+  if (s.type === 'F') { e.w = 12; e.h = 9; e.ox = 2; e.oy = 4; e.hurtUp = 0; }
   return e;
 });
 const boss = { state: 'off', x: 0, y: 0, w: 20, h: 34, vx: 0, vy: 0, hp: 0, hpShown: 0, face: -1, t: 0, inv: 0, flash: 0,
@@ -1082,6 +1089,8 @@ function moveY(o) {
   return false;
 }
 function overlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+// player attacks vs enemy HURTBOX (contact box extended upward by e.hurtUp)
+function hitsEnemy(a, e) { return a.x < e.x + e.w && a.x + a.w > e.x && a.y < e.y + e.h && a.y + a.h > e.y - e.hurtUp; }
 
 // ---------------------------------------------------------------------
 //  Particles / effects (pooled)
@@ -1385,8 +1394,8 @@ function updateBoss() {
         bossSet('land');
       }
       break;
-    case 'rescue': // defeated: flashes, the darkness leaves her, she thanks Kanon
-      // flashing (dark, hurt) -> collapsed & purified (defeat frame, pink) -> stands up to thank Kanon
+    case 'rescue': // defeated: flashes, the darkness leaves her, she thanks Umine
+      // flashing (dark, hurt) -> collapsed & purified (defeat frame, pink) -> stands up to thank Umine
       b.pose = b.t < 70 ? 'hurt' : b.t < 130 ? 'defeat' : 'idle';
       if (b.t === 130) bossFacePlayer();
       if (b.y + b.h < FLOOR_Y) b.y = Math.min(FLOOR_Y - b.h, b.y + 0.7);
@@ -1474,7 +1483,7 @@ function updateArrows() {
     if (--r.life <= 0 || r.x < cam.x - 24 || r.x > cam.x + VW + 24 || r.y > VH || r.y < -24) { r.active = false; continue; }
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j]; if (!e.alive || !e.active) continue;
-      if (overlap(r, e)) {
+      if (hitsEnemy(r, e)) {
         r.active = false; e.hp -= CONFIG.allies.arrowDamage; e.flash = 6;
         spawnPart(r.x + 2, r.y + 2, 0, 0, 6, 3, '#e8e8ff');
         if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; } else sfx('ehit');
@@ -1494,7 +1503,7 @@ function updateShots() {
     if (s.x < cam.x - 16 || s.x > cam.x + VW + 16) { s.active = false; continue; }
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j]; if (!e.alive || !e.active) continue;
-      if (overlap(s, e)) {
+      if (hitsEnemy(s, e)) {
         s.active = false; e.hp -= CONFIG.shotDamage; e.flash = 6; splashAt(s.x + (s.vx > 0 ? s.w : 0), s.y + 2, s.vx > 0 ? 1 : -1);
         if (e.hp <= 0) killEnemy(e);
         else sfx('ehit');
@@ -1614,7 +1623,7 @@ function update() {
 // =====================================================================
 //  Rendering
 // =====================================================================
-// "海音" (Kanon) as a 32x16 1-bit bitmap (generated by tools/gen_kanji.js
+// "海音" (Umine) as a 32x16 1-bit bitmap (generated by tools/gen_kanji.js
 // from a local CJK font, embedded so it renders identically offline).
 const KANON_KANJI = ["00000000000000000000000000000000","00100001000000000000000110000000","00110011000000000000000110000000","00001011111111100011111111111100","00000110000000000000110000010000","00000110000000000000110000110000","01100111111111000000010000100000","00110011001001000111111111111110","00010011001001000000000000000000","00000011011001000001111111111000","00001111111111110001100000001000","00010010011001000001100000001000","00110010010001000001111111111000","00110111111111110001100000001000","00100110000011000001100000001000","01100000000011000001111111111000"];
 const kanjiCv = mkCanvas(34, 17);
@@ -1768,7 +1777,7 @@ function drawBar(x, y, label, val, max, fill, align) {
   for (let i = 0; i < max && i < val; i++) g.fillRect(bx + 2 + i * 4, y + 8, 3, 1);
 }
 function drawHUD() {
-  drawBar(8, 8, 'KANON', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
+  drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
   if (boss.state !== 'off') drawBar(VW - 8, 8, 'TOBIUME', boss.hpShown, CONFIG.boss.hp, '#ff5d5d', 'r');
   if (DEBUG.god) drawText('GOD', 8, 28, 'g', 1);
 }
@@ -1776,6 +1785,9 @@ function drawHitboxes(camX) {
   g.strokeStyle = '#00ff00'; g.lineWidth = 1;
   g.strokeRect(Math.round(P.x - camX) + 0.5, Math.round(P.y) + 0.5, P.w - 1, P.h - 1);
   for (const e of enemies) if (e.alive && e.active) g.strokeRect(Math.round(e.x - camX) + 0.5, Math.round(e.y) + 0.5, e.w - 1, e.h - 1);
+  g.strokeStyle = '#ffff00'; // hurtboxes (what shots/arrows hit)
+  for (const e of enemies) if (e.alive && e.active && e.hurtUp) g.strokeRect(Math.round(e.x - camX) + 0.5, Math.round(e.y - e.hurtUp) + 0.5, e.w - 1, e.h + e.hurtUp - 1);
+  g.strokeStyle = '#00ff00';
   if (boss.state !== 'off') g.strokeRect(Math.round(boss.x - camX) + 0.5, Math.round(boss.y) + 0.5, boss.w - 1, boss.h - 1);
 }
 function dim(a) { g.fillStyle = 'rgba(8,6,20,' + a + ')'; g.fillRect(0, 0, VW, VH); }
@@ -1789,16 +1801,16 @@ function renderTitle() {
   drawText('ROCKSIDE', VW / 2, 26, 'y', 4, 'c');
   drawText('A WATER-WITCH RUN AND GUN', VW / 2, 52, 'c', 1, 'c');
   drawText('PROTOTYPE V0.1', VW / 2, 62, 'b', 1, 'c');
-  // hero name: 海音 KANON
+  // hero name: 海音 UMINE
   g.drawImage(kanjiCv, 78, 82);
-  drawTextShadow('KANON', 118, 85, 'c', 2);
+  drawTextShadow('UMINE', 118, 85, 'c', 2);
   if (((frame >> 4) & 3) !== 3) drawTextShadow('TAP TO START', VW / 2, 118, 'w', 2, 'c');
   drawText('OR PRESS ENTER', VW / 2, 134, 'b', 1, 'c');
-  // Kanon + a Trundlebot, with a water bullet flying between them
+  // Umine + a Trundlebot, with a water bullet flying between them
   if (SHEETS.kanon) g.drawImage(SHEETS.kanon[8].r, 14, 144, 64, 64); else g.drawImage(SPR.hero.stand[1].r, 18, 148, HERO_W * 2, HERO_H * 2);
   const px = 72 + ((frame * 2) % 120);
   g.drawImage(SPR.shot.r, px, 178, 16, 12);
-  g.drawImage(SPR.walker[(frame >> 3) & 1].l, 200, 176, 32, 32);
+  g.drawImage(SPR.walker[(frame >> 3) & 1].l, 200, 164, 32, 44);
   drawText('MOVE: ARROWS/A D   JUMP: Z/SPACE', VW / 2, 218, 'w', 1, 'c');
   drawText('SHOT: X/J    SOUND: M', VW / 2, 228, 'w', 1, 'c');
 }
