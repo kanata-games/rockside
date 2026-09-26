@@ -120,11 +120,17 @@ const CONFIG = {
   bosses: {
     // DARK ネーニア: keeps her distance and shoots. a) aimed arrow (leads the player)
     // b) arrow rain in marked columns  c) backstep jump + triple volley
-    neenia: { hp: 28, iFrames: 12, contactDamage: 3, arrowDamage: 2, rainDamage: 3,
-      keepMin: 76, keepMax: 140, walkSpeed: 0.75, idleFrames: 46, idleFramesRage: 26,
+    // v5: d) ricochet arrow (dotted bounce path, locks before release)  e) lobbed volley (floor marks trail the player)
+    //     f) thorn snare (marked landing spot -> thorn patch on the floor for a while; enraged: 2 snares + a quick aimed arrow)
+    neenia: { hp: 34, iFrames: 12, contactDamage: 3, arrowDamage: 2, rainDamage: 3,   // v5: 28 -> 34 HP
+      keepMin: 76, keepMax: 140, walkSpeed: 0.75, idleFrames: 22, idleFramesRage: 10,
       aimFrames: 30, arrowSpeed: 3.8, leadMax: 40, aimShotsRage: 3,
       rainCols: 3, rainColsRage: 5, rainWarn: 58, rainSpeed: 4.0, rainAimAt: 30,  // + one aimed arrow while the columns are marked
       backstepVx: 2.2, backstepVy: 3.6, volleyWind: 14, volleySpread: 0.22, volleySpeed: 3.2, volleysRage: 2,
+      ricoAim: 46, ricoAimRage2: 34, ricoLock: 16, ricoSpeed: 4.6, ricoBounces: 2, ricoShots: 2, ricoShotsRage: 3, ricoDamage: 2,
+      lobWind: 22, lobCount: 5, lobCountRage: 6, lobEvery: 17, lobEveryRage: 12, lobAir: 46, lobGrav: 0.3, lobLead: 0, lobDamage: 2,
+      snareWind: 22, snareAir: 42, snareLife: 150, snareLifeRage: 170, snareW: 26, snareDamage: 2, snareArrowDamage: 2, snareSecondGap: 46,
+      counterDraw: 14, counterSpeed: 4.2, counterCooldown: 160, counterCooldownRage: 100,   // quick-draw when Umine jumps near an idle Neenia
       rescueLineFrames: 240 },
     // DARK 青天: a) cat pounce toward the player  b) cursed song: ground sound waves (+ notes when enraged)
     // c) (below 50% HP) rapid multi-leap. pounceLeaps: leaps per normal pounce (the 2nd follows the player)
@@ -135,7 +141,7 @@ const CONFIG = {
       rescueLineFrames: 240 },
     // DARK アスターテ (floats): a) glide + crescent slash wave (low = jump it; enraged adds a high one)
     // b) vanish -> warning mark behind the player -> reappear + slash  c) rotating star orbs, then released
-    astarte: { hp: 28, iFrames: 12, contactDamage: 3, crescentDamage: 3, slashDamage: 3, orbDamage: 2,
+    astarte: { hp: 40, iFrames: 12, contactDamage: 3, crescentDamage: 3, slashDamage: 3, orbDamage: 2,   // v5: 28 -> 40 HP
       floatGap: 4, glideSpeed: 1.2, keepDist: 84, idleFrames: 50, idleFramesRage: 30,
       windFrames: 26, crescentSpeed: 2.4, fadeFrames: 18, warnFrames: 38, warnFramesRage: 28, warpRecover: 34,
       orbCount: 4, orbCountRage: 5, orbFrames: 120, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.5, orbDrift: 0.35,
@@ -1744,7 +1750,9 @@ const cam = { x: 0 };
 const shots = []; for (let i = 0; i < CONFIG.maxShots; i++) shots.push({ active: false, x: 0, y: 0, vx: 0, w: 7, h: 5 });
 // bullet kinds: 0 small, 2 heart, 3 star, 4 shockwave (Tobiume) / 6 arrow, 7 rain arrow (Neenia) /
 // 8 floor sound wave, 11 note (Seiten) / 9 crescent, 10 star orb, 12 scythe slash area (Astarte)
-const bullets = []; for (let i = 0; i < 40; i++) bullets.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, w: 4, h: 4, kind: 0, dmg: 2, life: 0, t: 0, ang: 0, rad: 0, spin: 0, orbit: false, baseY: 0 });
+// v5 Neenia: 13 lobbed arrow (gravity), 14 ricochet arrow (bounces off walls/ceiling/floor), 15 snare arrow (gravity) -> 16 thorn patch
+// g: per-frame gravity (lobbed arrows), bnc: bounces left (ricochet)
+const bullets = []; for (let i = 0; i < 40; i++) bullets.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, w: 4, h: 4, kind: 0, dmg: 2, life: 0, t: 0, ang: 0, rad: 0, spin: 0, orbit: false, baseY: 0, g: 0, bnc: 0 });
 const arrows = []; for (let i = 0; i < 8; i++) arrows.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, w: 5, h: 4, life: 0 });
 const parts = []; for (let i = 0; i < 128; i++) parts.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0, kind: 0, col: '#fff' });
 const enemies = [], allies = []; // rebuilt from the map by buildActors() when an area loads
@@ -1758,7 +1766,10 @@ function makeEnemy(s) {
 const boss = { state: 'off', x: 0, y: 0, w: 20, h: 34, vx: 0, vy: 0, hp: 0, hpShown: 0, face: -1, t: 0, inv: 0, flash: 0,
   onGround: false, last: '', triggered: false, pose: 'idle', poseF: 0, hopY: 0, shots: 0, dark: true, tx: 0, bob: 0, fireT: 0,
   seen: [], alpha: 1, hidden: false, pvx: 0, mx: 0, my: 0, aimX: 0, aimY: 0, aimShow: false, rainC: [0, 0, 0, 0, 0, 0], rainN: 0,
-  warn: 0, warnX: 0, volleys: 0, multi: false, leapsLeft: 0, didMulti: false, warp2: false };
+  warn: 0, warnX: 0, pr: false, volleys: 0, multi: false, leapsLeft: 0, didMulti: false, warp2: false,
+  // v5 Neenia telegraphs: floor marks (lob / snare landing spots: frames until impact), ricochet path (up to 5 points)
+  markX: [0, 0, 0, 0, 0, 0, 0, 0], markT: [0, 0, 0, 0, 0, 0, 0, 0], markK: [0, 0, 0, 0, 0, 0, 0, 0], markMax: [1, 1, 1, 1, 1, 1, 1, 1],
+  ricoPts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ricoN: 0, ricoShow: false, ricoLock: false, ricoAng: 0, combo: false, bag: [], counterCD: 0 };
 // Boss registry (AREAS[].boss): texts, sheets (dark = boss sheet, normal = after rescue), hitbox, colours.
 // The fight logic is BOSS_AI[type] (see below); drawing is generic (drawBoss in 05_render.js).
 const BOSS_TYPES = {
@@ -1897,6 +1908,8 @@ function bossReset() {
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
+  b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
+  b.bag.length = 0; b.counterCD = 0;
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
@@ -2109,13 +2122,14 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
   return null;
 }
-const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32] };
+const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32],
+  13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
 function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
@@ -2148,6 +2162,7 @@ function updateBoss() {
   if (b.inv > 0) b.inv--;
   if (b.flash > 0) b.flash--;
   if (b.fireT > 0) b.fireT--;
+  for (let i = 0; i < b.markT.length; i++) if (b.markT[i] > 0) b.markT[i]--;
   if (b.alpha < 1 && !b.hidden) b.alpha = Math.min(1, b.alpha + 0.08);
   b.t++;
   b.pvx = b.pvx * 0.9 + P.vx * 0.1; // smoothed player speed (Neenia leads her aim with it)
@@ -2182,7 +2197,7 @@ function damageBoss(s) {
   if (b.hp <= 0) {
     b.hp = 0; b.hidden = false; b.alpha = 1; bossSet('rescue'); hitStop = 12; shake(16, 3); sfx('boom');
     for (const bb of bullets) bb.active = false;
-    b.rainN = 0; b.warn = 0;
+    b.rainN = 0; b.warn = 0; b.ricoShow = false; b.aimShow = false; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
     P.inv = 9999;
   }
   return true;
@@ -2258,6 +2273,7 @@ function bossHover(b, B, drift) {
   if (drift) { const dx = b.tx - b.x; b.x += Math.abs(dx) < B.driftSpeed ? dx : Math.sign(dx) * B.driftSpeed; }
 }
 function pickPattern(opts) { // random, never the same pattern twice in a row
+  boss.pr = bossRage(); // shot counts are fixed when a pattern starts (rage beginning mid-pattern must not change them)
   let pi = (Math.random() * opts.length) | 0;
   if (opts[pi] === boss.last) pi = (pi + 1 + ((Math.random() * (opts.length - 1)) | 0)) % opts.length;
   boss.last = opts[pi]; bossSeen(opts[pi]); return opts[pi];
@@ -2293,7 +2309,7 @@ function aiTobiume(b, B, pcx, pcy) {
         for (let k = 0; k < n; k++) { const a = ang + (k - (n - 1) / 2) * B.fanSpread; spawnBullet(mx - 3, my - 3, Math.cos(a) * B.fanSpeed, Math.sin(a) * B.fanSpeed, (k & 1) ? 3 : 2, B.bulletDamage); }
         sfx('bshoot'); b.shots++;
       }
-      const total = bossRage() ? B.fanVolleysRage : 1;
+      const total = b.pr ? B.fanVolleysRage : 1;
       if (b.shots >= total && b.t > B.fanWindup + (total - 1) * 30 + 24) { bossSet('hover'); bossPickSide(); }
       break;
     }
@@ -2350,6 +2366,19 @@ function aiTobiume(b, B, pcx, pcy) {
 //   a) 'aim'      : draws (frame 4) and looses an arrow at where the player WILL be (leads by player speed)
 //   b) 'rain'     : shoots into the sky; 3 (5) columns are marked (+ one aimed arrow meanwhile), then arrows rain down in them
 //   c) 'backstep' : jumps back (vaults over the player when cornered), then a triple volley
+//                   (v5 enraged: followed straight away by one ricochet arrow)
+//  v5 (harder, still readable):
+//   d) 'rico'  : aims at the ceiling - the full dotted bounce path is shown and follows the player, then LOCKS
+//                (turns bright) ~0.27 s before release; the arrow bounces ceiling -> floor. Then a 2nd low "skip
+//                shot" off the floor (enraged: a 3rd ceiling shot). Dodge: step out of each locked path.
+//   e) 'lob'   : bow raised to the sky, then 5 (6) arcing arrows, each landing where the player stood when it was
+//                loosed (a floor mark shows the spot until impact, so the marks trail behind a moving player).
+//                Dodge: keep moving, don't turn back into the marks. Enraged: the last arrow is a thorn snare.
+//   f) 'snare' : 2 marked lobbed arrows (on the player + between her and Neenia) that plant thorn patches on the
+//                floor (~2.5 s). Enraged: then straight into 2 quick aimed arrows (combo). Dodge: leave the marks
+//                (away from her), then jump the arrows without landing in the thorns.
+//   g) 'counter' (reactive, cooldown 2.7 s / 1.7 s enraged): if Umine jumps while Neenia is idle, an eye glint + aim line
+//                at the landing spot, then a quick arrow. Dodge: steer in the air (or don't jump needlessly).
 // ---------------------------------------------------------------------
 function neeniaArrow(b, tx, ty, speed, dmg) {
   const a = Math.atan2(ty - b.my, tx - b.mx); spawnBullet(b.mx - 2, b.my - 2, Math.cos(a) * speed, Math.sin(a) * speed, 6, dmg);
@@ -2359,17 +2388,59 @@ function neeniaBackstep(b, B) {
   bossFacePlayer(); const away = -b.face, room = away > 0 ? ROOM_R - (b.x + b.w) : b.x - ROOM_L;
   if (room < 52) { b.vx = b.face * 2.7; b.vy = -5.6; } // cornered: vault over the player
   else { b.vx = away * B.backstepVx; b.vy = -B.backstepVy; }
-  b.onGround = false; b.volleys = 0; bossSet('backstep'); sfx('swoosh');
+  b.onGround = false; b.volleys = 0; b.pr = bossRage(); bossSet('backstep'); sfx('swoosh');
+}
+const NEENIA_OPTS = ['aim', 'rain', 'backstep', 'rico', 'lob', 'snare'];
+// shuffle bag: every pattern once per round of 6 (never the same twice in a row) -> the new attacks show up every round
+function neeniaPick() {
+  const neeniaBag = boss.bag;
+  if (!neeniaBag.length) {
+    for (const o of NEENIA_OPTS) neeniaBag.push(o);
+    for (let i = neeniaBag.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0, t = neeniaBag[i]; neeniaBag[i] = neeniaBag[j]; neeniaBag[j] = t; }
+    if (neeniaBag[neeniaBag.length - 1] === boss.last) { const t = neeniaBag[0]; neeniaBag[0] = neeniaBag[neeniaBag.length - 1]; neeniaBag[neeniaBag.length - 1] = t; }
+  }
+  const a = neeniaBag.pop(); boss.pr = bossRage(); boss.last = a; bossSeen(a); return a;
 }
 function neeniaChoose(b, B) {
-  const a = pickPattern(['aim', 'rain', 'backstep']); bossFacePlayer();
+  const a = neeniaPick(); bossFacePlayer(); b.combo = false;
   if (a === 'aim') { b.shots = 0; bossSet('aim'); }
   else if (a === 'rain') bossSet('rain');
+  else if (a === 'rico' || a === 'lob' || a === 'snare') { b.shots = 0; bossSet(a); if (a !== 'rico') sfx('warn'); }
   else neeniaBackstep(b, B);
+}
+function bossMark(x, t, k) { // floor mark: landing spot of a lobbed / snare arrow, shown until impact
+  const b = boss; for (let i = 0; i < b.markT.length; i++) if (b.markT[i] <= 0) { b.markX[i] = x; b.markT[i] = t; b.markMax[i] = t; b.markK[i] = k; return; }
+}
+// arcing arrow from the muzzle that lands (centre) on (tx, floor) after exactly T frames (gravity g applied before each move)
+function neeniaLob(b, tx, T, g, kind, dmg) {
+  const w = BULLET_SIZE[kind][0], h = BULLET_SIZE[kind][1], ty = FLOOR_Y - h / 2;
+  const vx = (tx - b.mx) / T, vy = (ty - b.my - g * T * (T + 1) / 2) / T;
+  const o = spawnBullet(b.mx - w / 2, b.my - h / 2, vx, vy, kind, dmg); if (o) o.g = g;
+  bossMark(tx, T, kind === 15 ? 1 : 0);
+  return o;
+}
+// ricochet bounds (arrow centre): the room's walls, ceiling and floor
+function ricoXL() { return ROOM_L + 3; } function ricoXR() { return ROOM_R - 3; }
+function ricoYT() { return TS + 3; } function ricoYB() { return FLOOR_Y - 3; }
+// fills b.ricoPts with the bounce path from the muzzle along angle a (bounces + 1 segments; the last point is where it breaks)
+function neeniaRicoPath(b, a, bounces) {
+  let x = b.mx, y = b.my, vx = Math.cos(a), vy = Math.sin(a); const XL = ricoXL(), XR = ricoXR(), YT = ricoYT(), YB = ricoYB();
+  b.ricoPts[0] = x; b.ricoPts[1] = y; b.ricoN = 1;
+  for (let sgi = 0; sgi <= bounces; sgi++) {
+    const tx = vx < -1e-6 ? (XL - x) / vx : vx > 1e-6 ? (XR - x) / vx : 1e9, ty = vy < -1e-6 ? (YT - y) / vy : vy > 1e-6 ? (YB - y) / vy : 1e9;
+    const t = Math.max(0, Math.min(tx, ty)); x += vx * t; y += vy * t;
+    b.ricoPts[b.ricoN * 2] = x; b.ricoPts[b.ricoN * 2 + 1] = y; b.ricoN++;
+    if (tx <= ty) vx = -vx; else vy = -vy;
+  }
+}
+function neeniaRicoAim(b, pcx, pcy, floorShot) { // mirror the target in the ceiling (or floor for the skip shot)
+  const ty = floorShot ? 2 * ricoYB() - pcy : 2 * ricoYT() - pcy;
+  return Math.atan2(ty - b.my, pcx - b.mx);
 }
 function aiNeenia(b, B, pcx, pcy) {
   const bcx = b.x + b.w / 2, dist = Math.abs(pcx - bcx), rage = bossRage();
-  b.aimShow = false;
+  if (b.counterCD > 0) b.counterCD--;
+  b.aimShow = false; if (b.state !== 'rico') { b.ricoShow = false; b.ricoLock = false; }
   switch (b.state) {
     case 'hover': {
       bossFacePlayer(); bossFall(b);
@@ -2378,18 +2449,83 @@ function aiNeenia(b, B, pcx, pcy) {
       if (mv < 0 && ((b.face > 0 && b.x <= ROOM_L + 2) || (b.face < 0 && b.x + b.w >= ROOM_R - 2))) mv = 0; // back to the wall
       b.x += mv * B.walkSpeed; b.pose = mv ? 'walk' : 'idle'; b.poseF = -1;
       if (dist < 30 && b.t > 16) { bossSeen('backstep'); b.last = 'backstep'; neeniaBackstep(b, B); break; }
+      if (b.counterCD <= 0 && b.t > 3 && !P.onGround && P.vy < -1 && !P.dead) { // quick-draw: answers a jump
+        bossSeen('counter'); b.counterCD = rage ? B.counterCooldownRage : B.counterCooldown; bossSet('counter'); sfx('tink'); break;
+      }
       if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) neeniaChoose(b, B);
+      break;
+    }
+    case 'counter': { // quick-draw (cooldown; shorter when enraged): eye glint + short aim line at where the jump will come down, then a fast arrow
+      bossFall(b); bossFacePlayer(); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
+      if (b.t === 1) spawnPart(bcx + b.face * 3, b.y + 6, 0, 0, 12, 3, '#ffffff');
+      if (b.t <= B.counterDraw) {
+        bossMuzzle(b, 18, 24);
+        const T = Math.min(24, Math.abs(pcx - b.mx) / B.counterSpeed), py = Math.min(FLOOR_Y - P.h / 2, pcy + P.vy * T + 0.5 * CONFIG.gravity * T * T);
+        b.aimX = Math.max(ROOM_L, Math.min(ROOM_R, pcx + P.vx * T)); b.aimY = py; b.aimShow = true;
+      }
+      if (b.t === B.counterDraw) { neeniaArrow(b, b.aimX, b.aimY, B.counterSpeed, B.arrowDamage); b.fireT = 12; sfx('arrow'); }
+      if (b.t > B.counterDraw + 16) { b.t = 0; b.state = 'hover'; }
       break;
     }
     case 'aim': {
       bossFall(b); bossFacePlayer(); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
-      const total = rage ? B.aimShotsRage : 1, fireAt = B.aimFrames + b.shots * 24;
+      const total = b.combo ? 2 : b.pr ? B.aimShotsRage : 1, fireAt = B.aimFrames + b.shots * 24;
       bossMuzzle(b, 18, 24);
       const lead = Math.min(B.leadMax, Math.abs(pcx - b.mx) / B.arrowSpeed);
       b.aimX = Math.max(ROOM_L, Math.min(ROOM_R, pcx + b.pvx * lead)); b.aimY = pcy;
       b.aimShow = b.shots < total && b.t > fireAt - 22 && b.t < fireAt;
       if (b.t === fireAt && b.shots < total) { neeniaArrow(b, b.aimX, b.aimY, B.arrowSpeed, B.arrowDamage); b.fireT = 12; sfx('arrow'); b.shots++; }
-      if (b.shots >= total && b.t > B.aimFrames + (total - 1) * 24 + 22) bossSet('hover');
+      if (b.shots >= total && b.t > B.aimFrames + (total - 1) * 24 + 22) { b.combo = false; bossSet('hover'); }
+      break;
+    }
+    case 'rico': { // ricochet: tracking dotted bounce path -> locks -> release
+      bossFall(b); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
+      const total = b.combo ? 1 : b.pr ? B.ricoShotsRage : B.ricoShots, at = B.ricoAim + b.shots * B.ricoAimRage2;
+      if (b.shots < total) {
+        const lock = b.t > at - B.ricoLock;
+        if (!lock) { bossFacePlayer(); bossMuzzle(b, 18, 24); b.ricoAng = neeniaRicoAim(b, pcx, pcy, b.shots === 1) /* 2nd = skip shot off the floor */; neeniaRicoPath(b, b.ricoAng, B.ricoBounces); }
+        if (lock && !b.ricoLock) sfx('tink');
+        b.ricoShow = true; b.ricoLock = lock;
+        if (b.t === at) {
+          const o = spawnBullet(b.mx - 2.5, b.my - 2.5, Math.cos(b.ricoAng) * B.ricoSpeed, Math.sin(b.ricoAng) * B.ricoSpeed, 14, B.ricoDamage);
+          if (o) o.bnc = B.ricoBounces;
+          b.fireT = 12; sfx('arrow'); b.shots++; b.ricoShow = false; b.ricoLock = false;
+        }
+      }
+      if (b.shots >= total && b.t > B.ricoAim + (total - 1) * B.ricoAimRage2 + 34) { b.combo = false; bossSet('hover'); }
+      break;
+    }
+    case 'lob': { // bow to the sky, then arcing arrows onto where the player stands (marks until impact)
+      bossFall(b); bossFacePlayer(); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
+      const n = b.pr ? B.lobCountRage : B.lobCount, every = b.pr ? B.lobEveryRage : B.lobEvery, at = B.lobWind + b.shots * every;
+      if (b.t < B.lobWind && b.t % 3 === 0) { bossMuzzle(b, 18, 24); spawnPart(b.mx, b.my - 4, 0, -1.6, 16, 0, (b.t & 4) ? '#ff9ad0' : '#ffffff'); }
+      if (b.t === at && b.shots < n) {
+        bossMuzzle(b, 18, 24);
+        const last = b.pr && b.shots === n - 1; // enraged: the last arrow of the volley is a thorn snare
+        neeniaLob(b, Math.max(ROOM_L + (last ? 14 : 6), Math.min(ROOM_R - (last ? 14 : 6), pcx + b.pvx * B.lobAir * B.lobLead)), B.lobAir, B.lobGrav, last ? 15 : 13, last ? B.snareArrowDamage : B.lobDamage);
+        b.fireT = 10; sfx('arrow'); b.shots++;
+      }
+      if (b.shots >= n && b.t > B.lobWind + (n - 1) * every + B.lobAir + 8) bossSet('hover');
+      break;
+    }
+    case 'snare': { // thorn snare: marked lobbed arrow(s) -> thorn patch; enraged: 2 snares + a quick aimed arrow
+      bossFall(b); bossFacePlayer(); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
+      const n = 2;
+      if (b.t < B.snareWind && b.t % 3 === 0) { bossMuzzle(b, 18, 24); const h = hash(b.t, 23); spawnPart(b.mx + (h & 7) - 3, b.my + ((h >> 3) & 7) - 3, 0, -0.4, 14, 0, (h >> 6) & 1 ? '#7aff9a' : '#d0ffd8'); }
+      if (b.t === B.snareWind || (n > 1 && b.t === B.snareWind + 8)) {
+        bossMuzzle(b, 18, 24);
+        let tx = pcx;
+        if (b.t !== B.snareWind) { // 2nd snare: between the player and Neenia (she keeps the far side open)
+          const toB = bcx > pcx ? 1 : -1; tx = pcx + toB * B.snareSecondGap;
+          if (Math.abs(tx - bcx) < 28) tx = pcx + toB * 30;
+        }
+        neeniaLob(b, Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx)), B.snareAir, B.lobGrav, 15, B.snareArrowDamage);
+        b.fireT = 10; sfx('arrow'); b.shots++;
+      }
+      if (b.t > B.snareWind + (n - 1) * 8 + B.snareAir + 6) {
+        if (b.pr) { b.combo = true; b.shots = 0; bossSet('aim'); } // combo: straight into 2 quick aimed arrows
+        else bossSet('hover');
+      }
       break;
     }
     case 'rain': {
@@ -2423,13 +2559,16 @@ function aiNeenia(b, B, pcx, pcy) {
       break;
     case 'volley': {
       bossFall(b); bossFacePlayer(); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
-      const total = rage ? B.volleysRage : 1, at = B.volleyWind + b.volleys * 26;
+      const total = b.pr ? B.volleysRage : 1, at = B.volleyWind + b.volleys * 26;
       if (b.t === at && b.volleys < total) {
         bossMuzzle(b, 18, 24); const a = Math.atan2(pcy - b.my, pcx - b.mx);
         for (let k = -1; k <= 1; k++) spawnBullet(b.mx - 2, b.my - 2, Math.cos(a + k * B.volleySpread) * B.volleySpeed, Math.sin(a + k * B.volleySpread) * B.volleySpeed, 6, B.arrowDamage);
         b.fireT = 12; sfx('arrow'); b.volleys++;
       }
-      if (b.volleys >= total && b.t > B.volleyWind + (total - 1) * 26 + 24) bossSet('hover');
+      if (b.volleys >= total && b.t > B.volleyWind + (total - 1) * 26 + 24) {
+        if (b.pr) { b.combo = true; b.shots = 0; bossSet('rico'); } // enraged combo: backstep volleys -> one ricochet
+        else bossSet('hover');
+      }
       break;
     }
   }
@@ -2445,7 +2584,7 @@ function aiNeenia(b, B, pcx, pcy) {
 function seitenChoose(b, B) {
   const rage = bossRage();
   let a;
-  if (rage && !b.didMulti) { a = 'multi'; b.last = a; bossSeen(a); }
+  if (rage && !b.didMulti) { a = 'multi'; b.last = a; bossSeen(a); b.pr = true; }
   else a = pickPattern(rage ? ['pounce', 'song', 'multi'] : ['pounce', 'song']);
   bossFacePlayer();
   if (a === 'pounce') { b.multi = false; b.leapsLeft = B.pounceLeaps; bossSet('crouch'); }
@@ -2489,8 +2628,8 @@ function aiSeiten(b, B, pcx, pcy) {
       break;
     case 'sing': { // enraged: a quick note flies over head height first (stay down), then the wave (jump it)
       bossFall(b); b.pose = 'attack'; b.poseF = 1;
-      const n = rage ? B.wavesRage : 1, gap = rage ? 14 : 0, at = 1 + b.shots * 48; // (t is already 1 on the first frame)
-      if (rage && b.t === at && b.shots < n) {
+      const n = b.pr ? B.wavesRage : 1, gap = b.pr ? 14 : 0, at = 1 + b.shots * 48; // (t is already 1 on the first frame)
+      if (b.pr && b.t === at && b.shots < n) {
         bossMuzzle(b, 12, 22);
         for (let k = 0; k < B.notesRage; k++) { const nb = spawnBullet(b.mx - 3 - b.face * k * 22, FLOOR_Y - 44, b.face * B.noteSpeed, 0, 11, B.noteDamage); if (nb) { nb.baseY = FLOOR_Y - 44; nb.ang = k * 2.2; } }
         spawnPart(b.mx, b.my, 0, 0, 16, 1, '#ff9ab0'); sfx('tink');
@@ -2535,7 +2674,7 @@ function aiAstarte(b, B, pcx, pcy) {
     }
     case 'slash': {
       astarteFloat(b, B); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
-      const n = rage ? 2 : 1, at = B.windFrames + b.shots * 32;
+      const n = b.pr ? 2 : 1, at = B.windFrames + b.shots * 32;
       if (b.fireT === 0 && b.t < at) bossFacePlayer();
       if (b.shots < n && b.t < at && b.t % 4 === 0) { const h = hash(b.t, 17); spawnPart(bcx - b.face * 10 + (h & 7) - 3, b.y + 2 + ((h >> 3) & 7), 0, -0.3, 14, 5, '#ff4a6a'); }
       if (b.t === at && b.shots < n) {
@@ -2690,14 +2829,41 @@ function updateBullets() {
       else { b.ang += b.spin; b.rad = Math.min(b.rad + 0.7, CONFIG.bosses.astarte.orbRadius);
         b.x = boss.x + boss.w / 2 + Math.cos(b.ang) * b.rad - b.w / 2; b.y = boss.y + boss.h / 2 - 8 + Math.sin(b.ang) * b.rad * 0.72 - b.h / 2; }
     }
+    if (b.g) b.vy += b.g;
     if (!b.orbit) { b.x += b.vx; b.y += b.vy; }
     if (b.kind === 11) b.y = b.baseY + Math.sin(b.t * 0.12 + b.ang) * 12; // note wobble
     if (b.life > 0 && --b.life === 0) { b.active = false; continue; }
+    if (b.kind >= 13 && b.kind <= 15 && neeniaArrowUpdate(b)) continue;
     if (b.x < cam.x - 16 || b.x > cam.x + VW + 16 || b.y < -16 || b.y > VH + 16) { b.active = false; continue; }
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
     if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
-    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12) b.active = false; }
+    if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
+    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16) b.active = false; }
   }
+}
+// v5 Neenia arrows: lob (13) breaks on the floor, ricochet (14) bounces, snare (15) plants a thorn patch (16).
+// returns true when the bullet is finished for this frame
+function neeniaArrowUpdate(b) {
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  if (b.kind === 14) {
+    if ((b.t & 1) === 0) spawnPart(cx, cy, 0, 0, 10, 4, (b.t & 2) ? '#7fe8ff' : '#c090ff');
+    const XL = ricoXL(), XR = ricoXR(), YT = ricoYT(), YB = ricoYB(); let hitX = cx < XL ? XL : cx > XR ? XR : 0, hitY = cy < YT ? YT : cy > YB ? YB : 0;
+    if (hitX || hitY) {
+      if (b.bnc <= 0) { b.active = false; spawnPart(cx, cy, 0, 0, 8, 3, '#ffffff'); for (let i = 0; i < 4; i++) spawnPart(cx, cy, DIR8X[i * 2] * 0.8, DIR8Y[i * 2] * 0.8, 12, 0, '#7fe8ff'); return true; }
+      b.bnc--; if (hitX) { b.x += 2 * (hitX - cx); b.vx = -b.vx; } if (hitY) { b.y += 2 * (hitY - cy); b.vy = -b.vy; }
+      spawnPart(hitX || cx, hitY || cy, 0, 0, 8, 1, '#7fe8ff'); sfx('tink');
+    }
+    return false;
+  }
+  if (b.y + b.h >= FLOOR_Y) { // lobbed / snare arrow reaches the floor
+    if (b.kind === 13) { b.active = false; spawnPart(cx, FLOOR_Y - 2, 0, 0, 7, 3, '#ffffff'); for (let i = 0; i < 3; i++) spawnPart(cx, FLOOR_Y - 2, (i - 1) * 0.7, -1, 14, 0, '#c8a0ff'); return true; }
+    const W = CONFIG.bosses.neenia.snareW;
+    b.kind = 16; b.w = W; b.h = 9; b.x = Math.max(ROOM_L, Math.min(ROOM_R - W, cx - W / 2)); b.y = FLOOR_Y - 9; b.vx = b.vy = 0; b.g = 0; b.t = 0;
+    b.dmg = CONFIG.bosses.neenia.snareDamage; b.life = bossRage() ? CONFIG.bosses.neenia.snareLifeRage : CONFIG.bosses.neenia.snareLife;
+    for (let i = 0; i < 6; i++) spawnPart(cx, FLOOR_Y - 3, (i - 2.5) * 0.6, -1 - (i & 1) * 0.6, 16, 0, i & 1 ? '#5aff8a' : '#b070ff');
+    sfx('land'); return true;
+  }
+  return false;
 }
 function playerContacts() {
   if (P.dead || P.inv > 0) return;
@@ -2941,6 +3107,27 @@ function drawBossMarks(camX) {
       g.fillRect(x + 2, FLOOR_Y - 2, 12, 2);                                                                  // floor line
     }
   }
+  if (b.ricoShow && b.ricoN > 1) { // Neenia's ricochet: dotted bounce path (dim while tracking, bright + dense once locked)
+    const lock = b.ricoLock, stepD = lock ? 3 : 6;
+    g.fillStyle = lock ? (blink ? '#ffffff' : '#7fe8ff') : (blink ? '#5ab8d8' : '#9ad8f0');
+    for (let i = 0; i < b.ricoN - 1; i++) {
+      const x0 = b.ricoPts[i * 2], y0 = b.ricoPts[i * 2 + 1], x1 = b.ricoPts[i * 2 + 2], y1 = b.ricoPts[i * 2 + 3];
+      const len = Math.hypot(x1 - x0, y1 - y0), n = Math.floor(len / stepD);
+      for (let k = 1; k <= n; k++) g.fillRect(Math.round(x0 + (x1 - x0) * k / n - camX), Math.round(y0 + (y1 - y0) * k / n), lock ? 2 : 1, lock ? 2 : 1);
+      if (i < b.ricoN - 2) { const bx = Math.round(x1 - camX), by = Math.round(y1); g.fillRect(bx - 2, by, 5, 1); g.fillRect(bx, by - 2, 1, 5); } // bounce point
+    }
+  }
+  for (let i = 0; i < b.markT.length; i++) { // lob / snare landing marks on the floor (shrinking ring = time left)
+    if (b.markT[i] <= 0) continue;
+    const x = Math.round(b.markX[i] - camX), y = FLOOR_Y, snare = b.markK[i] === 1, f = b.markT[i] / b.markMax[i], fast = b.markT[i] < 16 ? (frame >> 1) & 1 : blink;
+    const col = snare ? (fast ? '#5aff8a' : '#e0ffe8') : (fast ? '#ff4a7a' : '#ffd0dc');
+    g.fillStyle = snare ? 'rgba(90,255,138,0.14)' : 'rgba(255,60,100,0.14)'; g.fillRect(x - 6, y - 30, 12, 28);
+    g.fillStyle = col;
+    const r = 4 + Math.round(f * 6);
+    for (let k = -r; k <= r; k++) { const hh = Math.round(Math.sqrt(Math.max(0, 1 - (k / r) * (k / r))) * 2.5); g.fillRect(x + k, y - 2 - hh, 1, 1); g.fillRect(x + k, y - 2 + hh, 1, 1); }
+    g.fillRect(x - 3, y - 12, 7, 2); g.fillRect(x - 2, y - 10, 5, 1); g.fillRect(x - 1, y - 9, 3, 1); g.fillRect(x, y - 8, 1, 1); // small ▼
+    if (snare) { g.fillRect(x - 5, y - 6, 1, 3); g.fillRect(x + 5, y - 6, 1, 3); g.fillRect(x, y - 7, 1, 3); }            // thorn hint
+  }
   if (b.state === 'warpWarn') { // Astarte's reappear mark
     const x = Math.round(b.warnX - camX), y = FLOOR_Y;
     g.fillStyle = blink ? '#ff3a5a' : '#ffc0d0';
@@ -3031,6 +3218,23 @@ function drawBullet(b, camX) {
     const dir = b.ang >= 0 ? 1 : -1; g.globalAlpha = Math.max(0, b.life / 12) * 0.7; g.fillStyle = '#ff3a5a';
     for (let dy = 0; dy < b.h; dy += 1) { const u = (dy - b.h / 2) / (b.h / 2), off = Math.round(Math.sqrt(Math.max(0, 1 - u * u)) * (b.w - 6)); g.fillRect(dir > 0 ? x + off : x + b.w - off - 3, y + dy, 3, 1); }
     g.globalAlpha = 1;
+  } else if (b.kind === 13 || b.kind === 14 || b.kind === 15) { // v5 Neenia: lobbed (violet) / ricochet (cyan) / snare (green) arrow
+    const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, cx = b.x + b.w / 2 - camX, cy = b.y + b.h / 2;
+    const C = b.kind === 13 ? ['#6a4aa0', '#e0c8ff', '#ff4a8a'] : b.kind === 14 ? ['#2a8ab0', '#c0f4ff', '#7fe8ff'] : ['#2a7a4a', '#c8ffd8', '#5aff8a'];
+    g.fillStyle = C[0]; for (let k = 2; k < 10; k++) g.fillRect(Math.round(cx - ux * k), Math.round(cy - uy * k), 1, 1);
+    g.fillStyle = C[1]; g.fillRect(Math.round(cx - ux * 9) - 1, Math.round(cy - uy * 9) - 1, 2, 2);
+    g.fillStyle = (frame & 2) ? C[2] : '#ffffff'; g.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 3, 3);
+    if (b.kind === 14) { g.fillStyle = 'rgba(127,232,255,0.35)'; g.fillRect(Math.round(cx) - 3, Math.round(cy) - 3, 7, 7); }
+  } else if (b.kind === 16) { // thorn patch planted by the snare arrow (blinks before it withers)
+    if (b.life > 30 || (frame & 4)) {
+      const grow = Math.min(1, b.t / 6);
+      g.fillStyle = 'rgba(90,255,138,0.16)'; g.fillRect(x - 1, y - 3, b.w + 2, b.h + 3);
+      for (let k = 0; k < b.w; k += 4) { const hh = Math.round((k % 8 ? 6 : 9) * grow);
+        g.fillStyle = '#1f5a36'; g.fillRect(x + k, y + b.h - hh, 3, hh);
+        g.fillStyle = (frame >> 3) & 1 ? '#5aff8a' : '#9affb8'; g.fillRect(x + k + 1, y + b.h - hh, 1, 2);
+        g.fillStyle = '#b070ff'; g.fillRect(x + k + (k % 8 ? 2 : 0), y + b.h - Math.round(hh / 2), 1, 1); }
+      g.fillStyle = '#123a22'; g.fillRect(x, y + b.h - 2, b.w, 2);
+    }
   } else g.drawImage(SPR.star.r, x - 1, y - 1);
 }
 function drawShot(s, camX) { g.drawImage(pick(SPR.shot, s.vx, false), Math.round(s.x - camX), Math.round(s.y)); }
@@ -3064,13 +3268,17 @@ function drawParticles(camX) {
     }
   }
 }
+// HP bar: one pip per HP. Pip pitch shrinks (4 -> 3 -> 2 px) for big HP pools so the bar never grows past
+// BAR_MAX_W and the two bars (UMINE left, boss right) never overlap on the 256px screen.
+const BAR_MAX_W = 124;
+function barGeom(max) { const step = Math.max(2, Math.min(4, Math.floor((BAR_MAX_W - 3) / max))); return { step, pip: step - 1, w: max * step + 3 }; }
 function drawBar(x, y, label, val, max, fill, align) {
-  const w = max * 4 + 3, bx = align === 'r' ? x - w : x;
+  const G0 = barGeom(max), st = G0.step, pw = G0.pip, w = G0.w, bx = align === 'r' ? x - w : x;
   g.fillStyle = 'rgba(10,8,24,0.72)'; g.fillRect(bx - 2, y - 2, w + 4, 18);
   if (align === 'r') drawText(label, bx + w, y, 'r', 1, 'r'); else drawText(label, bx + 1, y, 'c', 1);
-  for (let i = 0; i < max; i++) { g.fillStyle = i < val ? fill : '#2a2a40'; g.fillRect(bx + 2 + i * 4, y + 8, 3, 6); }
+  for (let i = 0; i < max; i++) { g.fillStyle = i < val ? fill : '#2a2a40'; g.fillRect(bx + 2 + i * st, y + 8, pw, 6); }
   g.fillStyle = '#ffffff';
-  for (let i = 0; i < max && i < val; i++) g.fillRect(bx + 2 + i * 4, y + 8, 3, 1);
+  for (let i = 0; i < max && i < val; i++) g.fillRect(bx + 2 + i * st, y + 8, pw, 1);
 }
 function drawHUD() {
   drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
@@ -3333,7 +3541,7 @@ window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, 
   get state() { return state; }, get stateT() { return stateT; }, get checkpoint() { return checkpoint; },
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
-  _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid }, BOSS_TYPES,
+  _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid, barGeom }, BOSS_TYPES,
   get roomX() { return ROOM_X; }, get cpX() { return CP_C * TS; }, get levelW() { return LEVEL_W; } };
 </script>
 </body>
