@@ -1,0 +1,39 @@
+{
+  "image": "neenia_dark.png",
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "facing": "right",
+  "anchor": "bottom edge of each frame",
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ]
+    },
+    "walk": {
+      "frames": [
+        2,
+        3
+      ],
+      "note": "歩き"
+    },
+    "attack": {
+      "frames": [
+        4,
+        5
+      ],
+      "note": "4 弓を引き絞る / 5 矢を放つ瞬間（矢は未描画、弓に紫の閃光）"
+    },
+    "hurt": {
+      "frames": [
+        6
+      ]
+    },
+    "defeat": {
+      "frames": [
+        7
+      ]
+    }
+  }
+}

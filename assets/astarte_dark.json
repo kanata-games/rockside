@@ -1,0 +1,39 @@
+{
+  "image": "astarte_dark.png",
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "facing": "right",
+  "anchor": "bottom edge of each frame",
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ]
+    },
+    "glide": {
+      "frames": [
+        2,
+        3
+      ],
+      "note": "浮遊して滑るように移動"
+    },
+    "attack": {
+      "frames": [
+        4,
+        5
+      ],
+      "note": "4 鎌を振りかぶる / 5 斬撃の瞬間（赤い三日月状の軌跡つき）"
+    },
+    "hurt": {
+      "frames": [
+        6
+      ]
+    },
+    "defeat": {
+      "frames": [
+        7
+      ]
+    }
+  }
+}

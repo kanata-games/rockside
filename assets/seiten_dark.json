@@ -1,0 +1,39 @@
+{
+  "image": "seiten_dark.png",
+  "frameWidth": 48,
+  "frameHeight": 48,
+  "facing": "right",
+  "anchor": "bottom edge of each frame",
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ]
+    },
+    "leap": {
+      "frames": [
+        2,
+        3
+      ],
+      "note": "猫のような跳びかかり（2で着地のしゃがみ）"
+    },
+    "attack": {
+      "frames": [
+        4,
+        5
+      ],
+      "note": "4 呪いの歌の前に息を吸う / 5 叫ぶように歌う瞬間（口の前に赤い音の衝撃）"
+    },
+    "hurt": {
+      "frames": [
+        6
+      ]
+    },
+    "defeat": {
+      "frames": [
+        7
+      ]
+    }
+  }
+}
