@@ -1,0 +1,5 @@
+{
+  "neenia":  {"image": "neenia.png",  "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"ready": {"frames": [0]}, "shoot": {"frames": [1]}}},
+  "seiten":  {"image": "seiten.png",  "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"sing": {"frames": [0, 1]}}},
+  "astarte": {"image": "astarte.png", "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}}}
+}
