@@ -40,6 +40,8 @@ body.land #hint{display:none;}
 </head>
 <body>
 <canvas id="screen" width="256" height="240"></canvas>
+<div id="eclipseTestBadge" style="display:none;position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">☾ ECLIPSE TEST / HALF HP</div>
+<script>if(new URLSearchParams(location.search).get("eclipse")==="1")document.getElementById("eclipseTestBadge").style.display="block";</script>
 <div id="pad">
   <div class="btn dpad" id="bL"><svg viewBox="0 0 24 24"><path d="M16 3 L5 12 L16 21 Z" fill="currentColor"/></svg></div>
   <div class="btn dpad" id="bR"><svg viewBox="0 0 24 24"><path d="M8 3 L19 12 L8 21 Z" fill="currentColor"/></svg></div>
@@ -1929,6 +1931,10 @@ function bossReset() {
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
+  // Optional preview-only practice mode: test the phase-two combo immediately.
+  if (curArea.boss === 'astarte' && QS.get('eclipse') === '1') {
+    b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall');
+  }
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
