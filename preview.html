@@ -1553,7 +1553,7 @@ function buildLevel() {
       }
     }
     // Sunset-only surface foliage. Decorative pixels do not alter collisions.
-    if (curArea.id === 'sunset' && c < ROOM_COL) {
+    if (curTiles === TILESETS.sunset && c < ROOM_COL) {
       for (let r = 2; r < ROWS - 2; r++) {
         if (tileAt(c, r) !== T_ROCK || tileAt(c, r - 1) !== T_EMPTY) continue;
         const h = hash(c, 320 + r);
