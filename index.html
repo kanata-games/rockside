@@ -3611,7 +3611,7 @@ function drawTobiume(camX) {
 }
 function drawBoss(camX) {
   const b = boss; if (b.state === 'off') return;
-  if (curArea.boss === 'tobiume') { drawTobiume(camX); return; }
+  if (curArea.boss === 'tobiume') { drawBossMarks(camX); drawTobiume(camX); return; }
   drawBossMarks(camX);
   if (b.hidden || b.alpha <= 0) return;
   const T = BOSS_TYPES[curArea.boss];
