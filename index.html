@@ -3052,7 +3052,7 @@ function updateSupport() {
         if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; }
       }
       if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
-        boss.inv = 0; damageBoss(null, 2);
+        boss.inv = 0; damageBoss(null, 1);
       }
     }
     if (t >= 112) support.active = false;
