@@ -2020,8 +2020,8 @@ function loadProgress() {
   try { const d = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null');
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
     if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
-    if (d && d.support === 'tobiume') progress.support = 'tobiume'; } catch (_) {}
-  if (QS.get('supporttest') === '1' && !progress.support) progress.support = 'tobiume';
+    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support; } catch (_) {}
+  if (QS.get('supporttest') === '1') progress.support = QS.get('supportfriend') === 'neenia' ? 'neenia' : 'tobiume';
 }
 function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
 function markCleared(area) {
@@ -2034,14 +2034,17 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time. Future friends can join this roster.
-const SUPPORT_ROSTER = ['tobiume'];
-const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1 };
-function supportUnlocked(id) { return isRescued(id) || (id === 'tobiume' && QS.get('supporttest') === '1'); }
+const SUPPORT_ROSTER = ['tobiume', 'neenia'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア' };
+const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN' };
+const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
+function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
 function refreshSupportButton() {
   const ok = (state === 'play' || state === 'ready') && !!equippedSupport() && !P.dead;
   helpBtn.style.display = ok ? 'flex' : 'none';
-  helpBtn.textContent = support.used ? 'USED' : 'KICK';
+  helpBtn.textContent = support.used ? 'USED' : equippedSupport() === 'neenia' ? 'RAIN' : 'KICK';
+  helpBtn.style.borderColor = equippedSupport() === 'neenia' ? '#a3c6ff' : '#ffa8cf';
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -2049,7 +2052,9 @@ function cycleSupport() {
   if (!open.length) { sfx('buzz'); selMessage('仲間を救出するとサポートが解放されるよ', 'RESCUE A FRIEND FIRST'); return; }
   const n = open.indexOf(progress.support);
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
-  saveProgress(); sfx('cursor'); selMessage(progress.support ? '飛梅ちゃんをサポートにセット！' : 'サポートを外したよ', progress.support ? 'SUPER ULTRA TOBIUME KICK!' : 'SUPPORT: NONE');
+  saveProgress(); sfx('cursor');
+  const name = SUPPORT_NAMES[progress.support];
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', progress.support === 'tobiume' ? 'SUPER ULTRA TOBIUME KICK!' : progress.support === 'neenia' ? 'NEENIA: STARFALL ARROWS!' : 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -3022,18 +3027,37 @@ const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astart
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
   support.used = true; support.active = true; support.hit = false; support.t = 0;
+  support.kind = equippedSupport(); support.camX = cam.x;
   const bossVisible = bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW;
   let target = bossVisible ? boss.x + boss.w / 2 : P.x + P.w / 2 + P.face * 46;
   if (!bossVisible) for (const e of enemies) {
     if (e.alive && e.active && e.x + e.w > cam.x && e.x < cam.x + VW) { target = e.x + e.w / 2; break; }
   }
   support.x = Math.max(cam.x + 28, Math.min(cam.x + VW - 28, target));
-  support.y = -42; support.face = P.face; sfx('warn'); refreshSupportButton();
+  support.y = support.kind === 'neenia' ? FLOOR_Y - 32 : -42;
+  support.face = P.face; sfx('warn'); refreshSupportButton();
 }
 function updateSupport() {
   if (!support.active) return;
   support.t++;
   const t = support.t;
+  if (support.kind === 'neenia') {
+    if (t === 28 || t === 48 || t === 68) {
+      // Three visible waves, each deals damage once across the active viewport.
+      sfx('arrow'); shake(5, 1);
+      for (const e of enemies) {
+        if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+        e.hp -= 1; e.flash = 8;
+        spawnPart(e.x + e.w / 2, e.y, 0, -0.7, 13, 3, '#b8d6ff');
+        if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; }
+      }
+      if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+        boss.inv = 0; damageBoss(null, 2);
+      }
+    }
+    if (t >= 102) support.active = false;
+    return;
+  }
   // Approach from beyond the upper edge, then descend into the fight.
   support.y = t < 13 ? -42 + t * 3.4 : t < 40 ? 2 + (t - 13) * 5.6 : FLOOR_Y - 32;
   if (t === 40 && !support.hit) {
@@ -3056,6 +3080,26 @@ function updateSupport() {
 function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
+  if (support.kind === 'neenia') {
+    const N = SHEETS.neenia, face = support.face;
+    if (N) {
+      const d = SHEET_DEFS.neenia, sp = N[(frame >> 4) & 1];
+      g.drawImage(pick(sp, face, false), x - (face >= 0 ? d.cx : d.fw - d.cx), FLOOR_Y - d.fh);
+    } else g.drawImage(pick(SPR.ally.N[(frame >> 4) & 1], face, false), x - 16, FLOOR_Y - 32);
+    // Light-filled volleys sweep the whole screen; they are scenery, not enemy bullets.
+    for (const beat of [28, 48, 68]) {
+      const dt = t - beat;
+      if (dt < -10 || dt > 14) continue;
+      for (let i = 0; i < 17; i++) {
+        const px = i * 15 + ((i * 7 + beat) % 11);
+        const py = Math.round(-18 + (dt + 10) * (8 + (i & 1)));
+        g.fillStyle = i & 1 ? '#a9c3ff' : '#f6e7ff';
+        g.fillRect(px, py, 2, 14); g.fillRect(px - 2, py + 9, 6, 2);
+        g.fillStyle = '#ffffff'; g.fillRect(px, py + 2, 1, 8);
+      }
+    }
+    return;
+  }
   const fr = SHEETS.tobiumeNormal;
   if (fr) {
     const D = SHEET_DEFS.tobiumeNormal, anim = D.map.special_dive_kick || D.map.kick || D.map.fly;
@@ -3749,7 +3793,7 @@ function drawHUD() {
   for (let i = 0; i < CONFIG.magicMaxMP; i++) {
     g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
   }
-  if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: READY', 8, 42, support.used ? 'b' : 'y', 1);
+  if (equippedSupport()) drawText(support.used ? 'SUP USED' : equippedSupport() === 'neenia' ? 'SUP B: RAIN' : 'SUP B: KICK', 8, 42, support.used ? 'b' : 'y', 1);
   if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
 }
 function drawHitboxes(camX) {
@@ -3862,7 +3906,7 @@ function renderSelect() {
   const B = SEL_BACK; g.fillStyle = '#141a30'; g.fillRect(B.x, B.y, B.w, B.h); rectLine(B.x, B.y, B.w, B.h, '#4a5680'); drawText('TITLE', B.x + B.w / 2 + 1, B.y + 4, 'b', 1, 'c');
   const SB = SEL_SUPPORT; g.fillStyle = progress.support && supportUnlocked(progress.support) ? '#53304b' : '#202039';
   g.fillRect(SB.x, SB.y, SB.w, SB.h); rectLine(SB.x, SB.y, SB.w, SB.h, '#d087ac');
-  drawText(progress.support && supportUnlocked(progress.support) ? 'SUP: TOBI' : 'SUP: ---', SB.x + SB.w / 2, SB.y + 5, 'w', 1, 'c');
+  drawText(progress.support && supportUnlocked(progress.support) ? 'SUP: ' + SUPPORT_TAGS[progress.support] : 'SUP: ---', SB.x + SB.w / 2, SB.y + 5, 'w', 1, 'c');
   drawText(clearedCount() + '/8', VW - 5, 9, clearedCount() ? 'g' : 'b', 1, 'r');
   for (let slot = 0; slot < 9; slot++) drawCell(slot);
   const R = cellRect(selCursor);
@@ -3973,7 +4017,10 @@ function render() {
     if (stateT > 60 && (frame >> 5) & 1) drawTextShadow('TAP OR ENTER: STAGE SELECT', VW / 2, 150, 'w', 1, 'c');
   }
   blit();
-  if (support.active && support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
+  if (support.active && support.t < 90) {
+    if (support.kind === 'neenia') drawHiText('ネーニア・星降る矢雨！', VW / 2, 67, 8, '#e2ecff', '#253568');
+    else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
+  }
   // ---- high-res overlays: speech bubbles / dialogue / Japanese lines ----
   if (state === 'play' || state === 'ready' || state === 'bossIntro') {
     for (let i = 0; i < allies.length; i++) {
@@ -4010,7 +4057,7 @@ requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
 window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, bullets, allies, arrows, SHEETS_LOADED, SHEET_DEFS,
-  AREAS, progress, PROGRESS_KEY, SEL, SEL_BACK, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  AREAS, progress, support, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
   get state() { return state; }, get stateT() { return stateT; }, get checkpoint() { return checkpoint; },
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
