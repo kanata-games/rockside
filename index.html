@@ -2227,7 +2227,16 @@ function damageBoss(s) {
   const b = boss;
   if (!bossHittable()) return false;
   if (b.inv > 0) { sfx('tink'); return true; }
+  const hpBefore = b.hp;
   b.hp -= CONFIG.shotDamage; b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
+  // Astarte phase 2: interrupt the current attack on the actual 50% HP crossing,
+  // rather than waiting for a long orb animation or the next random choice.
+  if (curArea.boss === 'astarte' && hpBefore > bossCfg().hp / 2 && b.hp <= bossCfg().hp / 2 && b.hp > 0 && !b.hidden) {
+    bossSeen('eclipse'); b.fireT = 0;
+    // Clear old orbit bullets so the transition remains readable. Delayed star rain is independent.
+    for (const bb of bullets) if (bb.active && bb.orbit) bb.active = false;
+    bossSet('eclipse'); sfx('warn');
+  }
   if (b.hp <= 0) {
     b.hp = 0; b.hidden = false; b.alpha = 1; bossSet('rescue'); hitStop = 12; shake(16, 3); sfx('boom');
     for (const bb of bullets) bb.active = false;
