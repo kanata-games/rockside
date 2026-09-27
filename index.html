@@ -122,6 +122,7 @@ const CONFIG = {
     swoopTelegraph: 28, swoopSpeed: 3.4, landFrames: 26,
     kickRiseY: 36, kickAimFrames: 40, kickAimSpeed: 2.2, kickSpeed: 6.5, shockSpeed: 2.0,
     recoverSpeed: 1.6,
+    heartRainWarn: 40, heartRainGap: 13, heartRainSpeed: 3.4, // marked falling hearts, 2 normal / 3 rage
     rescueLineFrames: 260,  // how long her thank-you line stays before STAGE CLEAR (tap skips)
   },
 
@@ -2003,7 +2004,7 @@ function bossReset() {
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
-  b.bag.length = 0; b.counterCD = 0;
+  b.bag.length = 0; b.counterCD = 0; b.heartRainX = 0;
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
@@ -2454,11 +2455,15 @@ function pickPattern(opts) { // random, never the same pattern twice in a row
   if (opts[pi] === boss.last) pi = (pi + 1 + ((Math.random() * (opts.length - 1)) | 0)) % opts.length;
   boss.last = opts[pi]; bossSeen(opts[pi]); return opts[pi];
 }
-const BOSS_OPTS = ['fan', 'swoop', 'kick'];
+const BOSS_OPTS = ['fan', 'swoop', 'kick', 'heartRain'];
 function bossChoose() {
   const a = pickPattern(BOSS_OPTS); bossFacePlayer();
   if (a === 'fan') { boss.shots = 0; bossSet('fan'); }
   else if (a === 'swoop') { bossSet('swoopWind'); sfx('warn'); }
+  else if (a === 'heartRain') {
+    boss.heartRainX = Math.max(ROOM_L + 38, Math.min(ROOM_R - 38, P.x + P.w / 2));
+    bossSet('heartRainWind'); sfx('warn');
+  }
   else { bossSet('kickAim'); sfx('warn'); }
 }
 function aiTobiume(b, B, pcx, pcy) {
@@ -2487,6 +2492,23 @@ function aiTobiume(b, B, pcx, pcy) {
       }
       const total = b.pr ? B.fanVolleysRage : 1;
       if (b.shots >= total && b.t > B.fanWindup + (total - 1) * 30 + 24) { bossSet('hover'); bossPickSide(); }
+      break;
+    }
+    case 'heartRainWind':
+      b.pose = 'attack'; bossHover(b, B, false);
+      if (b.t % 7 === 0) spawnPart(b.x + b.w / 2, b.y + 13, (b.t % 3 - 1) * 0.4, -0.8, 22, 0, '#ff9bce');
+      if (b.t >= B.heartRainWarn) { b.shots = 0; bossSet('heartRain'); sfx('bshoot'); }
+      break;
+    case 'heartRain': {
+      b.pose = 'attack'; bossHover(b, B, false);
+      const count = b.pr ? 3 : 2, at = 1 + b.shots * B.heartRainGap;
+      if (b.shots < count && b.t === at) {
+        const offset = b.shots === 0 ? -19 : b.shots === 1 ? 19 : 0;
+        const x = Math.max(ROOM_L + 4, Math.min(ROOM_R - 8, b.heartRainX + offset - 3));
+        const shot = spawnBullet(x, 34, 0, B.heartRainSpeed, 2, B.bulletDamage);
+        if (shot) { b.shots++; sfx('bshoot'); }
+      }
+      if (b.shots >= count && b.t > count * B.heartRainGap + 15) { bossSet('hover'); bossPickSide(); }
       break;
     }
     case 'swoopWind':
@@ -3627,6 +3649,18 @@ function drawBossMarks(camX) {
     for (let k = 1; k <= n; k++) g.fillRect(Math.round(b.mx + dx / len * k * 6 - camX), Math.round(b.my + dy / len * k * 6), 1, 1);
     const ax = Math.round(b.aimX - camX), ay = Math.round(b.aimY);
     g.fillRect(ax - 3, ay, 2, 1); g.fillRect(ax + 2, ay, 2, 1); g.fillRect(ax, ay - 3, 1, 2); g.fillRect(ax, ay + 2, 1, 2);
+  }
+  if (curArea.boss === 'tobiume' && (b.state === 'heartRainWind' || b.state === 'heartRain')) {
+    const num = b.pr ? 3 : 2, pulse = (frame >> 2) & 1;
+    for (let i = 0; i < num; i++) {
+      const dx = i === 0 ? -19 : i === 1 ? 19 : 0;
+      if (b.state === 'heartRain' && i < b.shots) continue;
+      const x = Math.round(b.heartRainX + dx - camX);
+      g.fillStyle = 'rgba(255,117,176,0.14)'; g.fillRect(x - 6, 31, 12, FLOOR_Y - 33);
+      g.fillStyle = pulse ? '#fff0f7' : '#ff79b3';
+      g.fillRect(x - 7, FLOOR_Y - 2, 14, 2);
+      g.fillRect(x - 2, 33, 5, 2); g.fillRect(x - 1, 35, 3, 3);
+    }
   }
   if (b.rainN > 0) { // marked rain columns
     for (let i = 0; i < b.rainN; i++) {
