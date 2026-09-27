@@ -40,7 +40,7 @@ body.land #hint{display:none;}
 </head>
 <body>
 <canvas id="screen" width="256" height="240"></canvas>
-<div id="eclipseTestBadge" style="display:none;position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">☾ ECLIPSE TEST / HALF HP</div>
+<div id="eclipseTestBadge" style="display:none;position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">☾ ECLIPSE BACKSTAB V7 / HALF HP</div>
 <script>if(new URLSearchParams(location.search).get("eclipse")==="1")document.getElementById("eclipseTestBadge").style.display="block";</script>
 <div id="pad">
   <div class="btn dpad" id="bL"><svg viewBox="0 0 24 24"><path d="M16 3 L5 12 L16 21 Z" fill="currentColor"/></svg></div>
@@ -1928,10 +1928,9 @@ function bossReset() {
   const T = bossType(), b = boss;
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
-  b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
+  b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
-  // Optional preview-only practice mode: test the phase-two combo immediately.
   if (curArea.boss === 'astarte' && QS.get('eclipse') === '1') {
     b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall');
   }
@@ -2733,7 +2732,7 @@ function astarteChoose(b, B) {
     bossRage() && !b.seen.includes('eclipse') ? pickPattern(['eclipse']) : pickPattern(pool);
   bossFacePlayer();
   if (a === 'slash') { b.shots = 0; bossSet('slash'); }
-  else if (a === 'warp') { b.warp2 = false; bossSet('warpOut'); sfx('warn'); }
+  else if (a === 'warp') { b.warp2 = false; b.eclipseFinisher = false; bossSet('warpOut'); sfx('warn'); }
   else if (a === 'cleave') { bossSet('cleave'); sfx('warn'); }
   else if (a === 'shadow') { bossSet('shadowOut'); sfx('warn'); }
   else if (a === 'starfall') { bossSet('starCast'); sfx('warn'); }
@@ -2785,7 +2784,7 @@ function aiAstarte(b, B, pcx, pcy) {
         b.fireT = 15; sfx('swoosh'); shake(4, 1);
       }
       if (b.t >= B.eclipseWind + B.eclipseGap + B.eclipseRecover) {
-        b.warp2 = true; bossSet('warpOut'); sfx('warn');
+        b.warp2 = true; b.eclipseFinisher = true; bossSet('warpOut'); sfx('warn');
       }
       break;
     }
@@ -2845,8 +2844,20 @@ function aiAstarte(b, B, pcx, pcy) {
       if (b.t % 3 === 0) { const h = hash(b.t, 19); spawnPart(b.x + (h % b.w), b.y + ((h >> 8) % b.h), 0, -0.6, 18, 5, '#c090ff'); }
       if (b.t >= B.fadeFrames) {
         b.hidden = true; b.alpha = 0;
-        let tx = pcx - P.face * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx + P.face * 40;
-        b.warnX = Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx)); b.warn = rage ? B.warnFramesRage : B.warnFrames;
+        let tx;
+        if (b.eclipseFinisher) {
+          // 90%: land behind Umine's facing direction; 10%: feint to the front.
+          // Flip to the other side only when the intended position would be outside the arena.
+          const side = Math.random() < 0.9 ? -P.face : P.face;
+          const minX = ROOM_L + b.w / 2 + 4, maxX = ROOM_R - b.w / 2 - 4;
+          tx = pcx + side * 29;
+          if (tx < minX || tx > maxX) tx = pcx - side * 29;
+          b.warnX = Math.max(minX, Math.min(maxX, tx));
+        } else {
+          tx = pcx - P.face * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx + P.face * 40;
+          b.warnX = Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx));
+        }
+        b.warn = rage ? B.warnFramesRage : B.warnFrames;
         bossSet('warpWarn'); sfx('warn');
       }
       break;
@@ -2863,7 +2874,7 @@ function aiAstarte(b, B, pcx, pcy) {
       break;
     case 'warpSlash':
       astarteFloat(b, B); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
-      if (b.t >= B.warpRecover) { if (rage && !b.warp2) { b.warp2 = true; bossSet('warpOut'); } else bossSet('hover'); }
+      if (b.t >= B.warpRecover) { if (rage && !b.warp2) { b.warp2 = true; bossSet('warpOut'); } else { b.eclipseFinisher = false; bossSet('hover'); } }
       break;
     case 'orbs': {
       astarteFloat(b, B); const T1 = 16 + B.orbFrames;
