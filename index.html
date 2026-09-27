@@ -2841,7 +2841,7 @@ function aiAstarte(b, B, pcx, pcy) {
         b.hidden = true; b.alpha = 0;
         let tx;
         if (b.eclipseFinisher) {
-          // 90%: land behind Umine's facing direction; 10%: feint to the front.
+          // The finale prioritizes a rear landing, with an occasional front feint.
           // Flip to the other side only when the intended position would be outside the arena.
           const side = Math.random() < 0.9 ? -P.face : P.face;
           const minX = ROOM_L + b.w / 2 + 4, maxX = ROOM_R - b.w / 2 - 4;
@@ -2849,7 +2849,9 @@ function aiAstarte(b, B, pcx, pcy) {
           if (tx < minX || tx > maxX) tx = pcx - side * 29;
           b.warnX = Math.max(minX, Math.min(maxX, tx));
         } else {
-          tx = pcx - P.face * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx + P.face * 40;
+          // Ordinary warp also prefers the player's rear, while sometimes attacking from the front.
+          const side = Math.random() < 0.8 ? -P.face : P.face;
+          tx = pcx + side * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx - side * 40;
           b.warnX = Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx));
         }
         b.warn = rage ? B.warnFramesRage : B.warnFrames;
