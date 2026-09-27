@@ -148,7 +148,7 @@ const CONFIG = {
       orbCount: 4, orbCountRage: 5, orbFrames: 82, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.8, orbDrift: 0.95,
       cleaveWind: 36, cleaveSpeed: 2.8, cleaveDamage: 3, cleaveRecovery: 26,
       shadowFade: 16, shadowWarning: 42, shadowWarningRage: 34, shadowDropSpeed: 4.4, shadowRecovery: 48,
-      starWarning: 52, starSpeed: 3.2, starDamage: 2, starRecover: 38, starCast: 22, starInterval: 12,
+      starWarning: 40, starSpeed: 3.2, starDamage: 2, starRecover: 38, starCast: 22, starInterval: 12,
       eclipseWind: 34, eclipseGap: 34, eclipseRecover: 18,
       rescueLineFrames: 240 },
   },
@@ -2758,7 +2758,7 @@ function aiAstarte(b, B, pcx, pcy) {
         b.starRainT = 1;
       }
       if (b.t % 4 === 0) spawnPart(bcx, b.y - 2, (b.t % 3 - 1) * 0.3, -0.6, 20, 5, '#ffe0a0');
-      if (b.t >= B.starCast) { bossSet('hover'); b.t = Math.max(0, B.idleFrames - 18); }
+      if (b.t >= B.starCast) { b.shots = 0; bossFacePlayer(); bossSet('slash'); }
       break;
     }
     case 'eclipse': { // enraged-only: low then high crescents, then one teleport scythe finisher
