@@ -3042,7 +3042,7 @@ function updateSupport() {
   support.t++;
   const t = support.t;
   if (support.kind === 'neenia') {
-    if (t === 28 || t === 48 || t === 68) {
+    if (t === 41 || t === 61 || t === 81) {
       // Three visible waves, each deals damage once across the active viewport.
       sfx('arrow'); shake(5, 1);
       for (const e of enemies) {
@@ -3055,7 +3055,7 @@ function updateSupport() {
         boss.inv = 0; damageBoss(null, 2);
       }
     }
-    if (t >= 102) support.active = false;
+    if (t >= 112) support.active = false;
     return;
   }
   // Approach from beyond the upper edge, then descend into the fight.
@@ -3089,7 +3089,7 @@ function drawSupport(camX) {
     // Light-filled volleys sweep the whole screen; they are scenery, not enemy bullets.
     for (const beat of [28, 48, 68]) {
       const dt = t - beat;
-      if (dt < -10 || dt > 14) continue;
+      if (dt < -10 || dt > 17) continue;
       for (let i = 0; i < 17; i++) {
         const px = i * 15 + ((i * 7 + beat) % 11);
         const py = Math.round(-18 + (dt + 10) * (8 + (i & 1)));
@@ -4017,7 +4017,7 @@ function render() {
     if (stateT > 60 && (frame >> 5) & 1) drawTextShadow('TAP OR ENTER: STAGE SELECT', VW / 2, 150, 'w', 1, 'c');
   }
   blit();
-  if (support.active && support.t < 90) {
+  if (support.active && support.t < 106) {
     if (support.kind === 'neenia') drawHiText('ネーニア・星降る矢雨！', VW / 2, 67, 8, '#e2ecff', '#253568');
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
   }
