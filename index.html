@@ -2021,7 +2021,7 @@ function loadProgress() {
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
     if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
     if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support; } catch (_) {}
-  if (QS.get('supporttest') === '1') progress.support = QS.get('supportfriend') === 'neenia' ? 'neenia' : 'tobiume';
+  if (QS.get('supporttest') === '1') progress.support = SUPPORT_ROSTER.includes(QS.get('supportfriend')) ? QS.get('supportfriend') : 'tobiume';
 }
 function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
 function markCleared(area) {
@@ -2034,17 +2034,18 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time. Future friends can join this roster.
-const SUPPORT_ROSTER = ['tobiume', 'neenia'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア' };
-const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ' };
+const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
 function refreshSupportButton() {
   const ok = (state === 'play' || state === 'ready') && !!equippedSupport() && !P.dead;
   helpBtn.style.display = ok ? 'flex' : 'none';
-  helpBtn.textContent = support.used ? 'USED' : equippedSupport() === 'neenia' ? 'RAIN' : 'KICK';
-  helpBtn.style.borderColor = equippedSupport() === 'neenia' ? '#a3c6ff' : '#ffa8cf';
+  const id = equippedSupport();
+  helpBtn.textContent = support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -2054,7 +2055,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', progress.support === 'tobiume' ? 'SUPER ULTRA TOBIUME KICK!' : progress.support === 'neenia' ? 'NEENIA: STARFALL ARROWS!' : 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NEENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -3034,13 +3035,54 @@ function castSupport() {
     if (e.alive && e.active && e.x + e.w > cam.x && e.x < cam.x + VW) { target = e.x + e.w / 2; break; }
   }
   support.x = Math.max(cam.x + 28, Math.min(cam.x + VW - 28, target));
-  support.y = support.kind === 'neenia' ? FLOOR_Y - 32 : -42;
+  support.y = support.kind === 'tobiume' ? -42 : FLOOR_Y - 32;
+  if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
+  if (support.kind === 'astarte') {
+    if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
+    support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
+  }
   support.face = P.face; sfx('warn'); refreshSupportButton();
 }
 function updateSupport() {
   if (!support.active) return;
   support.t++;
   const t = support.t;
+  if (support.kind === 'seiten') {
+    // A single burst of restorative song; the shield then stays active for two seconds.
+    support.x += (P.x + P.w / 2 + (P.face < 0 ? 20 : -20) - support.x) * 0.22;
+    support.y += (P.y - support.y) * 0.22;
+    if (t === 24) {
+      const gained = Math.min(6, CONFIG.playerMaxHP - P.hp);
+      P.hp += gained; stats.heals += gained;
+      P.inv = Math.max(P.inv, 120); sfx('song'); sfx('heal');
+      for (let i = 0; i < 16; i++) spawnPart(P.x + P.w / 2 + DIR8X[i % 8] * 12, P.y + P.h / 2 + DIR8Y[i % 8] * 12, DIR8X[i % 8] * 0.6, -0.65, 45, i % 4 === 0 ? 5 : 0, i % 2 ? '#ffb3cb' : '#ffe99b');
+    }
+    if (t >= 96) support.active = false;
+    return;
+  }
+  if (support.kind === 'astarte') {
+    if (t === 29 && !support.hit) {
+      support.hit = true; shake(13, 2); sfx('swoosh'); sfx('bhit');
+      const hitX = support.x;
+      if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+        boss.inv = 0; damageBoss(null, 4);
+      } else {
+        let best = null, bd = 80;
+        for (const e of enemies) {
+          if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+          const d = Math.abs(e.x + e.w / 2 - hitX);
+          if (d < bd) { best = e; bd = d; }
+        }
+        if (best) {
+          best.hp -= 4; best.flash = 13;
+          if (best.hp <= 0) killEnemy(best);
+        }
+      }
+      for (let i = 0; i < 20; i++) spawnPart(hitX + (i % 5 - 2) * 4, support.y + (i % 4 - 2) * 6, (i % 5 - 2) * 0.75, (i % 4 - 2) * 0.9, 20, 0, i % 3 ? '#c5b3ff' : '#fffaff');
+    }
+    if (t >= 63) support.active = false;
+    return;
+  }
   if (support.kind === 'neenia') {
     if (t === 41 || t === 61 || t === 81) {
       // Three visible waves, each deals damage once across the active viewport.
@@ -3080,6 +3122,32 @@ function updateSupport() {
 function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
+  if (support.kind === 'seiten') {
+    const fr = SHEETS.seiten, d = SHEET_DEFS.seiten, im = fr ? fr[(t >> 4) & 1] : SPR.ally.S[(t >> 4) & 1];
+    g.drawImage(pick(im, support.face, false), x - (fr ? (support.face > 0 ? d.cx : d.fw - d.cx) : 16), y - 23);
+    for (let i = 0; i < 5; i++) {
+      const px = x - 19 + i * 10, py = y - 30 - (i & 1) * 6 + Math.round(Math.sin(frame * 0.17 + i) * 4);
+      g.fillStyle = i & 1 ? '#fff4ab' : '#ff8ea8';
+      g.fillRect(px, py + 3, 3, 3); g.fillRect(px + 2, py - 3, 2, 8); g.fillRect(px + 4, py - 3, 3, 1);
+    }
+    if (t >= 24) {
+      const rad = (t - 24) * 2;
+      g.strokeStyle = '#ffe4aa'; g.lineWidth = 2;
+      g.beginPath(); g.ellipse(Math.round(P.x + P.w / 2 - camX), Math.round(P.y + P.h / 2), Math.min(28, rad), Math.min(27, rad), 0, 0, Math.PI * 2); g.stroke();
+    }
+    return;
+  }
+  if (support.kind === 'astarte') {
+    const fr = SHEETS.astarte, d = SHEET_DEFS.astarte, sp = fr ? fr[t < 29 ? 0 : 1] : SPR.ally.A[t < 29 ? 0 : 1];
+    g.drawImage(pick(sp, support.face, t >= 29 && t < 36 && (frame & 2)), x - (fr ? (support.face > 0 ? d.cx : d.fw - d.cx) : 16), y - 20);
+    if (t >= 23 && t <= 47) {
+      const w = Math.min(75, (t - 22) * 6);
+      g.strokeStyle = t & 2 ? '#eae2ff' : '#9c80fa'; g.lineWidth = 3;
+      g.beginPath(); g.arc(x, y - 3, w, -1.25, 0.65); g.stroke();
+      g.fillStyle = '#ffffff'; g.fillRect(x + Math.min(28, w), y - 12, 3, 3);
+    }
+    return;
+  }
   if (support.kind === 'neenia') {
     const N = SHEETS.neenia, face = support.face;
     if (N) {
@@ -3793,7 +3861,7 @@ function drawHUD() {
   for (let i = 0; i < CONFIG.magicMaxMP; i++) {
     g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
   }
-  if (equippedSupport()) drawText(support.used ? 'SUP USED' : equippedSupport() === 'neenia' ? 'SUP B: RAIN' : 'SUP B: KICK', 8, 42, support.used ? 'b' : 'y', 1);
+  if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: ' + ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[equippedSupport()] || 'HELP'), 8, 42, support.used ? 'b' : 'y', 1);
   if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
 }
 function drawHitboxes(camX) {
@@ -4019,6 +4087,8 @@ function render() {
   blit();
   if (support.active && support.t < 106) {
     if (support.kind === 'neenia') drawHiText('ネーニア・星降る矢雨！', VW / 2, 67, 8, '#e2ecff', '#253568');
+    else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
+    else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
   }
   // ---- high-res overlays: speech bubbles / dialogue / Japanese lines ----
