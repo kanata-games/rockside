@@ -28,6 +28,8 @@ body{position:fixed;inset:0;font-family:system-ui,-apple-system,"Segoe UI",sans-
 #bS.on{background:#d8466a;border-color:#ffb3c4;}
 #bJ{border-color:#4fae6e;background:#16281e;}
 #bJ.on{background:#3fbf68;border-color:#bfffd2;}
+#bM{border:2px solid #8acbe8;background:#15384d;color:#d7faff;border-radius:50%;font:800 10px/1 system-ui,sans-serif;pointer-events:auto;z-index:5;touch-action:none;}
+#bM.on{background:#3484aa;border-color:#e1ffff;}
 #mute{position:absolute;box-sizing:border-box;padding:0 10px;height:30px;border-radius:15px;text-align:center;
   border:2px solid #3a4666;background:#141a2c;color:#9fb0d8;font:700 12px/26px system-ui,sans-serif;letter-spacing:1px;
   pointer-events:auto;white-space:nowrap;}
@@ -45,6 +47,7 @@ body.land #hint{display:none;}
   <div class="btn dpad" id="bR"><svg viewBox="0 0 24 24"><path d="M8 3 L19 12 L8 21 Z" fill="currentColor"/></svg></div>
   <div class="btn round" id="bS">SHOT</div>
   <div class="btn round" id="bJ">JUMP</div>
+  <div class="btn" id="bM">ORB</div>
   <div id="mute">SOUND ON</div>
   <div id="hint">ROCKSIDE PROTOTYPE v0.1</div>
 </div>
@@ -81,6 +84,7 @@ const CONFIG = {
 
   // ---- player health ----
   playerMaxHP: 16,
+  magicMaxMP: 20, magicOrbCost: 6, magicRegenFrames: 50, magicOrbLife: 360,
   invincFrames: 90,       // blinking mercy frames after a hit
   knockbackFrames: 18,    // frames of lost control after a hit
   knockbackSpeed: 1.0,    // px/frame pushed away while stunned
@@ -1641,7 +1645,7 @@ function sfx(n) { Snd.play(n); }
 // =====================================================================
 const keys = { left: false, right: false, jump: false, shoot: false, up: false, down: false }; // up/down: stage-select cursor only
 const touch = { left: false, right: false, jump: false, shoot: false };
-const inp = { left: false, right: false, jump: false, shoot: false, jumpPressed: false, shootPressed: false, startPressed: false,
+const inp = { left: false, right: false, jump: false, shoot: false, magicPressed: false, jumpPressed: false, shootPressed: false, startPressed: false,
   enterPressed: false, backPressed: false, leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, resetPressed: false };
 const stats = { updates: 0, jumps: 0, shots: 0, kills: 0, hits: 0, deaths: 0, touchDowns: 0, playFrames: 0, arrows: 0, arrowKills: 0, heals: 0 };
 
@@ -1651,6 +1655,7 @@ window.addEventListener('keydown', e => {
   Snd.init();
   if (e.code === 'Enter' || e.code === 'NumpadEnter') { inp.startPressed = true; inp.enterPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
+  if (e.code === 'KeyC') { if (!e.repeat) inp.magicPressed = true; e.preventDefault(); return; }
   if (e.code === 'Escape') { inp.backPressed = true; return; } // stage select -> title
   if (e.code === 'Delete' || e.code === 'Backspace') { inp.resetPressed = true; e.preventDefault(); return; } // title: erase progress (press twice)
   const b = KEYMAP[e.code]; if (!b) return;
@@ -1665,6 +1670,11 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (!b) return; e.preventDefault(); keys[b] = false; refreshButtons(); });
 
 const pad = document.getElementById('pad'), muteBtn = document.getElementById('mute'), hintEl = document.getElementById('hint');
+const orbBtn = document.getElementById('bM');
+orbBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Snd.init(); inp.magicPressed = true; orbBtn.classList.add('on'); });
+orbBtn.addEventListener('pointerup', e => { e.preventDefault(); e.stopPropagation(); orbBtn.classList.remove('on'); });
+orbBtn.addEventListener('pointercancel', () => orbBtn.classList.remove('on'));
+orbBtn.addEventListener('lostpointercapture', () => orbBtn.classList.remove('on'));
 const BTN = { left: document.getElementById('bL'), right: document.getElementById('bR'), shoot: document.getElementById('bS'), jump: document.getElementById('bJ') };
 const BTN_ON = { left: false, right: false, shoot: false, jump: false };
 const ptrs = new Map(); // pointerId -> zone name
@@ -1763,11 +1773,13 @@ function doLayout() {
     margin = Math.max(12, Math.round(W * 0.035));
     cy = ctrlTop + ctrlH * 0.52;
     place(muteBtn, W - margin - 100, ctrlTop + 14, 100, 30);
+    place(orbBtn, Math.round(W / 2 - 24), ctrlTop + 12, 48, 48);
     hintEl.style.top = (H - 26) + 'px';
   } else {
     bs = Math.max(64, Math.min(92, H * 0.23));
     margin = 14; cy = H * 0.64; gap = 8;
     place(muteBtn, 10, 10, 96, 30);
+    place(orbBtn, W - 62, 10, 48, 48);
   }
   const lx = margin, rx = margin + bs + gap;
   place(BTN.left, lx, cy - bs / 2, bs, bs); place(BTN.right, rx, cy - bs / 2, bs, bs);
@@ -1786,6 +1798,8 @@ doLayout();
 const P = { x: 0, y: 0, w: 10, h: 20, vx: 0, vy: 0, face: 1, onGround: false, coyote: 0, jumpBuf: 0, jumping: false,
   shootT: 0, cool: 0, autoT: 0, shootBuf: 0, hp: 16, inv: 0, hurt: 0, knockDir: 0, dead: false, animT: 0 };
 const cam = { x: 0 };
+// Prototype special magic: a single temporary water-orb foothold.
+const magic = { mp: CONFIG.magicMaxMP, regen: 0, orb: null, cooldown: 0 };
 const shots = []; for (let i = 0; i < CONFIG.maxShots; i++) shots.push({ active: false, x: 0, y: 0, vx: 0, w: 7, h: 5 });
 // bullet kinds: 0 small, 2 heart, 3 star, 4 shockwave (Tobiume) / 6 arrow, 7 rain arrow (Neenia) /
 // 8 floor sound wave, 11 note (Seiten) / 9 crescent, 10 star orb, 12 scythe slash area (Astarte)
@@ -1940,6 +1954,7 @@ function resetStage(fromCP) {
   for (const r of arrows) r.active = false;
   for (const a of allies) { a.said = false; a.bubbleT = 0; a.act = 0; a.t = 0; }
   bossReset();
+  magic.mp = CONFIG.magicMaxMP; magic.regen = 0; magic.orb = null; magic.cooldown = 0;
   doorClosed = false; doorAnim = 0; introPhase = 0; hitStop = 0; shakeT = 0;
   cam.x = clampCam(P.x + P.w / 2 - VW / 2);
   setState('ready');
@@ -2056,6 +2071,27 @@ function fireShot() {
     stats.shots++; sfx('shot'); return;
   }
 }
+function castWaterOrb() {
+  if (magic.cooldown || magic.mp < CONFIG.magicOrbCost || P.dead) { sfx('buzz'); return; }
+  const x = Math.max(4, Math.min(LEVEL_W - 28, Math.round(P.x + P.w / 2 + P.face * 27 - 12)));
+  const y = Math.max(44, Math.round(P.y - 14));
+  // No casting into rock, doors or occupied ceiling space.
+  for (const [dx, dy] of [[0, 0], [23, 0], [0, 7], [23, 7]]) {
+    if (solid(Math.floor((x + dx) / TS), Math.floor((y + dy) / TS))) { sfx('buzz'); return; }
+  }
+  magic.orb = { x, y, w: 24, h: 8, life: CONFIG.magicOrbLife };
+  magic.mp -= CONFIG.magicOrbCost; magic.regen = 0; magic.cooldown = 18;
+  for (let k = 0; k < 8; k++) spawnPart(x + 12, y + 4, DIR8X[k], DIR8Y[k], 24, 0, '#89ebff');
+  sfx('cp');
+}
+function updateMagic() {
+  if (magic.cooldown > 0) magic.cooldown--;
+  if (magic.orb && --magic.orb.life <= 0) magic.orb = null;
+  if (magic.mp < CONFIG.magicMaxMP && ++magic.regen >= CONFIG.magicRegenFrames) {
+    magic.regen = 0; magic.mp++;
+  }
+  if (inp.magicPressed) castWaterOrb();
+}
 function updatePlayer() {
   const p = P;
   if (inp.jumpPressed) p.jumpBuf = CONFIG.jumpBufferFrames;
@@ -2088,7 +2124,14 @@ function updatePlayer() {
   if (p.shootBuf > 0) p.shootBuf--;
 
   p.vy += CONFIG.gravity; if (p.vy > CONFIG.maxFall) p.vy = CONFIG.maxFall;
+  const previousFeet = p.y + p.h;
   moveX(p); moveY(p);
+  // Falling only: the temporary orb acts like a one-way platform.
+  const orb = magic.orb;
+  if (orb && p.vy >= 0 && previousFeet <= orb.y + 3 && p.y + p.h >= orb.y &&
+      p.x + p.w > orb.x + 2 && p.x < orb.x + orb.w - 2) {
+    p.y = orb.y - p.h; p.vy = 0; p.onGround = true;
+  }
   if (p.onGround) { p.coyote = CONFIG.coyoteFrames; p.jumping = false; } else if (p.coyote > 0) p.coyote--;
   if (p.onGround && p.vx !== 0) p.animT++; else if (p.onGround) p.animT = 0;
   if (p.y > VH + 24) killPlayer(true);
@@ -3134,7 +3177,7 @@ function update() {
         break;
       case 'play':
         stats.playFrames++;
-        updatePlayer();
+        updateMagic(); updatePlayer();
         if (state !== 'play') break;
         updateEnemies(); updateAllies(); updateBoss(); updateShots(); updateArrows(); updateBullets(); playerContacts();
         updateCamera(); checkTriggers();
@@ -3155,7 +3198,7 @@ function update() {
     updateParticles();
     if (shakeT > 0) shakeT--;
   }
-  inp.jumpPressed = false; inp.shootPressed = false; inp.startPressed = false; inp.enterPressed = false; inp.resetPressed = false; inp.backPressed = false;
+  inp.magicPressed = false; inp.jumpPressed = false; inp.shootPressed = false; inp.startPressed = false; inp.enterPressed = false; inp.resetPressed = false; inp.backPressed = false;
   inp.leftPressed = false; inp.rightPressed = false; inp.upPressed = false; inp.downPressed = false;
 }
 
@@ -3560,10 +3603,25 @@ function drawBar(x, y, label, val, max, fill, align) {
   g.fillStyle = '#ffffff';
   for (let i = 0; i < max && i < val; i++) g.fillRect(bx + 2 + i * st, y + 8, pw, 1);
 }
+function drawWaterOrb(camX) {
+  const o = magic.orb; if (!o) return;
+  const x = Math.round(o.x - camX), y = Math.round(o.y + Math.sin(frame * 0.11) * 1.5);
+  g.fillStyle = 'rgba(91,204,250,0.19)'; g.fillRect(x - 3, y - 5, 30, 17);
+  g.fillStyle = '#256889'; g.fillRect(x, y, 24, 7);
+  g.fillStyle = '#68d4ff'; g.fillRect(x + 1, y, 22, 3);
+  g.fillStyle = '#ddfcff'; g.fillRect(x + 4, y + 1, 8, 1); g.fillRect(x + 17, y + 2, 3, 1);
+  g.fillStyle = '#b8edff'; g.fillRect(x + 2, y + 7, 20, 1);
+  if (o.life < 70 && (frame & 4)) { g.fillStyle = '#ffffff'; g.fillRect(x + 11, y - 3, 2, 2); }
+}
 function drawHUD() {
   drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
   if (boss.state !== 'off') drawBar(VW - 8, 8, BOSS_TYPES[curArea.boss].hud, boss.hpShown, bossCfg().hp, '#ff5d5d', 'r');
-  if (DEBUG.god) drawText('GOD', 8, 28, 'g', 1);
+  g.fillStyle = 'rgba(10,8,24,0.72)'; g.fillRect(6, 26, 92, 12);
+  drawText('MP', 8, 28, 'c', 1);
+  for (let i = 0; i < CONFIG.magicMaxMP; i++) {
+    g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
+  }
+  if (DEBUG.god) drawText('GOD', 8, 43, 'g', 1);
 }
 function drawHitboxes(camX) {
   g.strokeStyle = '#00ff00'; g.lineWidth = 1;
@@ -3756,6 +3814,7 @@ function render() {
   drawDoor(camX); drawAllies(camX);
   for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.alive && e.active) drawEnemy(e, camX); }
   drawBoss(camX);
+  drawWaterOrb(camX);
   if (!(state === 'ready' && (stateT & 8))) drawPlayer(camX);
   for (let i = 0; i < shots.length; i++) if (shots[i].active) drawShot(shots[i], camX);
   drawArrows(camX);
