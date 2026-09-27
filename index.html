@@ -1551,6 +1551,21 @@ function buildLevel() {
         for (let i = 0; i < 11; i++) { F(GD[3], x + 2 + i, y + 3 + i, 1, 1); F(GD[3], x + 13 - i, y + 3 + i, 1, 1); }
       }
     }
+    // Sunset-only surface foliage. Decorative pixels do not alter collisions.
+    if (curArea.id === 'sunset' && c < ROOM_COL) {
+      for (let r = 2; r < ROWS - 2; r++) {
+        if (tileAt(c, r) !== T_ROCK || tileAt(c, r - 1) !== T_EMPTY) continue;
+        const h = hash(c, 320 + r);
+        const x = c * TS, y = r * TS;
+        if ((h & 3) !== 0) {
+          F('#2a754a', x + 3, y - 3, 1, 3); F('#a8cf72', x + 6, y - 2, 1, 2);
+          F('#5ca766', x + 11, y - 4, 1, 4);
+        }
+        if ((h & 7) === 2) {
+          F('#d7a3cf', x + 6, y - 5, 2, 2); F('#ffe4a4', x + 7, y - 4, 1, 1);
+        }
+      }
+    }
   }
 }
 buildLevel();
@@ -3159,10 +3174,66 @@ const kanjiCv = mkCanvas(34, 17);
   }
 })();
 
+// Sunset Hills: hand-composed parallax landmarks follow the journey rather than
+// repeating every 512 pixels. All art is canvas pixel art, no external images.
+function drawSunsetLandmarks(camX) {
+  const p = 0.56, F = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  const screenX = world => world - camX * p;
+  // Amber haze grows into plum dusk as Umine travels toward the boss.
+  const dusk = Math.min(0.22, Math.max(0, camX / (LEVEL_W - VW)) * 0.22);
+  g.fillStyle = 'rgba(62,26,86,' + dusk.toFixed(3) + ')'; g.fillRect(0, 30, VW, 140);
+  // Distant fence posts / waymarkers; vary their heights and spacing.
+  for (const world of [235, 460, 1140, 1550, 1800]) {
+    const x = Math.round(screenX(world)); if (x < -30 || x > VW + 30) continue;
+    F(x, 139, 2, 25, '#51304e'); F(x - 4, 139, 11, 2, '#a06a78');
+    F(x + 2, 142, 8, 2, '#51304e'); F(x + 7, 144, 1, 5, '#51304e');
+  }
+  // Windmill at the ridge: animated blades, bright window and wooden support.
+  const wx = Math.round(screenX(690));
+  if (wx > -65 && wx < VW + 65) {
+    F(wx - 13, 135, 27, 31, '#463047'); F(wx - 10, 131, 21, 5, '#62405b');
+    F(wx - 16, 129, 33, 3, '#8c6170');
+    F(wx - 5, 118, 11, 39, '#53374f'); F(wx - 3, 122, 7, 4, '#ffc778');
+    const a = frame * 0.013, bx = wx + 1, by = 117;
+    for (let k = 0; k < 4; k++) {
+      const theta = a + k * Math.PI / 2;
+      const ex = Math.round(bx + Math.cos(theta) * 23), ey = Math.round(by + Math.sin(theta) * 23);
+      g.strokeStyle = '#d8a079'; g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke();
+      F(ex - 2, ey - 2, 5, 3, '#f3c38b');
+    }
+    F(wx - 1, 115, 4, 4, '#fff1c3');
+  }
+  // Ancient hilltop ruin near the upper route and the ravine.
+  const rx = Math.round(screenX(1220));
+  if (rx > -85 && rx < VW + 85) {
+    F(rx - 35, 147, 75, 17, '#4c3456'); F(rx - 30, 143, 66, 4, '#78506b');
+    for (const [ox, hh] of [[-27, 33],[-5, 41],[19, 29]]) {
+      F(rx + ox, 145 - hh, 8, hh, '#604263');
+      F(rx + ox - 3, 144 - hh, 14, 3, '#ad7180');
+      F(rx + ox + 1, 150 - hh, 2, hh - 9, '#79506f');
+    }
+    F(rx - 32, 106, 48, 3, '#714a69');
+  }
+  // Ravine-side bridge, silhouetted beyond the playable platforms.
+  const bx = Math.round(screenX(1560));
+  if (bx > -70 && bx < VW + 70) {
+    F(bx - 56, 159, 114, 3, '#6e4763');
+    for (let k = -3; k <= 3; k++) F(bx + k * 16, 157, 2, 19 + Math.abs(k) * 3, '#65405b');
+    F(bx - 55, 154, 112, 2, '#a56c78');
+  }
+  // Slowly drifting birds cross the final stretch; they are not enemies.
+  for (let i = 0; i < 5; i++) {
+    const x = Math.round(screenX(340 + i * 330) - (frame % 360) * (i & 1 ? 0.055 : 0.085));
+    const y = 65 + (hash(i, 42) % 32) + Math.round(Math.sin(frame * 0.028 + i) * 2);
+    if (x < 5 || x > VW - 5) continue;
+    F(x - 3, y, 3, 1, '#f9ba9e'); F(x, y + 1, 1, 1, '#f9ba9e'); F(x + 1, y, 3, 1, '#f9ba9e');
+  }
+}
 function drawBackground(camX) {
   g.drawImage(skyCv, 0, 0);
   let fx = -Math.floor(camX * 0.15) % 512; if (fx > 0) fx -= 512;
   g.drawImage(farCv, fx, 0); g.drawImage(farCv, fx + 512, 0);
+  if (curArea.id === 'sunset') drawSunsetLandmarks(camX);
   let nx = -Math.floor(camX * 0.4) % 512; if (nx > 0) nx -= 512;
   g.drawImage(nearCv, nx, 0); g.drawImage(nearCv, nx + 512, 0);
 }
