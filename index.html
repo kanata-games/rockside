@@ -145,7 +145,7 @@ const CONFIG = {
     astarte: { hp: 40, iFrames: 12, contactDamage: 3, crescentDamage: 3, slashDamage: 3, orbDamage: 2,   // v5: 28 -> 40 HP
       floatGap: 4, glideSpeed: 1.2, keepDist: 84, idleFrames: 50, idleFramesRage: 30,
       windFrames: 26, crescentSpeed: 2.4, fadeFrames: 18, warnFrames: 38, warnFramesRage: 28, warpRecover: 34,
-      orbCount: 4, orbCountRage: 5, orbFrames: 120, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.5, orbDrift: 0.35,
+      orbCount: 4, orbCountRage: 5, orbFrames: 82, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.8, orbDrift: 0.95,
       cleaveWind: 36, cleaveSpeed: 2.8, cleaveDamage: 3, cleaveRecovery: 26,
       shadowFade: 16, shadowWarning: 42, shadowWarningRage: 34, shadowDropSpeed: 4.4, shadowRecovery: 48,
       starWarning: 52, starSpeed: 3.2, starDamage: 2, starRecover: 38,
@@ -2687,8 +2687,20 @@ function aiSeiten(b, B, pcx, pcy) {
 //   c) 'orbs'  : star orbs circle her while she drifts toward the player, then fly outwards
 // ---------------------------------------------------------------------
 function astarteFloat(b, B) { b.bob++; const ty = FLOOR_Y - b.h - B.floatGap - (Math.sin(b.bob * 0.07) + 1) * 2; b.y += (ty - b.y) * 0.2; }
+// Controlled pursuit: the boss keeps her face toward Umine and avoids overlapping her.
+function astarteOrbitAdvance(b, B, pcx, gap, speed) {
+  const dx = pcx - (b.x + b.w / 2), ad = Math.abs(dx);
+  if (ad > gap + 5) b.x += Math.sign(dx) * Math.min(speed, ad - gap);
+  else if (ad < gap - 12 && ad > 1) b.x -= Math.sign(dx) * Math.min(speed * 0.6, gap - 12 - ad);
+  bossFacePlayer();
+}
 function astarteChoose(b, B) {
-  const a = pickPattern(bossRage() ? ['slash', 'warp', 'orbs', 'cleave', 'shadow', 'starfall', 'eclipse'] : ['slash', 'warp', 'orbs', 'cleave', 'shadow', 'starfall']); bossFacePlayer();
+  // Show the newly introduced mechanics reliably before the boss can be defeated.
+  // Starfall debuts on the first attack, Eclipse on the first decision after reaching half HP.
+  const pool = bossRage() ? ['slash', 'warp', 'orbs', 'cleave', 'shadow', 'starfall', 'eclipse'] : ['slash', 'warp', 'orbs', 'cleave', 'shadow', 'starfall'];
+  const a = !b.seen.includes('starfall') ? pickPattern(['starfall']) :
+    bossRage() && !b.seen.includes('eclipse') ? pickPattern(['eclipse']) : pickPattern(pool);
+  bossFacePlayer();
   if (a === 'slash') { b.shots = 0; bossSet('slash'); }
   else if (a === 'warp') { b.warp2 = false; bossSet('warpOut'); sfx('warn'); }
   else if (a === 'cleave') { bossSet('cleave'); sfx('warn'); }
@@ -2722,8 +2734,9 @@ function aiAstarte(b, B, pcx, pcy) {
       if (b.shots >= n && b.t > B.windFrames + (n - 1) * 32 + 26) bossSet('hover');
       break;
     }
-    case 'starWarn': { // three locked landing markers: escape through gaps or keep moving
+    case 'starWarn': { // summon falling stars while gliding toward Umine rather than standing still
       astarteFloat(b, B); b.pose = 'attack'; b.poseF = 0;
+      astarteOrbitAdvance(b, B, pcx, 52, 0.82);
       if (b.t === 1) {
         const target = Math.max(ROOM_L + 15, Math.min(ROOM_R - 15, pcx));
         for (let k = 0; k < 3; k++) b.markX[k] = Math.max(ROOM_L + 9, Math.min(ROOM_R - 9, target + (k - 1) * 52));
@@ -2734,6 +2747,7 @@ function aiAstarte(b, B, pcx, pcy) {
     }
     case 'starDrop': {
       astarteFloat(b, B); b.pose = 'attack'; b.poseF = 1;
+      astarteOrbitAdvance(b, B, pcx, 52, 0.92);
       if (b.t === 1 || b.t === 12 || b.t === 23) {
         const k = b.t === 1 ? 1 : b.t === 12 ? 0 : 2;
         const star = spawnBullet(b.markX[k] - 5, TS + 4, 0, B.starSpeed, 18, B.starDamage);
@@ -2840,7 +2854,7 @@ function aiAstarte(b, B, pcx, pcy) {
         for (let k = 0; k < n; k++) { const o = spawnBullet(bcx, b.y, 0, 0, 10, B.orbDamage); if (o) { o.orbit = true; o.ang = k * Math.PI * 2 / n; o.rad = 6; o.spin = rage ? B.orbSpinRage : B.orbSpin; } }
         sfx('cp');
       }
-      if (b.t > 22 && b.t < T1) { bossFacePlayer(); const dx = pcx - bcx; if (Math.abs(dx) > 8) b.x += Math.sign(dx) * B.orbDrift; }
+      if (b.t > 16 && b.t < T1) astarteOrbitAdvance(b, B, pcx, 38, B.orbDrift);
       if (b.t === T1) { for (const o of bullets) if (o.active && o.orbit) { o.orbit = false; o.vx = Math.cos(o.ang) * B.orbSpeed; o.vy = Math.sin(o.ang) * B.orbSpeed * 0.72; } sfx('bshoot'); }
       if (b.t > T1 + 30) bossSet('hover');
       break;
