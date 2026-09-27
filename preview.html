@@ -2462,6 +2462,7 @@ function bossChoose() {
   else if (a === 'swoop') { bossSet('swoopWind'); sfx('warn'); }
   else if (a === 'heartRain') {
     boss.heartRainX = Math.max(ROOM_L + 38, Math.min(ROOM_R - 38, P.x + P.w / 2));
+    bossPickSide(); // cast while flying across the room; rain target remains locked to its warning
     bossSet('heartRainWind'); sfx('warn');
   }
   else { bossSet('kickAim'); sfx('warn'); }
@@ -2495,12 +2496,12 @@ function aiTobiume(b, B, pcx, pcy) {
       break;
     }
     case 'heartRainWind':
-      b.pose = 'attack'; bossHover(b, B, false);
+      b.pose = 'attack'; bossHover(b, B, true);
       if (b.t % 7 === 0) spawnPart(b.x + b.w / 2, b.y + 13, (b.t % 3 - 1) * 0.4, -0.8, 22, 0, '#ff9bce');
       if (b.t >= B.heartRainWarn) { b.shots = 0; bossSet('heartRain'); sfx('bshoot'); }
       break;
     case 'heartRain': {
-      b.pose = 'attack'; bossHover(b, B, false);
+      b.pose = 'attack'; bossHover(b, B, true);
       const count = b.pr ? 3 : 2, at = 1 + b.shots * B.heartRainGap;
       if (b.shots < count && b.t === at) {
         const offset = b.shots === 0 ? -19 : b.shots === 1 ? 19 : 0;
