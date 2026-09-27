@@ -3046,9 +3046,9 @@ function aiDisaster(b, B, pcx, pcy) {
           spawnBullet(sx, yy, Math.cos(a) * 3.45, Math.sin(a) * 3.45, 6, 2);
         }
       } else if (b.weapon === 'scythe') {
-        spawnBullet(sx, FLOOR_Y - 33, sign * 2.6, 0, 9, 3);
-        spawnBullet(sx, FLOOR_Y - 61, sign * 2.25, 0, 9, 2);
-        if (rage) spawnBullet(sx, FLOOR_Y - 86, sign * 1.9, 0, 6, 2);
+        // One clearly readable, jumpable low crescent per swing.
+        // The old simultaneous high + low waves covered both escape routes.
+        spawnBullet(sx, FLOOR_Y - 24, sign * (rage ? 3.0 : 2.6), 0, 9, 3);
       }
       b.fireT = 14; sfx('bshoot'); bossSet('disasterRecover');
     }
