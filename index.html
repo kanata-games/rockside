@@ -2021,6 +2021,7 @@ function loadProgress() {
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
     if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
     if (d && d.support === 'tobiume') progress.support = 'tobiume'; } catch (_) {}
+  if (QS.get('supporttest') === '1' && !progress.support) progress.support = 'tobiume';
 }
 function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
 function markCleared(area) {
