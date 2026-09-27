@@ -98,6 +98,7 @@ const CONFIG = {
     walker: { hp: 2, speed: 0.5, damage: 2, hurtUp: 8 },   // contact 12x12, hurtbox 12x20
     hopper: { hp: 3, jumpVel: 4.5, hopSpeed: 1.2, waitFrames: 55, damage: 3, hurtUp: 9 }, // contact 12x11, hurtbox 12x20
     flyer:  { hp: 2, speed: 0.5, bobAmp: 10, fireInterval: 130, bulletSpeed: 1.3, damage: 2, leash: 96 },
+    sentry: { hp: 3, patrolSpeed: 0.35, alertRange: 80, warnFrames: 26, dashSpeed: 1.8, dashFrames: 24, cooldownFrames: 90, damage: 2, hurtUp: 8 },
   },
 
   // ---- boss: 闇落ち飛梅 (Dark Tobiume) - flying boss ----
@@ -215,7 +216,7 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "............####",
-"......W....#####",
+"......Q....#####",
 "################",
 "################"],
 [ // 2 step down, small pit, hopper
@@ -849,7 +850,7 @@ function loadMap(screens) {
     else if (ch === 'P') { START_C = c; START_R = r; }
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
-    else if (ch === 'W' || ch === 'H' || ch === 'F') spawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'W' || ch === 'H' || ch === 'F' || ch === 'Q') spawns.push({ type: ch, c: c, r: r });
     else if (ch === 'A' || ch === 'N' || ch === 'S') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
@@ -1022,6 +1023,17 @@ function artHopper(R, f) {
   if (!f) { R('#9aa3b8', 5, 13 + T, 6, 1); R('#5b6278', 5, 14 + T, 6, 1); R('#9aa3b8', 5, 15 + T, 6, 1); }
   else { for (let i = 0; i < 7; i++) R(i & 1 ? '#5b6278' : '#9aa3b8', 6, 9 + T + i, 4, 1); }
 }
+// ---- MOON SENTRY: same 16x22 scale as existing ground enemies ----
+function artSentry(R, f) {
+  const dark = '#34364d', armour = '#7887a9', light = '#b5c6e4', moon = '#81d9ec';
+  R(dark, 5, 0, 6, 3); R(armour, 4, 3, 8, 5); R(light, 5, 4, 6, 1);
+  R(moon, 7, 5, 4, 2); R('#ffffff', 9, 5, 1, 1);
+  R(dark, 2, 8, 12, 9); R(armour, 3, 9, 10, 7); R(light, 4, 10, 3, 1);
+  R(moon, 7, 11, 2, 3); R('#356f91', 8, 12, 1, 2);
+  R(dark, 1, 10, 2, 7); R(dark, 13, 10, 2, 7);
+  R(armour, f ? 4 : 3, 17, 4, 4); R(armour, f ? 9 : 8, 17, 4, 4);
+  R(light, f ? 4 : 3, 20, 4, 1); R(light, f ? 9 : 8, 20, 4, 1);
+}
 // ---- FLYER: "BUZZKITE" (16x14) ----
 function artFlyer(R, f) {
   R('#9aa3b8', 7, 2, 2, 3);
@@ -1030,7 +1042,7 @@ function artFlyer(R, f) {
   R('#ffffff', 8, 6, 4, 3); R('#ff3b3b', 10, 7, 2, 1);
   R('#6b7288', 7, 11, 2, 2);
 }
-const SPR = { hero: {}, walker: [], hopper: [], flyer: [], tobi: { dark: {}, normal: {} }, ally: {} };
+const SPR = { hero: {}, walker: [], hopper: [], flyer: [], sentry: [], tobi: { dark: {}, normal: {} }, ally: {} };
 const OUT = [16, 14, 40];
 (function buildSprites() {
   const poses = ['stand', 'run0', 'run1', 'run2', 'jump', 'hurt'];
@@ -1039,6 +1051,7 @@ const OUT = [16, 14, 40];
     SPR.walker.push(makeSprite(16, 22, R => artWalker(R, f), [26, 15, 10]));
     SPR.hopper.push(makeSprite(16, 22, R => artHopper(R, f), [12, 30, 14]));
     SPR.flyer.push(makeSprite(16, 14, R => artFlyer(R, f), [30, 12, 44]));
+    SPR.sentry.push(makeSprite(16, 22, R => artSentry(R, f), [22, 24, 42]));
   }
   // water bullet (droplet pointing right; flipped copy used for left)
   SPR.shot = makeSprite(8, 6, R => { R('#bfeaff', 0, 2, 2, 2); R('#3a8fd8', 2, 1, 5, 4); R('#3a8fd8', 3, 0, 3, 6); R('#7fd6ff', 3, 1, 4, 4); R('#ffffff', 5, 1, 1, 2); }, null);
@@ -1761,6 +1774,7 @@ function makeEnemy(s) {
     alive: true, active: false, flash: 0, onGround: false, homeX: 0, homeY: 0 };
   if (s.type === 'H') { e.w = 12; e.h = 11; e.ox = 2; e.oy = 11; e.hurtUp = CONFIG.enemy.hopper.hurtUp || 0; }
   if (s.type === 'F') { e.w = 12; e.h = 9; e.ox = 2; e.oy = 4; e.hurtUp = 0; }
+  if (s.type === 'Q') { e.hurtUp = CONFIG.enemy.sentry.hurtUp; e.phase = 'patrol'; e.phaseT = 0; }
   return e;
 }
 const boss = { state: 'off', x: 0, y: 0, w: 20, h: 34, vx: 0, vy: 0, hp: 0, hpShown: 0, face: -1, t: 0, inv: 0, flash: 0,
@@ -1892,9 +1906,10 @@ function resetStage(fromCP) {
   for (const b of bullets) b.active = false;
   for (const p of parts) p.active = false;
   for (const e of enemies) {
-    const def = e.type === 'W' ? CONFIG.enemy.walker : e.type === 'H' ? CONFIG.enemy.hopper : CONFIG.enemy.flyer;
+    const def = e.type === 'W' ? CONFIG.enemy.walker : e.type === 'H' ? CONFIG.enemy.hopper : e.type === 'Q' ? CONFIG.enemy.sentry : CONFIG.enemy.flyer;
     e.hp = def.hp; e.alive = true; e.active = false; e.flash = 0; e.vx = 0; e.vy = 0; e.face = -1; e.t = 0; e.fireT = 60;
     e.x = e.c * TS + (TS - e.w) / 2; e.y = e.type === 'F' ? e.r * TS : (e.r + 1) * TS - e.h; e.homeX = e.x; e.homeY = e.y;
+    if (e.type === 'Q') { e.phase = 'patrol'; e.phaseT = 0; }
   }
   for (const r of arrows) r.active = false;
   for (const a of allies) { a.said = false; a.bubbleT = 0; a.act = 0; a.t = 0; }
@@ -2089,6 +2104,20 @@ function updateEnemies() {
         const fx = e.face > 0 ? e.x + e.w + 1 : e.x - 1;
         if (!solid(Math.floor(fx / TS), Math.floor((e.y + e.h + 2) / TS))) e.face = -e.face;
       }
+    } else if (e.type === 'Q') {
+      const d = CONFIG.enemy.sentry, dx = pcx - (e.x + e.w / 2);
+      if (e.phase === 'patrol' && Math.abs(dx) < d.alertRange && Math.abs(pcy - (e.y + e.h / 2)) < 35) {
+        e.phase = 'warn'; e.phaseT = d.warnFrames; e.face = dx < 0 ? -1 : 1;
+      }
+      if (e.phase === 'warn') { e.vx = 0; if (--e.phaseT <= 0) { e.phase = 'dash'; e.phaseT = d.dashFrames; } }
+      else if (e.phase === 'dash') { e.vx = e.face * d.dashSpeed; if (--e.phaseT <= 0) { e.phase = 'cooldown'; e.phaseT = d.cooldownFrames; } }
+      else if (e.phase === 'cooldown') { e.vx = 0; if (--e.phaseT <= 0) e.phase = 'patrol'; }
+      else e.vx = e.face * d.patrolSpeed;
+      const blocked = moveX(e);
+      e.vy = Math.min(e.vy + CONFIG.gravity, CONFIG.maxFall); moveY(e);
+      const fx = e.face > 0 ? e.x + e.w + 1 : e.x - 1;
+      const ledge = e.onGround && !solid(Math.floor(fx / TS), Math.floor((e.y + e.h + 2) / TS));
+      if (blocked || ledge) { e.face = -e.face; if (e.phase === 'dash') { e.phase = 'cooldown'; e.phaseT = d.cooldownFrames; } }
     } else if (e.type === 'H') {
       const d = CONFIG.enemy.hopper;
       if (e.onGround) {
@@ -2131,8 +2160,8 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
-function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
-function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
+function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : e.type === 'Q' ? CONFIG.enemy.sentry.damage : CONFIG.enemy.flyer.damage; }
+function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : e.type === 'Q' ? '#81d9ec' : '#a45ee5'; }
 
 // ---------------------------------------------------------------------
 //  Bosses. Shared: boss object, enter (drop in through the ceiling hatch), HP fill, damage,
@@ -3030,7 +3059,13 @@ function drawHopper(e, camX, white) { g.drawImage(pick(SPR.hopper[e.onGround ? 0
 function drawFlyer(e, camX, white) { g.drawImage(pick(SPR.flyer[(e.t >> 2) & 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
 function drawEnemy(e, camX) {
   const white = e.flash > 0 && (e.flash & 2);
-  if (e.type === 'W') drawWalker(e, camX, white); else if (e.type === 'H') drawHopper(e, camX, white); else drawFlyer(e, camX, white);
+  if (e.type === 'W') drawWalker(e, camX, white);
+  else if (e.type === 'H') drawHopper(e, camX, white);
+  else if (e.type === 'Q') {
+    const f = e.phase === 'warn' ? 1 : ((e.t >> (e.phase === 'dash' ? 2 : 4)) & 1);
+    g.drawImage(pick(SPR.sentry[f], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy));
+    if (e.phase === 'warn' && (e.t & 4)) { g.fillStyle = '#81d9ec'; g.fillRect(Math.round(e.x + e.w / 2 - 1 - camX), Math.round(e.y - 17), 3, 3); }
+  } else drawFlyer(e, camX, white);
 }
 // Tobiume: dark = tobiume_dark.png (48x48) / rescued = tobiume.png (normal, 32x32, 15 frames)
 // or procedural 40x40 art. Anchored on the hitbox bottom-centre (feet) with the per-sheet body centre.
