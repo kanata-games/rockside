@@ -146,6 +146,8 @@ const CONFIG = {
       floatGap: 4, glideSpeed: 1.2, keepDist: 84, idleFrames: 50, idleFramesRage: 30,
       windFrames: 26, crescentSpeed: 2.4, fadeFrames: 18, warnFrames: 38, warnFramesRage: 28, warpRecover: 34,
       orbCount: 4, orbCountRage: 5, orbFrames: 120, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.5, orbDrift: 0.35,
+      cleaveWind: 36, cleaveSpeed: 2.8, cleaveDamage: 3, cleaveRecovery: 26,
+      shadowFade: 16, shadowWarning: 42, shadowWarningRage: 34, shadowDropSpeed: 4.4, shadowRecovery: 48,
       rescueLineFrames: 240 },
   },
 
@@ -2157,7 +2159,7 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
   }
   return null;
 }
-const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32],
+const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : e.type === 'Q' ? CONFIG.enemy.sentry.damage : CONFIG.enemy.flyer.damage; }
@@ -2684,9 +2686,11 @@ function aiSeiten(b, B, pcx, pcy) {
 // ---------------------------------------------------------------------
 function astarteFloat(b, B) { b.bob++; const ty = FLOOR_Y - b.h - B.floatGap - (Math.sin(b.bob * 0.07) + 1) * 2; b.y += (ty - b.y) * 0.2; }
 function astarteChoose(b, B) {
-  const a = pickPattern(['slash', 'warp', 'orbs']); bossFacePlayer();
+  const a = pickPattern(['slash', 'warp', 'orbs', 'cleave', 'shadow']); bossFacePlayer();
   if (a === 'slash') { b.shots = 0; bossSet('slash'); }
   else if (a === 'warp') { b.warp2 = false; bossSet('warpOut'); sfx('warn'); }
+  else if (a === 'cleave') { bossSet('cleave'); sfx('warn'); }
+  else if (a === 'shadow') { bossSet('shadowOut'); sfx('warn'); }
   else bossSet('orbs');
 }
 function aiAstarte(b, B, pcx, pcy) {
@@ -2712,6 +2716,57 @@ function aiAstarte(b, B, pcx, pcy) {
         b.fireT = 14; sfx('swoosh'); shake(3, 1); b.shots++;
       }
       if (b.shots >= n && b.t > B.windFrames + (n - 1) * 32 + 26) bossSet('hover');
+      break;
+    }
+    case 'cleave': { // telegraphed diagonal moon-blade, aimed at the player's current height
+      astarteFloat(b, B); b.pose = 'attack'; b.poseF = b.t < B.cleaveWind ? 0 : 1;
+      if (b.t < B.cleaveWind && b.t % 4 === 0) spawnPart(bcx, b.y + 12, b.face * 0.35, -0.4, 15, 5, '#b0b8ff');
+      if (b.t === B.cleaveWind) {
+        bossFacePlayer();
+        const sx = b.x + b.w / 2 + b.face * 10, sy = b.y + b.h / 2 - 5;
+        const dx = pcx - sx, dy = pcy - sy, len = Math.hypot(dx, dy) || 1;
+        const wave = spawnBullet(sx - 6, sy - 6, dx / len * B.cleaveSpeed, dy / len * B.cleaveSpeed, 17, B.cleaveDamage);
+        if (wave) wave.life = 95;
+        sfx('swoosh'); shake(4, 1);
+      }
+      if (b.t > B.cleaveWind + B.cleaveRecovery) bossSet('hover');
+      break;
+    }
+    case 'shadowOut': {
+      astarteFloat(b, B); b.pose = 'glide'; b.poseF = -1;
+      b.alpha = Math.max(0, 1 - b.t / B.shadowFade);
+      if (b.t % 3 === 0) spawnPart(bcx, b.y + b.h / 2, (b.t % 5 - 2) * 0.2, -0.6, 18, 5, '#c090ff');
+      if (b.t >= B.shadowFade) {
+        b.warnX = Math.max(ROOM_L + b.w / 2 + 8, Math.min(ROOM_R - b.w / 2 - 8, pcx));
+        b.warn = rage ? B.shadowWarningRage : B.shadowWarning;
+        b.hidden = true; b.alpha = 0; bossSet('shadowWarn'); sfx('warn');
+      }
+      break;
+    }
+    case 'shadowWarn': {
+      if (--b.warn <= 0) {
+        b.x = b.warnX - b.w / 2; b.y = FLOOR_Y - b.h - 76;
+        b.hidden = false; b.alpha = 1; b.pose = 'attack'; b.poseF = 0;
+        bossSet('shadowDive'); sfx('swoosh');
+      }
+      break;
+    }
+    case 'shadowDive': {
+      b.pose = 'attack'; b.poseF = 1;
+      b.y = Math.min(FLOOR_Y - b.h - B.floatGap, b.y + B.shadowDropSpeed);
+      if (b.y >= FLOOR_Y - b.h - B.floatGap) {
+        b.fireT = 16; shake(7, 2); sfx('land');
+        for (let i = 0; i < 8; i++) spawnPart(b.x + b.w / 2, FLOOR_Y - 3, DIR8X[i] * 1.2, -Math.abs(DIR8Y[i]) * 1.3, 18, 0, i & 1 ? '#e0c0ff' : '#ff4a6a');
+        // Two outward ground waves leave a safe gap for a jump or a well-timed retreat.
+        spawnBullet(b.x - 8, FLOOR_Y - 21, -B.crescentSpeed, 0, 9, B.crescentDamage);
+        spawnBullet(b.x + b.w, FLOOR_Y - 21, B.crescentSpeed, 0, 9, B.crescentDamage);
+        bossSet('shadowRecover');
+      }
+      break;
+    }
+    case 'shadowRecover': {
+      b.pose = 'attack'; b.poseF = b.t < 15 ? 1 : 0;
+      if (b.t >= B.shadowRecovery) bossSet('hover');
       break;
     }
     case 'warpOut':
@@ -3163,6 +3218,13 @@ function drawBossMarks(camX) {
     g.fillRect(x - 3, y - 12, 7, 2); g.fillRect(x - 2, y - 10, 5, 1); g.fillRect(x - 1, y - 9, 3, 1); g.fillRect(x, y - 8, 1, 1); // small ▼
     if (snare) { g.fillRect(x - 5, y - 6, 1, 3); g.fillRect(x + 5, y - 6, 1, 3); g.fillRect(x, y - 7, 1, 3); }            // thorn hint
   }
+  if (b.state === 'shadowWarn' || b.state === 'shadowDive') { // locked landing point; distinct from warp-slash mark
+    const x = Math.round(b.warnX - camX), y = FLOOR_Y;
+    g.fillStyle = 'rgba(160,115,255,0.2)'; g.fillRect(x - 12, y - 78, 24, 76);
+    g.fillStyle = blink ? '#ffffff' : '#b0b8ff';
+    g.fillRect(x - 12, y - 2, 24, 2); g.fillRect(x - 2, y - 6, 4, 6);
+    for (let k = -10; k <= 10; k += 5) g.fillRect(x + k, y - 10 - Math.abs(k) / 2, 2, 3);
+  }
   if (b.state === 'warpWarn') { // Astarte's reappear mark
     const x = Math.round(b.warnX - camX), y = FLOOR_Y;
     g.fillStyle = blink ? '#ff3a5a' : '#ffc0d0';
@@ -3242,6 +3304,15 @@ function drawBullet(b, camX) {
       const px = dir > 0 ? x + 2 + bow : x + 9 - bow - th;
       g.fillStyle = (frame & 2) ? '#ff2a4a' : '#d01040'; g.fillRect(px, y + dy, th, 1);
       g.fillStyle = '#ffe0e6'; if (th > 2) g.fillRect(dir > 0 ? px + th - 1 : px, y + dy, 1, 1); }
+  } else if (b.kind === 17) { // diagonal moon cleave: luminous scythe-shaped crescent
+    const ux = b.vx >= 0 ? 1 : -1, uy = b.vy >= 0 ? 1 : -1;
+    g.fillStyle = 'rgba(160,115,255,0.32)'; g.fillRect(x - 2, y - 2, 16, 16);
+    for (let k = 0; k < 12; k++) {
+      const bow = Math.round(Math.sin(k / 11 * Math.PI) * 5);
+      g.fillStyle = (frame & 2) ? '#e0c8ff' : '#b0b8ff';
+      g.fillRect(x + (ux > 0 ? bow : 11 - bow), y + (uy > 0 ? k : 11 - k), 2, 1);
+    }
+    g.fillStyle = '#ffffff'; g.fillRect(x + 5, y + 5, 2, 2);
   } else if (b.kind === 10) { // star orb
     const tw = (frame >> 2) & 1;
     g.fillStyle = 'rgba(255,230,140,0.4)'; g.fillRect(x + 2, y - 2, 4, 12); g.fillRect(x - 2, y + 2, 12, 4); g.fillRect(x, y, 8, 8);
