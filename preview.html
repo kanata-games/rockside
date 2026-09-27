@@ -148,7 +148,7 @@ const CONFIG = {
       orbCount: 4, orbCountRage: 5, orbFrames: 82, orbRadius: 36, orbSpin: 0.045, orbSpinRage: 0.052, orbSpeed: 1.8, orbDrift: 0.95,
       cleaveWind: 36, cleaveSpeed: 2.8, cleaveDamage: 3, cleaveRecovery: 26,
       shadowFade: 16, shadowWarning: 42, shadowWarningRage: 34, shadowDropSpeed: 4.4, shadowRecovery: 48,
-      starWarning: 52, starSpeed: 3.2, starDamage: 2, starRecover: 38, starCast: 22, starInterval: 12,
+      starWarning: 40, starSpeed: 3.2, starDamage: 2, starRecover: 38, starCast: 22, starInterval: 12,
       eclipseWind: 34, eclipseGap: 34, eclipseRecover: 18,
       rescueLineFrames: 240 },
   },
@@ -2227,7 +2227,16 @@ function damageBoss(s) {
   const b = boss;
   if (!bossHittable()) return false;
   if (b.inv > 0) { sfx('tink'); return true; }
+  const hpBefore = b.hp;
   b.hp -= CONFIG.shotDamage; b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
+  // Astarte phase 2: interrupt the current attack on the actual 50% HP crossing,
+  // rather than waiting for a long orb animation or the next random choice.
+  if (curArea.boss === 'astarte' && hpBefore > bossCfg().hp / 2 && b.hp <= bossCfg().hp / 2 && b.hp > 0 && !b.hidden) {
+    bossSeen('eclipse'); b.fireT = 0;
+    // Clear old orbit bullets so the transition remains readable. Delayed star rain is independent.
+    for (const bb of bullets) if (bb.active && bb.orbit) bb.active = false;
+    bossSet('eclipse'); sfx('warn');
+  }
   if (b.hp <= 0) {
     b.hp = 0; b.hidden = false; b.alpha = 1; bossSet('rescue'); hitStop = 12; shake(16, 3); sfx('boom');
     for (const bb of bullets) bb.active = false;
@@ -2758,7 +2767,7 @@ function aiAstarte(b, B, pcx, pcy) {
         b.starRainT = 1;
       }
       if (b.t % 4 === 0) spawnPart(bcx, b.y - 2, (b.t % 3 - 1) * 0.3, -0.6, 20, 5, '#ffe0a0');
-      if (b.t >= B.starCast) { bossSet('hover'); b.t = Math.max(0, B.idleFrames - 18); }
+      if (b.t >= B.starCast) { b.shots = 0; bossFacePlayer(); bossSet('slash'); }
       break;
     }
     case 'eclipse': { // enraged-only: low then high crescents, then one teleport scythe finisher
