@@ -1334,8 +1334,9 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
-  lilyDark: { file: 'assets/lily_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, muzX: 39, muzY: 24,
-    map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  lilyDark: { file: 'assets/lily_dark.png', fw: 48, fh: 48, frames: 8, cx: 24,
+    cxF: [24, 24, 24, 24, 19, 19, 24, 24], muzX: 39, muzY: 24,
+    map: { idle: [0, 2], dance: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
@@ -2002,33 +2003,58 @@ function updateBossUmimi(b) {
   if (b.state === 'off') { u.active = false; u.state = 'off'; return; }
   if (!u.active) {
     u.active = true; u.state = 'enter'; u.t = 0;
-    u.x = b.x + b.w / 2 + 30; u.y = FLOOR_Y - 5; u.face = -1;
+    u.x = b.x + b.w / 2 + 46; u.y = FLOOR_Y - 8; u.face = -1;
   }
   u.t++;
+
   if (u.state === 'enter') {
-    u.y = FLOOR_Y - 5 - Math.min(16, u.t * 0.55);
+    // Arrive from a moon glow on the outer side of Lily instead of appearing inside her.
+    const tx = b.x + b.w / 2 - b.face * 42;
+    u.x += (tx - u.x) * 0.09;
+    u.y = FLOOR_Y - 8 - Math.min(18, u.t * 0.6);
     if (u.t > 30) setBossUmimi('idle');
     return;
   }
+
   if (b.state === 'rescue' && b.t > 92) {
-    setBossUmimi('exit'); u.y -= 1.1; if (u.t > 34) u.active = false; return;
+    setBossUmimi('exit');
+    u.x += -b.face * 0.35; u.y -= 1.1;
+    if (u.t > 34) u.active = false;
+    return;
   }
+
   if (b.state === 'lilyHeal') setBossUmimi('heal');
   else if (b.state === 'lilyMoon') setBossUmimi('platform');
   else if (u.state === 'heal' || u.state === 'platform') setBossUmimi('idle');
 
   if (u.state === 'platform') {
-    u.x += ((b.x + b.w / 2) - u.x) * 0.28;
-    u.y += ((b.y + b.h + 15) - u.y) * 0.28;
+    // Umimi sits clearly under Lily's feet. The moon-disc frame reads as a mount.
+    const tx = b.x + b.w / 2;
+    const ty = b.y + b.h + 20;
+    u.x += (tx - u.x) * 0.32;
+    u.y += (ty - u.y) * 0.32;
     u.face = b.face; u.motion = 'platform';
-  } else {
-    const tx = b.x + b.w / 2 - b.face * 27;
-    const ty = Math.min(FLOOR_Y - 7, b.y + b.h - 2 + Math.sin(frame * 0.07) * 3);
-    const moving = Math.abs(tx - u.x) > 4;
-    u.x += (tx - u.x) * 0.10; u.y += (ty - u.y) * 0.10;
-    u.face = tx < u.x ? -1 : 1;
-    u.motion = u.state === 'heal' ? 'heal' : moving ? 'swim' : 'idle';
+    return;
   }
+
+  if (u.state === 'heal') {
+    // Move to Lily's front/outer side so the crescent + hearts remain visible.
+    const tx = b.x + b.w / 2 + b.face * 40;
+    const ty = Math.min(FLOOR_Y - 10, b.y + b.h - 9);
+    u.x += (tx - u.x) * 0.18;
+    u.y += (ty - u.y) * 0.18;
+    u.face = -b.face; u.motion = 'heal';
+    return;
+  }
+
+  // Normal partner position: a full character-width behind Lily, slightly floating.
+  const tx = b.x + b.w / 2 - b.face * 42;
+  const ty = Math.min(FLOOR_Y - 10, b.y + b.h - 7 + Math.sin(frame * 0.075) * 3);
+  const moving = Math.abs(tx - u.x) > 3;
+  u.x += (tx - u.x) * 0.12;
+  u.y += (ty - u.y) * 0.12;
+  u.face = tx < u.x ? -1 : 1;
+  u.motion = moving ? 'swim' : 'idle';
 }
 function drawBossUmimi(camX) {
   const u = bossUmimi;
@@ -3225,9 +3251,9 @@ function aiLily(b, B, pcx, pcy) {
       bossUmimi.healUsed = true; bossSet('lilyHeal'); sfx('warn'); return;
     }
     bossFacePlayer(); b.poseF = -1;
-    if (ad < 58) { b.x -= Math.sign(dx) * 0.72; b.pose = 'walk'; }
-    else if (ad > 118) { b.x += Math.sign(dx) * 0.58; b.pose = 'walk'; }
-    else { b.pose = 'idle'; if ((b.t % 48) < 18) b.x += b.face * 0.12; }
+    if (ad < 58) { b.x -= Math.sign(dx) * 0.72; b.pose = 'dance'; b.hopY = Math.round(Math.sin(frame * 0.22) * 2); }
+    else if (ad > 118) { b.x += Math.sign(dx) * 0.58; b.pose = 'dance'; b.hopY = Math.round(Math.sin(frame * 0.22) * 2); }
+    else { b.pose = 'idle'; b.hopY = Math.round(Math.sin(frame * 0.12)); if ((b.t % 48) < 18) b.x += b.face * 0.12; }
     if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) {
       const opts = rage ? ['song','stars','hearts','moon','stars'] : ['song','stars','hearts','moon'];
       const a = pickPattern(opts);
@@ -3238,7 +3264,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 
   if (b.state === 'lilySong') {
-    bossFacePlayer(); b.pose = 'attack'; b.poseF = -1;
+    bossFacePlayer(); b.pose = 'attack'; b.poseF = -1; b.hopY = 0;
     const wind = rage ? B.songWind - 6 : B.songWind;
     if (b.t === wind || (rage && b.t === wind + 18)) {
       const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 10;
@@ -3251,7 +3277,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 
   if (b.state === 'lilyStars') {
-    bossFacePlayer(); b.pose = 'attack'; b.poseF = -1;
+    bossFacePlayer(); b.pose = 'attack'; b.poseF = -1; b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
     if (b.t === wind) {
       const sx = b.face > 0 ? b.x + b.w + 1 : b.x - 5, sy = b.y + 11;
@@ -3268,7 +3294,7 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyHearts') {
     if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 2.0 : 1.6); }
-    b.pose = 'walk'; b.poseF = -1; b.x += b.vx; b.vx *= 0.97;
+    b.pose = 'dance'; b.poseF = -1; b.hopY = Math.round(Math.sin(frame * 0.28) * 2); b.x += b.vx; b.vx *= 0.97;
     const landed = bossFall(b);
     if (b.t >= 10 && b.t <= 34 && b.t % 10 === 0) {
       const sx = b.x + b.w / 2, sy = b.y + 8;
@@ -3281,7 +3307,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 
   if (b.state === 'lilyMoon') {
-    bossFacePlayer(); b.pose = b.t < 22 ? 'walk' : 'attack'; b.poseF = -1; b.vx = 0; b.vy = 0;
+    bossFacePlayer(); b.pose = b.t < 22 ? 'dance' : 'attack'; b.poseF = -1; b.hopY = b.t < 22 ? Math.round(Math.sin(frame * 0.25) * 2) : 0; b.vx = 0; b.vy = 0;
     const high = FLOOR_Y - b.h - 20;
     if (b.t < 24) b.y += (high - b.y) * 0.22;
     else if (b.t < 64) b.y += (high - b.y) * 0.3;
@@ -3300,7 +3326,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 
   if (b.state === 'lilyHeal') {
-    b.pose = 'idle'; b.poseF = -1; bossFacePlayer(); b.vx = 0; b.vy = 0;
+    b.pose = 'idle'; b.poseF = -1; b.hopY = 0; bossFacePlayer(); b.vx = 0; b.vy = 0;
     if (b.t === 26) {
       b.hp = Math.min(B.hp, b.hp + B.healAmount); b.hpShown = b.hp;
       sfx('heal');
@@ -3877,6 +3903,18 @@ function drawTobiume(camX) {
     g.drawImage(pick(SPR.tobi[b.dark ? 'dark' : 'normal'][pose][wingF], b.face, white), mx - 20, by - 39);
   }
 }
+function drawLilyBossSpotlight(camX) {
+  if (curArea.boss !== 'lily' || !boss.triggered || boss.state === 'off') return;
+  const cx = Math.round(boss.x + boss.w / 2 - camX);
+  g.save();
+  g.globalAlpha = 0.10 + 0.03 * Math.sin(frame * 0.05);
+  g.fillStyle = '#ffe9fa';
+  g.beginPath();
+  g.moveTo(cx - 5, 30); g.lineTo(cx - 42, FLOOR_Y); g.lineTo(cx + 42, FLOOR_Y); g.lineTo(cx + 5, 30);
+  g.closePath(); g.fill();
+  g.restore();
+}
+
 function drawBoss(camX) {
   const b = boss; if (b.state === 'off') return;
   if (curArea.boss === 'tobiume') { drawBossMarks(camX); drawTobiume(camX); return; }
@@ -4368,8 +4406,10 @@ function render() {
   g.drawImage(levelCv, camX, 0, VW, VH, 0, 0, VW, VH);
   drawDoor(camX); drawAllies(camX);
   for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.alive && e.active) drawEnemy(e, camX); }
+  drawLilyBossSpotlight(camX);
+  if (curArea.boss === 'lily' && bossUmimi.active && bossUmimi.state === 'platform') drawBossUmimi(camX);
   drawBoss(camX);
-  drawBossUmimi(camX);
+  if (!(curArea.boss === 'lily' && bossUmimi.active && bossUmimi.state === 'platform')) drawBossUmimi(camX);
   drawWaterOrb(camX);
   drawSupport(camX);
   if (!(state === 'ready' && (stateT & 8))) drawPlayer(camX);
