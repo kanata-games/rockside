@@ -1417,8 +1417,11 @@ function loadSheets() {
   if (typeof EMBEDDED_META !== 'undefined') for (const k in EMBEDDED_META) if (SHEET_DEFS[k]) applySheetMeta(SHEET_DEFS[k], EMBEDDED_META[k]);
   const emb = (typeof EMBEDDED_SHEETS !== 'undefined' && QS.get('sprites') !== 'folder') ? EMBEDDED_SHEETS : null;
   const useFolder = !emb || Object.keys(emb).length === 0;
+  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi']);
   for (const k in SHEET_DEFS) {
-    if (!useFolder && !emb[k]) continue;
+    // lily-test assets are new and are intentionally loaded from /assets even when
+    // the inherited preview has an EMBEDDED_SHEETS bundle for the older cast.
+    if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();
     img.onload = () => {
       const fr = sliceSheet(img, d); if (!fr) { console.warn('ROCKSIDE: sheet ' + d.file + ' has an unexpected size'); return; }
@@ -3897,8 +3900,17 @@ function drawBoss(camX) {
     }
     const cx = D.cxF ? D.cxF[fi] : D.cx;
     g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
-  } else { // procedural fallback (?sprites=0): the ally sprite, shadow-tinted while dark
+  } else { // procedural fallback (?sprites=0), or a sheet still loading
     const k = T.ally, f = b.pose === 'attack' ? 1 : 0;
+    // New test bosses can have no legacy ally fallback. Never let that stop the fight.
+    if (!k || !SPR.ally[k]) {
+      g.fillStyle = b.dark ? '#5a183f' : '#f2d2e8';
+      g.fillRect(mx - 7, by - 28, 14, 28);
+      g.fillStyle = b.dark ? '#ff6aa3' : '#fff1fb';
+      g.fillRect(mx - 5, by - 25, 10, 8);
+      g.globalAlpha = 1;
+      return;
+    }
     let spr = SPR.ally[k][f];
     if (b.dark) { SPR.allyDark = SPR.allyDark || {}; const ck = k + f; if (!SPR.allyDark[ck]) SPR.allyDark[ck] = sheetSprite(tintCanvas(spr.r, '#1a0828', 0.72)); spr = SPR.allyDark[ck]; }
     g.drawImage(pick(spr, b.face, white), mx - 16, by - 32);
