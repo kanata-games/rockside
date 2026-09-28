@@ -1428,8 +1428,8 @@ function loadSheets() {
       SHEETS[k] = fr; SHEETS_LOADED.push(k);
       if (k === 'tobiume') SHEETS.tobiumeTint = fr.map(s => sheetSprite(tintCanvas(s.r, '#ffb8dc', 0.42)));
     };
-    img.onerror = () => {}; // missing file -> keep procedural art
-    img.src = useFolder ? d.file : emb[k];
+    img.onerror = () => { console.warn('ROCKSIDE: failed to load ' + d.file); };
+    img.src = (useFolder || LILY_FOLDER_SHEETS.has(k)) ? d.file : emb[k];
   }
 }
 
