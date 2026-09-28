@@ -3399,40 +3399,56 @@ function drawTobiume(camX) {
   }
 }
 
+const DISASTER_WEAPON_FILES = {
+  sword: 'assets/disaster_weapon_sword.png',
+  spear: 'assets/disaster_weapon_spear.png',
+  axe: 'assets/disaster_weapon_axe.png',
+  bow: 'assets/disaster_weapon_bow.png',
+  scythe: 'assets/disaster_weapon_scythe.png'
+};
+const DISASTER_WEAPON_IMAGES = {};
+for (const k in DISASTER_WEAPON_FILES) {
+  const img = new Image();
+  img.src = DISASTER_WEAPON_FILES[k];
+  DISASTER_WEAPON_IMAGES[k] = img;
+}
+
+// Separate weapon layer: keeps Disaster's body readable while the alchemic weapon
+// itself carries the intense red glow. These are compact 64px test assets.
 function drawDisasterWeapon(mx, by, b) {
-  const d = b.face, x = mx + d * 12, y = by - 23, charging = b.state === 'disasterWind';
-  const glow = (frame >> 2) & 1 ? '#ff376c' : '#ef2454', core = charging ? '#ffd0dc' : '#ff789e';
-  const line = (ax,ay,bx,by,w=2,light=false) => {
-    g.beginPath();g.moveTo(ax,ay);g.lineTo(bx,by);
-    g.lineWidth=w;g.strokeStyle=light?core:glow;g.stroke();
-  };
-  g.save();g.lineCap='square';g.lineJoin='miter';
-  if (b.weapon === 'sword') {
-    line(x,y,x+d*26,y-4,5);line(x+d*5,y-1,x+d*27,y-5,1,true);
-    line(x-d*2,y-5,x+d*3,y+5,3);
-  } else if (b.weapon === 'spear') {
-    line(x-d*4,y+2,x+d*43,y-3,3);
-    line(x+d*3,y+1,x+d*41,y-3,1,true);
-    g.fillStyle=glow;g.beginPath();g.moveTo(x+d*51,y-4);
-    g.lineTo(x+d*39,y-9);g.lineTo(x+d*39,y+3);g.closePath();g.fill();
-  } else if (b.weapon === 'axe') {
-    line(x,y+6,x+d*12,y-24,4);
-    g.fillStyle=glow;g.beginPath();g.moveTo(x+d*10,y-25);
-    g.lineTo(x+d*26,y-32);g.lineTo(x+d*31,y-16);
-    g.lineTo(x+d*19,y-10);g.lineTo(x+d*12,y-17);g.closePath();g.fill();
-    line(x+d*16,y-24,x+d*27,y-27,2,true);
-  } else if (b.weapon === 'bow') {
-    g.strokeStyle=glow;g.lineWidth=4;g.beginPath();
-    g.moveTo(x+d*10,y-17);g.quadraticCurveTo(x+d*32,y,x+d*10,y+17);g.stroke();
-    line(x+d*10,y-17,x+d*10,y+17,1,true);
-    line(x-d*3,y,x+d*29,y,2);line(x+d*12,y,x+d*30,y,1,true);
-  } else if (b.weapon === 'scythe') {
-    line(x,y+10,x+d*18,y-29,3);
-    g.strokeStyle=glow;g.lineWidth=6;g.beginPath();
-    g.moveTo(x+d*14,y-27);g.quadraticCurveTo(x+d*46,y-44,x+d*48,y-12);g.stroke();
-    line(x+d*16,y-28,x+d*30,y-30,2,true);
+  const img = DISASTER_WEAPON_IMAGES[b.weapon];
+  const d = b.face, charging = b.state === 'disasterWind';
+  const cfg = {
+    sword:  { ox: 13, oy: -24, size: 46, rot: -0.04 },
+    spear:  { ox: 16, oy: -24, size: 56, rot: -0.03 },
+    axe:    { ox: 11, oy: -27, size: 50, rot: -0.10 },
+    bow:    { ox: 14, oy: -25, size: 48, rot:  0.00 },
+    scythe: { ox: 11, oy: -28, size: 54, rot: -0.04 }
+  }[b.weapon] || { ox: 12, oy: -24, size: 48, rot: 0 };
+  // Keep the old simple light shape as a loading fallback.
+  if (!img || !img.complete || !img.naturalWidth) {
+    g.save();
+    g.fillStyle = charging ? '#ffd0dc' : '#ff376c';
+    const x = mx + d * 13, y = by - 23;
+    g.fillRect(Math.min(x, x + d * 26), y - 2, 26, 4);
+    g.restore();
+    return;
   }
-  if (charging && (frame % 5) < 3) {g.fillStyle=core;g.fillRect(x-2,y-2,3,3);}
+  g.save();
+  g.translate(mx + d * cfg.ox, by + cfg.oy);
+  if (d < 0) g.scale(-1, 1);
+  g.rotate(cfg.rot);
+  const pulse = charging ? 0.82 + (((frame >> 2) & 1) ? 0.18 : 0) : 0.96;
+  g.globalAlpha *= pulse;
+  g.drawImage(img, -cfg.size * 0.34, -cfg.size * 0.53, cfg.size, cfg.size);
+  // Tiny formation spark only at the hand; do not flood the whole body red.
+  if (charging && (frame % 6) < 3) {
+    g.globalAlpha = 1;
+    g.fillStyle = '#ffe1ea';
+    g.fillRect(-2, -1, 3, 3);
+    g.fillStyle = '#ff315f';
+    g.fillRect(-4, 0, 2, 1); g.fillRect(2, 0, 2, 1);
+  }
   g.restore();
 }
 
