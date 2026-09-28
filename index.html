@@ -188,6 +188,9 @@ const CONFIG = {
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
+let hardMode = QS.get('hard') === '1';
+function playerMaxHP() { return hardMode ? Math.max(1, Math.floor(CONFIG.playerMaxHP / 2)) : CONFIG.playerMaxHP; }
+function toggleHardMode() { hardMode = !hardMode; P.hp = Math.min(P.hp, playerMaxHP()); sfx('cursor'); }
 const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0 };
 
@@ -1624,6 +1627,7 @@ window.addEventListener('keydown', e => {
   Snd.init();
   if (e.code === 'Enter' || e.code === 'NumpadEnter') { inp.startPressed = true; inp.enterPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
+  if (e.code === 'KeyH' && state === 'title') { toggleHardMode(); e.preventDefault(); return; }
   if (e.code === 'KeyC') { if (!e.repeat) inp.magicPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyB') { if (!e.repeat) inp.supportPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyV') { if (!e.repeat) inp.supportCyclePressed = true; e.preventDefault(); return; }
@@ -1918,7 +1922,7 @@ function shake(t, m) { if (shakeT <= 0 || m >= shakeMag) shakeMag = m; if (t > s
 function resetStage(fromCP) {
   const c = fromCP ? CP_C : START_C, r = fromCP ? CP_R : START_R;
   P.x = c * TS + 3; P.y = (r + 1) * TS - P.h; P.vx = 0; P.vy = 0; P.face = 1; P.onGround = true; P.coyote = 0; P.jumpBuf = 0;
-  P.jumping = false; P.shootT = 0; P.cool = 0; P.autoT = 0; P.shootBuf = 0; P.hp = CONFIG.playerMaxHP; P.inv = 0; P.hurt = 0; P.dead = false; P.animT = 0;
+  P.jumping = false; P.shootT = 0; P.cool = 0; P.autoT = 0; P.shootBuf = 0; P.hp = playerMaxHP(); P.inv = 0; P.hurt = 0; P.dead = false; P.animT = 0;
   for (const s of shots) s.active = false;
   for (const b of bullets) b.active = false;
   for (const p of parts) p.active = false;
@@ -2009,6 +2013,7 @@ const SEL = { x0: 8, y0: 23, cw: 76, ch: 70, gx: 6, gy: 3 };
 function cellRect(slot) { const c = slot % 3, r = (slot / 3) | 0; return { x: SEL.x0 + c * (SEL.cw + SEL.gx), y: SEL.y0 + r * (SEL.ch + SEL.gy), w: SEL.cw, h: SEL.ch }; }
 const SEL_BACK = { x: 3, y: 4, w: 36, h: 13 };
 const SEL_SUPPORT = { x: 44, y: 3, w: 67, h: 15 };
+const TITLE_HARD = { x: 3, y: 3, w: 62, h: 13 };
 const TITLE_RESET = { x: 186, y: 3, w: 67, h: 12 };  // "ERASE DATA" button on the title (shown when there is progress)
 let selCursor = 0, selMsg = null, selMsgT = 0, introArea = null, resetArmT = 0;
 function selMessage(jp, en) { selMsg = { jp: jp, en: en }; selMsgT = 110; }
@@ -2053,6 +2058,7 @@ function screenTap(x, y) {
     for (let slot = 0; slot < 9; slot++) if (inR(cellRect(slot))) { if (!selMsg) { if (slot !== selCursor) sfx('cursor'); chooseSlot(slot); } return true; }
     return true; // taps between cells do nothing
   }
+  if (state === 'title' && inR(TITLE_HARD)) { toggleHardMode(); return true; }
   if (state === 'title' && clearedCount() > 0 && inR({ x: TITLE_RESET.x - 4, y: 0, w: TITLE_RESET.w + 8, h: TITLE_RESET.h + 6 })) { inp.resetPressed = true; return true; }
   return false;
 }
@@ -2234,7 +2240,7 @@ function bossSet(s) { boss.state = s; boss.t = 0; }
 function bossCfg() { return curArea.boss === 'tobiume' ? CONFIG.boss : CONFIG.bosses[curArea.boss]; }
 function bossType() { return BOSS_TYPES[curArea.boss] || BOSS_TYPES.tobiume; }
 function bossFacePlayer() { boss.face = (P.x + P.w / 2 < boss.x + boss.w / 2) ? -1 : 1; }
-function bossRage() { return boss.hp <= bossCfg().hp / 2; }
+function bossRage() { return hardMode || boss.hp <= bossCfg().hp / 2; }
 function bossSeen(name) { if (!boss.seen.includes(name)) boss.seen.push(name); }
 // gravity for the ground bosses; returns true on the frame she lands
 function bossFall(b) {
@@ -2976,7 +2982,7 @@ function updateSupport() {
     support.x += (P.x + P.w / 2 + (P.face < 0 ? 20 : -20) - support.x) * 0.22;
     support.y += (P.y - support.y) * 0.22;
     if (t === 24) {
-      const gained = Math.min(6, CONFIG.playerMaxHP - P.hp);
+      const gained = Math.min(6, playerMaxHP() - P.hp);
       P.hp += gained; stats.heals += gained;
       P.inv = Math.max(P.inv, 120); sfx('song'); sfx('heal');
       for (let i = 0; i < 16; i++) spawnPart(P.x + P.w / 2 + DIR8X[i % 8] * 12, P.y + P.h / 2 + DIR8Y[i % 8] * 12, DIR8X[i % 8] * 0.6, -0.65, 45, i % 4 === 0 ? 5 : 0, i % 2 ? '#ffb3cb' : '#ffe99b');
@@ -3160,7 +3166,7 @@ function updateAllies() {
         if (!a.said) { a.said = true; say(a); }
         a.act = 12;
         if (a.t % 10 === 0) { const h = hash(a.t, 3), k = (h >> 6) % 3; spawnPart(a.x + a.face * 6, a.y - 22, ((h & 63) / 64 - 0.5) * 0.8, -0.55, 50, 5, k === 0 ? '#ff6a8a' : k === 1 ? '#ffd84a' : '#8fd0ff'); }
-        if (P.hp < CONFIG.playerMaxHP && a.t % A.seitenHealEvery === 0) { P.hp++; stats.heals++; sfx('heal'); }
+        if (P.hp < playerMaxHP() && a.t % A.seitenHealEvery === 0) { P.hp++; stats.heals++; sfx('heal'); }
       }
     }
   }
@@ -3707,7 +3713,7 @@ function drawWaterOrb(camX) {
   if (o.life < 70 && (frame & 4)) { g.fillStyle = '#ffffff'; g.fillRect(x + 11, y - 3, 2, 2); }
 }
 function drawHUD() {
-  drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
+  drawBar(8, 8, 'UMINE', P.hp, playerMaxHP(), '#7fd6ff', 'l');
   if (boss.state !== 'off') drawBar(VW - 8, 8, BOSS_TYPES[curArea.boss].hud, boss.hpShown, bossCfg().hp, '#ff5d5d', 'r');
   g.fillStyle = 'rgba(10,8,24,0.72)'; g.fillRect(6, 26, 92, 12);
   drawText('MP', 8, 28, 'c', 1);
@@ -3715,6 +3721,7 @@ function drawHUD() {
     g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
   }
   if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: ' + ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[equippedSupport()] || 'HELP'), 8, 42, support.used ? 'b' : 'y', 1);
+  if (hardMode) drawText('HARD', VW - 8, 28, 'r', 1, 'r');
   if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
 }
 function drawHitboxes(camX) {
@@ -3730,6 +3737,10 @@ function dim(a) { g.fillStyle = 'rgba(8,6,20,' + a + ')'; g.fillRect(0, 0, VW, V
 
 function renderTitle() {
   drawBackground(titleScroll);
+  const HM = TITLE_HARD;
+  g.fillStyle = hardMode ? '#4b1423' : 'rgba(12,8,30,0.82)'; g.fillRect(HM.x, HM.y, HM.w, HM.h);
+  rectLine(HM.x, HM.y, HM.w, HM.h, hardMode ? '#ff667d' : '#4a5680');
+  drawText(hardMode ? 'HARD ON' : 'HARD OFF', HM.x + HM.w / 2, HM.y + 4, hardMode ? 'r' : 'b', 1, 'c');
   g.drawImage(levelCv, 0, 208, VW, 32, 0, 208, VW, 32);
   g.fillStyle = 'rgba(12,8,30,0.78)'; g.fillRect(0, 18, VW, 56);
   g.fillStyle = '#ffd84a'; g.fillRect(0, 18, VW, 1); g.fillRect(0, 73, VW, 1);
@@ -3980,7 +3991,8 @@ requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
 window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, bullets, allies, arrows, SHEETS_LOADED, SHEET_DEFS,
-  AREAS, progress, support, magic, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  AREAS, progress, support, magic, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_HARD, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  get hardMode() { return hardMode; }, get playerMaxHP() { return playerMaxHP(); },
   get state() { return state; }, get stateT() { return stateT; }, get checkpoint() { return checkpoint; },
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
