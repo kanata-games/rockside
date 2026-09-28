@@ -3251,9 +3251,20 @@ function aiLily(b, B, pcx, pcy) {
       bossUmimi.healUsed = true; bossSet('lilyHeal'); sfx('warn'); return;
     }
     bossFacePlayer(); b.poseF = -1;
-    if (ad < 58) { b.x -= Math.sign(dx) * 0.72; b.pose = 'dance'; b.hopY = Math.round(Math.sin(frame * 0.22) * 2); }
-    else if (ad > 118) { b.x += Math.sign(dx) * 0.58; b.pose = 'dance'; b.hopY = Math.round(Math.sin(frame * 0.22) * 2); }
-    else { b.pose = 'idle'; b.hopY = Math.round(Math.sin(frame * 0.12)); if ((b.t % 48) < 18) b.x += b.face * 0.12; }
+    if (ad < 58) {
+      b.x -= Math.sign(dx) * 0.72;
+      b.pose = 'dance';
+      b.hopY = 0;
+    } else if (ad > 118) {
+      b.x += Math.sign(dx) * 0.58;
+      b.pose = 'dance';
+      b.hopY = 0;
+    } else {
+      // Idle means idle: use only the two standing frames with no bob or creeping.
+      b.pose = 'idle';
+      b.hopY = 0;
+      b.vx = 0;
+    }
     if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) {
       const opts = rage ? ['song','stars','hearts','moon','stars'] : ['song','stars','hearts','moon'];
       const a = pickPattern(opts);
