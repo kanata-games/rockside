@@ -3283,15 +3283,8 @@ function aiLily(b, B, pcx, pcy) {
     const wind = rage ? B.songWind - 6 : B.songWind;
     const second = rage ? wind + 18 : -999;
     const firing = (b.t >= wind && b.t <= wind + 4) || (rage && b.t >= second && b.t <= second + 4);
-    const charging = (b.t >= wind - 7 && b.t < wind) || (rage && b.t >= second - 7 && b.t < second);
-    // Frames 2/3 = performance wind-up, frame 4 = microphone charge,
-    // frame 5 = the visible sound-wave release ONLY while the attack actually fires.
-    if (firing) { b.pose = 'attack'; b.poseF = 1; }
-    else if (charging) { b.pose = 'attack'; b.poseF = 0; }
-    else if (b.t < wind || (rage && b.t > wind + 4 && b.t < second - 7)) {
-      b.pose = 'dance'; b.poseF = (b.t >> 3) & 1;
-    } else { b.pose = 'attack'; b.poseF = 0; }
-    b.hopY = 0;
+    // Test: never use frames 3/4 here. Attack is strictly frame 5 -> frame 6.
+    b.pose = 'attack'; b.poseF = firing ? 1 : 0; b.hopY = 0;
     if (b.t === wind || (rage && b.t === second)) {
       const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 10;
       spawnBullet(sx, FLOOR_Y - 26, b.face * (rage ? 2.2 : 1.9), 0, 8, B.noteDamage);
@@ -3305,9 +3298,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyStars') {
     bossFacePlayer(); b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
-    // Star magic uses the performance/charge poses, never the sound-wave frame.
-    if (b.t < wind - 7) { b.pose = 'dance'; b.poseF = (b.t >> 3) & 1; }
-    else { b.pose = 'attack'; b.poseF = 0; }
+    // Test: frames 5/6 only; release frame appears only around the shot.
+    b.pose = 'attack'; b.poseF = (b.t >= wind && b.t <= wind + 4) ? 1 : 0;
     if (b.t === wind) {
       const sx = b.face > 0 ? b.x + b.w + 1 : b.x - 5, sy = b.y + 11;
       const ang = Math.atan2(pcy - sy, pcx - sx);
@@ -3324,10 +3316,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyHearts') {
     if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 2.0 : 1.6); }
     const heartBeat = b.t >= 10 && b.t <= 34 && b.t % 10 === 0;
-    // Hopping performance uses frames 2/3; heart shots use frame 4 only.
-    if (heartBeat || (b.t >= 9 && b.t <= 35 && (b.t % 10) >= 8)) { b.pose = 'attack'; b.poseF = 0; }
-    else if (b.t >= 6 && b.t <= 38) { b.pose = 'dance'; b.poseF = (b.t >> 3) & 1; }
-    else { b.pose = 'idle'; b.poseF = -1; }
+    // Test: frames 5/6 only for the attack; frame 6 flashes on each heart shot.
+    b.pose = 'attack'; b.poseF = (heartBeat || (b.t >= 9 && b.t <= 35 && (b.t % 10) >= 8)) ? 1 : 0;
     b.hopY = 0; b.x += b.vx; b.vx *= 0.97;
     const landed = bossFall(b);
     if (b.t >= 10 && b.t <= 34 && b.t % 10 === 0) {
@@ -3342,9 +3332,8 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyMoon') {
     bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
-    // Moon-platform attack: dance while rising, charge with frame 4, no sound-wave frame.
-    if (b.t < 24) { b.pose = 'dance'; b.poseF = (b.t >> 3) & 1; }
-    else { b.pose = 'attack'; b.poseF = 0; }
+    // Test: frames 5/6 only while riding Umimi; frame 6 is the star-fan release.
+    b.pose = 'attack'; b.poseF = (b.t >= 32 && b.t <= 37) ? 1 : 0;
     const high = FLOOR_Y - b.h - 20;
     if (b.t < 24) b.y += (high - b.y) * 0.22;
     else if (b.t < 64) b.y += (high - b.y) * 0.3;
