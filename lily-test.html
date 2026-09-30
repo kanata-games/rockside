@@ -3282,7 +3282,7 @@ function aiLily(b, B, pcx, pcy) {
     bossFacePlayer();
     const wind = rage ? B.songWind - 6 : B.songWind;
     const second = rage ? wind + 18 : -999;
-    const firing = (b.t >= wind && b.t <= wind + 4) || (rage && b.t >= second && b.t <= second + 4);
+    const firing = (b.t >= wind && b.t <= wind + 2) || (rage && b.t >= second && b.t <= second + 2);
     // Test: never use frames 3/4 here. Attack is strictly frame 5 -> frame 6.
     b.pose = 'attack'; b.poseF = firing ? 1 : 0; b.hopY = 0;
     if (b.t === wind || (rage && b.t === second)) {
@@ -3298,8 +3298,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyStars') {
     bossFacePlayer(); b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
-    // Test: frames 5/6 only; release frame appears only around the shot.
-    b.pose = 'attack'; b.poseF = (b.t >= wind && b.t <= wind + 4) ? 1 : 0;
+    // Frame 6 contains a baked-in sound-wave FX, so star magic stays on frame 5.
+    b.pose = 'attack'; b.poseF = 0;
     if (b.t === wind) {
       const sx = b.face > 0 ? b.x + b.w + 1 : b.x - 5, sy = b.y + 11;
       const ang = Math.atan2(pcy - sy, pcx - sx);
@@ -3316,8 +3316,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyHearts') {
     if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 2.0 : 1.6); }
     const heartBeat = b.t >= 10 && b.t <= 34 && b.t % 10 === 0;
-    // Test: frames 5/6 only for the attack; frame 6 flashes on each heart shot.
-    b.pose = 'attack'; b.poseF = (heartBeat || (b.t >= 9 && b.t <= 35 && (b.t % 10) >= 8)) ? 1 : 0;
+    // Frame 6 is song-specific; heart attack stays on frame 5.
+    b.pose = 'attack'; b.poseF = 0;
     b.hopY = 0; b.x += b.vx; b.vx *= 0.97;
     const landed = bossFall(b);
     if (b.t >= 10 && b.t <= 34 && b.t % 10 === 0) {
@@ -3332,8 +3332,8 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyMoon') {
     bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
-    // Test: frames 5/6 only while riding Umimi; frame 6 is the star-fan release.
-    b.pose = 'attack'; b.poseF = (b.t >= 32 && b.t <= 37) ? 1 : 0;
+    // Frame 6 is song-specific; Umimi/moon attack stays on frame 5.
+    b.pose = 'attack'; b.poseF = 0;
     const high = FLOOR_Y - b.h - 20;
     if (b.t < 24) b.y += (high - b.y) * 0.22;
     else if (b.t < 64) b.y += (high - b.y) * 0.3;
