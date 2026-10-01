@@ -1849,13 +1849,6 @@ function doLayout() {
     gh = H; gw = Math.round(H * VW / VH); if (gw > W) { gw = W; gh = Math.round(W * VH / VW); }
     gx = Math.round((W - gw) / 2); gy = Math.round((H - gh) / 2);
   }
-  // Snap to a whole-number zoom so every game pixel is the same size on screen
-  // (a fractional zoom makes detailed sprites shimmer as they move).
-  { const k = Math.max(1, Math.floor(Math.min(gw * dpr / VW, gh * dpr / VH)));
-    const ngw = VW * k / dpr, ngh = VH * k / dpr;
-    gx = Math.round((W - ngw) / 2 * dpr) / dpr;
-    if (!portrait) gy = Math.round((H - ngh) / 2 * dpr) / dpr;
-    gw = ngw; gh = ngh; }
   layout.gameX = gx; layout.gameY = gy; layout.gameW = gw; layout.gameH = gh;
   screen.style.left = gx + 'px'; screen.style.top = gy + 'px'; screen.style.width = gw + 'px'; screen.style.height = gh + 'px';
   const pw = Math.round(gw * dpr), ph = Math.round(gh * dpr);
@@ -3950,7 +3943,21 @@ function render() {
   if (boss.state === 'rescue' && boss.t >= 100 && state === 'play') drawDialogue(BT.speaker, BT.speakerColor, BT.line, Math.min(1, (boss.t - 100) / 15), 36, BT.face); // top: keeps both characters visible
   if (state === 'clear') drawHiText(BT.clearJp, VW / 2, 126, 8, '#ffc0dc', '#120e24');
 }
-function blit() { sctx.imageSmoothingEnabled = false; sctx.drawImage(buf, 0, 0, screen.width, screen.height); }
+// Fill the screen at any size without shimmer: blow the frame up by a whole number with
+// hard edges first, then shrink that smoothly to the real size. Every game pixel ends up
+// the same width; only its outer edge is softened by under one screen pixel.
+let blitMid = null, blitK = 0;
+function blit() {
+  const sw = screen.width, sh = screen.height;
+  const k = Math.max(1, Math.ceil(Math.min(sw / VW, sh / VH) - 1e-6));
+  if (VW * k === sw && VH * k === sh) { sctx.imageSmoothingEnabled = false; sctx.drawImage(buf, 0, 0, sw, sh); return; }
+  if (!blitMid || blitK !== k) { blitMid = mkCanvas(VW * k, VH * k); blitK = k; }
+  const mg = blitMid.getContext('2d');
+  mg.imageSmoothingEnabled = false; mg.drawImage(buf, 0, 0, VW * k, VH * k);
+  sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high';
+  sctx.drawImage(blitMid, 0, 0, sw, sh);
+  sctx.imageSmoothingEnabled = false;
+}
 
 // =====================================================================
 //  Main loop: fixed 60Hz simulation, render every animation frame
