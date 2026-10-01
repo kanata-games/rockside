@@ -1336,10 +1336,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
   lilyDark: { file: 'assets/lily_dark.png', fw: 48, fh: 48, frames: 8, cx: 24,
     cxF: [24, 24, 24, 24, 24, 24, 24, 24], muzX: 39, muzY: 24,
-    map: { idle: [0, 2], dance: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
-  // Test-only: idle frames are physically isolated from dance / hurt / defeat frames.
-  lilyDarkIdle: { file: 'data:image/png;base64,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', fw: 48, fh: 48, frames: 2, cx: 24,
-    cxF: [24, 24], map: { idle: [0, 2] } },
+    map: { idle: [0, 2], windup: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // Frame 6's red song wave isolated from Lily's body. Drawn on top of attack frame 5.
   lilySongWave: { file: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABXElEQVR4nO3Wv0rDQBwH8EtFERRNLqNIGtHLm1RfQF/AxdXBVUj6FNlMT8cUX8DB1aGggtKKIk7i4iIOtfB1ynGtCWK0+SO/z5Ij3CW/3939cmGMEEJ+q8kM5B3b+MtA8to1nbJDmK7AcnOvEEmzaMz+eEZPzPXUMaXUwBs+jLT7e0srKsiwtV3/bdNedlQSlVoBxhgLrKYKqMOFaktrQ7XdxtzYmMj2viRRWALJy5Pr4etj6jbS+8/vH2Q+p3D9oxht08HLeQ+SC0S2h3BzB5ILjJ5uEfshBlEXo4crSC7wft3D8O4SkgtILjC8v0E/6iKyPfja1ipMUpTJDHZsD6rNBQLLRWC5iP1Q9RvI07EaiLQxpUk7lLJq4FhrJwlMP8IctlbXUgPTvzxZX6HKmpzt2iUwqZIJ6Cfvv1bZ4tU9n11UP0hSF7X/lW7NLNQ7AUIIIYQQQgghhHzvEx2NkYPhZI2wAAAAAElFTkSuQmCC', fw: 48, fh: 48, frames: 1, cx: 15 },
   astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
@@ -1423,7 +1420,7 @@ function loadSheets() {
   if (typeof EMBEDDED_META !== 'undefined') for (const k in EMBEDDED_META) if (SHEET_DEFS[k]) applySheetMeta(SHEET_DEFS[k], EMBEDDED_META[k]);
   const emb = (typeof EMBEDDED_SHEETS !== 'undefined' && QS.get('sprites') !== 'folder') ? EMBEDDED_SHEETS : null;
   const useFolder = !emb || Object.keys(emb).length === 0;
-  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilyDarkIdle', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi']);
+  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi']);
   for (const k in SHEET_DEFS) {
     // lily-test assets are new and are intentionally loaded from /assets even when
     // the inherited preview has an EMBEDDED_SHEETS bundle for the older cast.
@@ -3291,8 +3288,14 @@ function aiLily(b, B, pcx, pcy) {
     const wind = rage ? B.songWind - 6 : B.songWind;
     const second = rage ? wind + 18 : -999;
     const firing = lilySongFxActive(b);
-    // Lily's body stays on frame 5. The red sound wave is now a separate overlay.
-    b.pose = 'attack'; b.poseF = 0; b.hopY = 0;
+    // Rebuilt sheet: frames 2/3 are the attack wind-up. Frame 4 is the stable casting body;
+    // the red wave remains a separate overlay so Lily's silhouette does not jump.
+    if (b.t < Math.max(8, wind - 7) || (rage && b.t > wind + 3 && b.t < second - 7)) {
+      b.pose = 'windup'; b.poseF = (b.t >> 3) & 1;
+    } else {
+      b.pose = 'attack'; b.poseF = 0;
+    }
+    b.hopY = 0;
     if (b.t === wind || (rage && b.t === second)) {
       const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 10;
       spawnBullet(sx, FLOOR_Y - 26, b.face * (rage ? 2.2 : 1.9), 0, 8, B.noteDamage);
@@ -3306,8 +3309,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyStars') {
     bossFacePlayer(); b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
-    // Frame 6 contains a baked-in sound-wave FX, so star magic stays on frame 5.
-    b.pose = 'attack'; b.poseF = 0;
+    if (b.t < Math.max(8, wind - 7)) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
+    else { b.pose = 'attack'; b.poseF = 0; }
     if (b.t === wind) {
       const sx = b.face > 0 ? b.x + b.w + 1 : b.x - 5, sy = b.y + 11;
       const ang = Math.atan2(pcy - sy, pcx - sx);
@@ -3324,8 +3327,8 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyHearts') {
     if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 2.0 : 1.6); }
     const heartBeat = b.t >= 10 && b.t <= 34 && b.t % 10 === 0;
-    // Frame 6 is song-specific; heart attack stays on frame 5.
-    b.pose = 'attack'; b.poseF = 0;
+    if (b.t < 9) { b.pose = 'windup'; b.poseF = (b.t >> 2) & 1; }
+    else { b.pose = 'attack'; b.poseF = 0; }
     b.hopY = 0; b.x += b.vx; b.vx *= 0.97;
     const landed = bossFall(b);
     if (b.t >= 10 && b.t <= 34 && b.t % 10 === 0) {
@@ -3340,8 +3343,8 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyMoon') {
     bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
-    // Frame 6 is song-specific; Umimi/moon attack stays on frame 5.
-    b.pose = 'attack'; b.poseF = 0;
+    if (b.t < 22) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
+    else { b.pose = 'attack'; b.poseF = 0; }
     const high = FLOOR_Y - b.h - 20;
     if (b.t < 24) b.y += (high - b.y) * 0.22;
     else if (b.t < 64) b.y += (high - b.y) * 0.3;
@@ -3959,8 +3962,7 @@ function drawBoss(camX) {
   if ((b.state === 'crouch' && b.t < 10) || (b.state === 'warpOut' && b.t < 6)) white = white || (b.t & 2) !== 0; // telegraph flash
   if (b.state === 'rescue' && b.t < 70) white = (b.t & 4) !== 0;
   const mx = Math.round(b.x + b.w / 2 - camX), by = Math.round(b.y + b.h + b.hopY); // hitbox bottom-centre
-  let key = b.dark ? T.dark : T.normal;
-  if (curArea.boss === 'lily' && b.dark && b.pose === 'idle' && SHEETS.lilyDarkIdle) key = 'lilyDarkIdle';
+  const key = b.dark ? T.dark : T.normal;
   const sh = SHEETS[key];
   if (b.alpha < 1) g.globalAlpha = b.alpha;
   if (sh) {
