@@ -2200,6 +2200,7 @@ function bossReset() {
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0; b.heartRainX = 0;
+  b.lilySafeLane = 2; b.lilyLineStartHigh = false;
   if (curArea.boss === 'astarte' && QS.get('eclipse') === '1') { b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall'); }
 }
 function startGame(area) {
@@ -3257,6 +3258,14 @@ function spawnLilyNote(x, y, dir, speed, dmg) {
   if (n) n.life = 150;
   return n;
 }
+function lilyLaneCenter(i, n = 5) { return ROOM_L + (i + 0.5) * (ROOM_R - ROOM_L) / n; }
+function lilyNearestLane(x, n = 5) {
+  let best = 0, dist = Infinity;
+  for (let i = 0; i < n; i++) { const d = Math.abs(x - lilyLaneCenter(i, n)); if (d < dist) { dist = d; best = i; } }
+  return best;
+}
+function lilyLineTimes(rage) { return rage ? [24, 50, 76] : [28, 62]; }
+function lilyLineHighAt(b, idx) { return !!(b.lilyLineStartHigh ^ (idx & 1)); }
 function aiLily(b, B, pcx, pcy) {
   const rage = bossRage(), cx = b.x + b.w / 2, dx = pcx - cx, ad = Math.abs(dx);
 
@@ -3280,9 +3289,16 @@ function aiLily(b, B, pcx, pcy) {
       b.vx = 0;
     }
     if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) {
-      const opts = rage ? ['song','notes','hearts','moon','notes'] : ['song','notes','hearts','moon','notes'];
+      const opts = rage
+        ? ['song','notes','hearts','moon','rain','line','notes']
+        : ['song','notes','hearts','moon','rain','line'];
       const a = pickPattern(opts);
-      bossSet(a === 'song' ? 'lilySong' : a === 'notes' ? 'lilyNotes' : a === 'hearts' ? 'lilyHearts' : 'lilyMoon');
+      bossSet(a === 'song' ? 'lilySong'
+        : a === 'notes' ? 'lilyNotes'
+        : a === 'hearts' ? 'lilyHearts'
+        : a === 'rain' ? 'lilyRain'
+        : a === 'line' ? 'lilyLine'
+        : 'lilyMoon');
       sfx('warn');
     }
     return;
@@ -3303,7 +3319,8 @@ function aiLily(b, B, pcx, pcy) {
     b.hopY = 0;
     if (b.t === wind || (rage && b.t === second)) {
       const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 10;
-      spawnBullet(sx, FLOOR_Y - 26, b.face * (rage ? 2.2 : 1.9), 0, 8, B.noteDamage);
+      const wave = spawnBullet(sx, FLOOR_Y - 23, b.face * (rage ? 2.2 : 1.9), 0, 8, B.noteDamage);
+      if (wave) { wave.y = FLOOR_Y - 23; wave.h = 23; }
       for (let i = 0; i < 6; i++) spawnPart(cx, b.y + 8, b.face * (0.4 + i * 0.08), -0.9 + i * 0.12, 30, 5, i & 1 ? '#ffd2ef' : '#fff1b8');
       sfx('song');
     }
@@ -3314,7 +3331,7 @@ function aiLily(b, B, pcx, pcy) {
   if (b.state === 'lilyNotes') {
     bossFacePlayer(); b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
-    const gap = rage ? 14 : 18;
+    const gap = rage ? 28 : 34;
     const count = rage ? 4 : 3;
     if (b.t < Math.max(8, wind - 7)) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
     else { b.pose = 'attack'; b.poseF = 0; }
@@ -3322,9 +3339,9 @@ function aiLily(b, B, pcx, pcy) {
     // One note at a time. Low notes are jumped; high notes pass above a standing Umine.
     for (let k = 0; k < count; k++) if (b.t === wind + k * gap) {
       const low = (k & 1) === 0;
-      const y = low ? FLOOR_Y - 18 : FLOOR_Y - 42;
+      const y = low ? FLOOR_Y - 16 : FLOOR_Y - 46;
       const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 8;
-      spawnLilyNote(sx, y, b.face, rage ? 2.45 : 2.15, B.noteDamage);
+      spawnLilyNote(sx, y, b.face, rage ? 2.35 : 2.05, B.noteDamage);
       for (let i = 0; i < 4; i++) spawnPart(sx, y + 3, b.face * (0.25 + i * 0.08), -0.35 + i * 0.18, 22, 5, i & 1 ? '#ffd2ef' : '#fff1b8');
       sfx('song');
     }
@@ -3369,6 +3386,46 @@ function aiLily(b, B, pcx, pcy) {
       sfx('song');
     }
     if (b.t > 92) { b.y = FLOOR_Y - b.h; bossSet('hover'); }
+    return;
+  }
+
+  if (b.state === 'lilyRain') {
+    bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
+    if (b.t === 1) b.lilySafeLane = lilyNearestLane(P.x + P.w / 2, 5);
+    if (b.t < 34) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
+    else { b.pose = 'attack'; b.poseF = 0; }
+    if (b.t === 34) {
+      for (let i = 0; i < 5; i++) {
+        if (i === b.lilySafeLane) continue;
+        const x = lilyLaneCenter(i, 5) - 3;
+        const n = spawnBullet(x, 34, 0, rage ? 2.65 : 2.3, 19, B.noteDamage);
+        if (n) n.life = 100;
+      }
+      sfx('song');
+    }
+    if (b.t > 104) bossSet('hover');
+    return;
+  }
+
+  if (b.state === 'lilyLine') {
+    bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
+    if (b.t === 1) b.lilyLineStartHigh = ((frame >> 2) & 1) !== 0;
+    const times = lilyLineTimes(rage);
+    let casting = false;
+    for (let i = 0; i < times.length; i++) {
+      if (b.t >= times[i] - 12 && b.t <= times[i] + 3) casting = true;
+      if (b.t === times[i]) {
+        const high = lilyLineHighAt(b, i);
+        const y = high ? FLOOR_Y - 46 : FLOOR_Y - 17;
+        const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 10;
+        const st = spawnBullet(sx, y, b.face * (rage ? 2.75 : 2.45), 0, 10, B.starDamage);
+        if (st) st.life = 130;
+        sfx('bshoot');
+      }
+    }
+    b.pose = casting ? 'attack' : 'windup';
+    b.poseF = casting ? 0 : ((b.t >> 3) & 1);
+    if (b.t > times[times.length - 1] + 38) bossSet('hover');
     return;
   }
 
@@ -4029,6 +4086,35 @@ function drawBossMarks(camX) {
       g.fillRect(x - 2, 33, 5, 2); g.fillRect(x - 1, 35, 3, 3);
     }
   }
+  if (curArea.boss === 'lily' && b.state === 'lilyRain' && b.t > 0 && b.t < 34) {
+    // Four danger columns and one generous safe lane. The safe lane follows where Umine was
+    // when the attack started, so the player is never asked to cross an instant wall.
+    for (let i = 0; i < 5; i++) {
+      const cx = Math.round(lilyLaneCenter(i, 5) - camX);
+      if (i === b.lilySafeLane) {
+        g.fillStyle = 'rgba(255,241,184,0.12)'; g.fillRect(cx - 15, 34, 30, FLOOR_Y - 36);
+        g.fillStyle = blink ? '#fff1b8' : '#ffd2ef'; g.fillRect(cx - 12, FLOOR_Y - 2, 24, 2);
+      } else {
+        g.fillStyle = 'rgba(210,120,255,0.12)'; g.fillRect(cx - 6, 34, 12, FLOOR_Y - 36);
+        g.fillStyle = blink ? '#e3c2ff' : '#a96ee8'; g.fillRect(cx - 5, 34, 10, 2); g.fillRect(cx - 5, FLOOR_Y - 2, 10, 2);
+      }
+    }
+  }
+  if (curArea.boss === 'lily' && b.state === 'lilyLine') {
+    const times = lilyLineTimes(bossRage());
+    for (let i = 0; i < times.length; i++) {
+      const dt = times[i] - b.t;
+      if (dt >= 0 && dt <= 12) {
+        const high = lilyLineHighAt(b, i);
+        const yy = high ? FLOOR_Y - 43 : FLOOR_Y - 14;
+        g.fillStyle = high ? 'rgba(255,230,150,0.15)' : 'rgba(255,160,210,0.16)';
+        g.fillRect(Math.round(ROOM_L - camX), yy - 4, ROOM_R - ROOM_L, 9);
+        g.fillStyle = blink ? '#fff6c0' : '#ffd070';
+        for (let x = ROOM_L; x < ROOM_R; x += 8) g.fillRect(Math.round(x - camX), yy, 4, 1);
+        break;
+      }
+    }
+  }
   if (b.rainN > 0) { // marked rain columns
     for (let i = 0; i < b.rainN; i++) {
       const x = b.rainC[i] * TS - camX;
@@ -4148,7 +4234,8 @@ function drawBullet(b, camX) {
     const dir = b.vx >= 0 ? 1 : -1;
     for (let a = 0; a < 3; a++) {
       g.fillStyle = a === 1 ? '#ffd0dc' : ((frame >> 1) & 1) ? '#ff3a5a' : '#c01a50';
-      for (let dy = 0; dy < 26; dy++) { const u = (dy - 12.5) / 12.5, off = Math.round((1 - u * u) * 3) + a * 3; g.fillRect(dir > 0 ? x + off : x + 9 - off, y + dy, 1, 1); }
+      const mid = Math.max(1, (b.h - 1) / 2);
+      for (let dy = 0; dy < b.h; dy++) { const u = (dy - mid) / mid, off = Math.round((1 - u * u) * 3) + a * 3; g.fillRect(dir > 0 ? x + off : x + 9 - off, y + dy, 1, 1); }
     }
   } else if (b.kind === 9) { // crescent slash wave
     const dir = b.vx >= 0 ? 1 : -1;
