@@ -2491,7 +2491,7 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
   }
   return null;
 }
-const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10],
+const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10], 19: [6, 6],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : e.type === 'Q' ? CONFIG.enemy.sentry.damage : CONFIG.enemy.flyer.damage; }
@@ -3252,6 +3252,11 @@ function lilySongFxActive(b) {
   const second = rage ? wind + 18 : -999;
   return (b.t >= wind && b.t <= wind + 2) || (rage && b.t >= second && b.t <= second + 2);
 }
+function spawnLilyNote(x, y, dir, speed, dmg) {
+  const n = spawnBullet(x, y, dir * speed, 0, 19, dmg);
+  if (n) n.life = 150;
+  return n;
+}
 function aiLily(b, B, pcx, pcy) {
   const rage = bossRage(), cx = b.x + b.w / 2, dx = pcx - cx, ad = Math.abs(dx);
 
@@ -3275,9 +3280,9 @@ function aiLily(b, B, pcx, pcy) {
       b.vx = 0;
     }
     if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) {
-      const opts = rage ? ['song','stars','hearts','moon','stars'] : ['song','stars','hearts','moon'];
+      const opts = rage ? ['song','notes','hearts','moon','notes'] : ['song','notes','hearts','moon','notes'];
       const a = pickPattern(opts);
-      bossSet(a === 'song' ? 'lilySong' : a === 'stars' ? 'lilyStars' : a === 'hearts' ? 'lilyHearts' : 'lilyMoon');
+      bossSet(a === 'song' ? 'lilySong' : a === 'notes' ? 'lilyNotes' : a === 'hearts' ? 'lilyHearts' : 'lilyMoon');
       sfx('warn');
     }
     return;
@@ -3306,38 +3311,42 @@ function aiLily(b, B, pcx, pcy) {
     return;
   }
 
-  if (b.state === 'lilyStars') {
+  if (b.state === 'lilyNotes') {
     bossFacePlayer(); b.hopY = 0;
     const wind = rage ? B.starWind - 5 : B.starWind;
+    const gap = rage ? 14 : 18;
+    const count = rage ? 4 : 3;
     if (b.t < Math.max(8, wind - 7)) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
     else { b.pose = 'attack'; b.poseF = 0; }
-    if (b.t === wind) {
-      const sx = b.face > 0 ? b.x + b.w + 1 : b.x - 5, sy = b.y + 11;
-      const ang = Math.atan2(pcy - sy, pcx - sx);
-      const spreads = rage ? [-0.34,-0.17,0,0.17,0.34] : [-0.22,0,0.22];
-      for (const sp of spreads) {
-        const a = ang + sp; spawnBullet(sx, sy, Math.cos(a) * 2.9, Math.sin(a) * 2.9, 3, B.starDamage);
-      }
-      sfx('bshoot');
+
+    // One note at a time. Low notes are jumped; high notes pass above a standing Umine.
+    for (let k = 0; k < count; k++) if (b.t === wind + k * gap) {
+      const low = (k & 1) === 0;
+      const y = low ? FLOOR_Y - 18 : FLOOR_Y - 42;
+      const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 8;
+      spawnLilyNote(sx, y, b.face, rage ? 2.45 : 2.15, B.noteDamage);
+      for (let i = 0; i < 4; i++) spawnPart(sx, y + 3, b.face * (0.25 + i * 0.08), -0.35 + i * 0.18, 22, 5, i & 1 ? '#ffd2ef' : '#fff1b8');
+      sfx('song');
     }
-    if (b.t > wind + 34) bossSet('hover');
+    if (b.t > wind + (count - 1) * gap + 30) bossSet('hover');
     return;
   }
 
   if (b.state === 'lilyHearts') {
-    if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 2.0 : 1.6); }
-    const heartBeat = b.t >= 10 && b.t <= 34 && b.t % 10 === 0;
-    if (b.t < 9) { b.pose = 'windup'; b.poseF = (b.t >> 2) & 1; }
+    if (b.t === 1) { bossFacePlayer(); b.vy = -3.9; b.vx = -b.face * (rage ? 1.9 : 1.55); }
+    const shotTimes = rage ? [12, 26, 40] : [14, 30, 46];
+    const heartBeat = shotTimes.includes(b.t);
+    if (b.t < 10) { b.pose = 'windup'; b.poseF = (b.t >> 2) & 1; }
     else { b.pose = 'attack'; b.poseF = 0; }
     b.hopY = 0; b.x += b.vx; b.vx *= 0.97;
     const landed = bossFall(b);
-    if (b.t >= 10 && b.t <= 34 && b.t % 10 === 0) {
+    if (heartBeat) {
       const sx = b.x + b.w / 2, sy = b.y + 8;
-      const a = Math.atan2(pcy - sy, pcx - sx);
-      spawnBullet(sx, sy, Math.cos(a) * 2.25, Math.sin(a) * 2.25, 2, B.heartDamage);
+      const a = Math.atan2((P.y + P.h / 2) - sy, (P.x + P.w / 2) - sx);
+      spawnBullet(sx, sy, Math.cos(a) * 2.15, Math.sin(a) * 2.15, 2, B.heartDamage);
       sfx('bshoot');
     }
-    if ((landed && b.t > 26) || b.t > 58) bossSet('hover');
+    if ((landed && b.t > 44) || b.t > 68) bossSet('hover');
     return;
   }
 
@@ -3349,14 +3358,15 @@ function aiLily(b, B, pcx, pcy) {
     if (b.t < 24) b.y += (high - b.y) * 0.22;
     else if (b.t < 64) b.y += (high - b.y) * 0.3;
     else b.y += ((FLOOR_Y - b.h) - b.y) * 0.18;
-    if (b.t === 34) {
-      const sx = b.x + b.w / 2, sy = b.y + 10;
-      for (const sp of [-0.46,-0.23,0,0.23,0.46]) {
-        const a = (b.face > 0 ? 0 : Math.PI) + sp;
-        spawnBullet(sx, sy, Math.cos(a) * 2.7, Math.sin(a) * 2.7, 3, B.starDamage);
-      }
-      for (let i = 0; i < 10; i++) spawnPart(sx, sy, (i - 4.5) * 0.18, -1.2 + (i & 1) * 0.25, 36, 5, i & 1 ? '#fff1b8' : '#c9c6ff');
-      sfx('bshoot');
+    const moonShots = rage ? [32, 46, 60, 74] : [34, 52, 70];
+    const mk = moonShots.indexOf(b.t);
+    if (mk >= 0) {
+      const low = (mk & 1) === 1;
+      const y = low ? FLOOR_Y - 18 : FLOOR_Y - 42;
+      const sx = b.face > 0 ? b.x + b.w + 2 : b.x - 8;
+      spawnLilyNote(sx, y, b.face, rage ? 2.55 : 2.25, B.noteDamage);
+      for (let i = 0; i < 6; i++) spawnPart(sx, y + 3, (i - 2.5) * 0.12, -0.7 + (i & 1) * 0.2, 28, 5, i & 1 ? '#fff1b8' : '#c9c6ff');
+      sfx('song');
     }
     if (b.t > 92) { b.y = FLOOR_Y - b.h; bossSet('hover'); }
     return;
@@ -4168,6 +4178,11 @@ function drawBullet(b, camX) {
     g.fillStyle = '#ffffff'; g.fillRect(x + 3, y + 3, 2, 2);
   } else if (b.kind === 11) { // cursed note
     g.fillStyle = (frame & 4) ? '#ff5a7a' : '#ff9ab0'; g.fillRect(x, y + 3, 3, 3); g.fillRect(x + 2, y - 2, 1, 5); g.fillRect(x + 3, y - 2, 2, 1); g.fillRect(x + 4, y - 1, 1, 1);
+  } else if (b.kind === 19) { // Lily rhythm note: straight, readable lane projectile
+    g.fillStyle = 'rgba(255,210,239,0.22)'; g.fillRect(x - 2, y - 2, 9, 9);
+    g.fillStyle = (frame & 4) ? '#ffd2ef' : '#fff1b8';
+    g.fillRect(x, y + 3, 3, 3); g.fillRect(x + 2, y - 2, 1, 5); g.fillRect(x + 3, y - 2, 2, 1); g.fillRect(x + 4, y - 1, 1, 1);
+    g.fillStyle = '#ffffff'; g.fillRect(x + 1, y + 4, 1, 1);
   } else if (b.kind === 12) { // scythe slash area (fading arc)
     const dir = b.ang >= 0 ? 1 : -1; g.globalAlpha = Math.max(0, b.life / 12) * 0.7; g.fillStyle = '#ff3a5a';
     for (let dy = 0; dy < b.h; dy += 1) { const u = (dy - b.h / 2) / (b.h / 2), off = Math.round(Math.sqrt(Math.max(0, 1 - u * u)) * (b.w - 6)); g.fillRect(dir > 0 ? x + off : x + b.w - off - 3, y + dy, 3, 1); }
