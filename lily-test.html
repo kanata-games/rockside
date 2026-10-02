@@ -152,7 +152,7 @@ const CONFIG = {
       rescueLineFrames: 240 },
     // DARK リリィ: idol-princess boss. Song waves, stars, heart hop, plus Umimi moon support.
     lily: { hp: 34, iFrames: 12, contactDamage: 3, noteDamage: 2, starDamage: 2, heartDamage: 2,
-      idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healAmount: 3, rescueLineFrames: 240 },
+      idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healTriggerHP: 10, healAmount: 5, rescueLineFrames: 240 },
     // DARK アスターテ (floats): a) glide + crescent slash wave (low = jump it; enraged adds a high one)
     // b) vanish -> warning mark behind the player -> reappear + slash  c) rotating star orbs, then released
     astarte: { hp: 40, iFrames: 12, contactDamage: 3, crescentDamage: 3, slashDamage: 3, orbDamage: 2,   // v5: 28 -> 40 HP
@@ -3276,7 +3276,7 @@ function aiLily(b, B, pcx, pcy) {
   const rage = bossRage(), cx = b.x + b.w / 2, dx = pcx - cx, ad = Math.abs(dx);
 
   if (b.state === 'hover') {
-    if (!bossUmimi.healUsed && b.hp <= Math.floor(B.hp * 0.45)) {
+    if (!bossUmimi.healUsed && b.hp <= B.healTriggerHP) {
       bossUmimi.healUsed = true; bossSet('lilyHeal'); sfx('warn'); return;
     }
     bossFacePlayer(); b.poseF = -1;
@@ -3715,6 +3715,17 @@ function updateShots() {
         if (e.hp <= 0) killEnemy(e);
         else sfx('ehit');
         break;
+      }
+    }
+    if (s.active && curArea.boss === 'lily' && boss.state === 'lilyHeal' && bossUmimi.active && bossUmimi.state === 'heal') {
+      // Umimi is a living water shield during Lily's heal. Umine's water shots
+      // splash harmlessly against her instead of reaching Lily.
+      const uShield = { x: bossUmimi.x - 14, y: bossUmimi.y - 29, w: 28, h: 28 };
+      if (overlap(s, uShield)) {
+        s.active = false;
+        splashAt(s.x + (s.vx > 0 ? s.w : 0), s.y + 2, s.vx > 0 ? 1 : -1);
+        for (let k = 0; k < 5; k++) spawnPart(bossUmimi.x + (k - 2) * 3, bossUmimi.y - 16, (k - 2) * 0.18, -0.55 - (k & 1) * 0.18, 16, 5, k & 1 ? '#c8f6ff' : '#ffffff');
+        sfx('tink');
       }
     }
     if (s.active && boss.state !== 'off' && overlap(s, boss)) { if (damageBoss(s)) { s.active = false; splashAt(s.x + (s.vx > 0 ? s.w : 0), s.y + 2, s.vx > 0 ? 1 : -1); } }
