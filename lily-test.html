@@ -201,7 +201,7 @@ const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hard: 
 //  STAGE MAPS  - each stage = N screens of 16x15 tiles (the last one is the boss room).
 //  . empty  # rock/metal  = girder   P player start  C checkpoint
 //  W walker  H hopper  F flyer   D boss door   B boss spawn
-//  A アスターテ (guide; the last one is the checkpoint)  N ネーニア (archer)  S 青天 (healer)
+//  A アスターテ (checkpoint)  N ネーニア (archer)  S 青天 (healer)  I リリィ (gives Umimi / support)
 // =====================================================================
 const STAGE_SUNSET_HILLS = [
 [ // 0 trailhead, a gentle start
@@ -895,7 +895,7 @@ const STAGE_LILY = [
 "................",
 "................",
 "................",
-"..........A.....",
+"....I.....A.....",
 "################",
 "################"
 ],
@@ -954,7 +954,7 @@ const AREAS = [
   { id: 'final', slot: 4, final: true, name: '最終エリア', en: 'FINAL AREA' }, // no stage yet -> "coming soon" even when unlocked
 ];
 // in-stage ally type (map letter) -> friend id
-const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten' };
+const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten', I: 'lily' };
 
 // =====================================================================
 //  Globals / setup
@@ -986,7 +986,7 @@ function loadMap(screens) {
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
     else if (ch === 'W' || ch === 'H' || ch === 'F' || ch === 'Q') spawns.push({ type: ch, c: c, r: r });
-    else if (ch === 'A' || ch === 'N' || ch === 'S') allySpawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'I') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
   ROOM_X = ROOM_COL * TS;
@@ -2009,6 +2009,36 @@ const BOSS_TYPES = {
 };
 
 const bossUmimi = { active: false, state: 'off', t: 0, x: 0, y: 0, face: -1, healUsed: false, encoreUsed: false, shieldT: 0, motion: 'idle' };
+const stageUmimi = { active: false, x: 0, y: 0, face: 1, t: 0, given: false };
+function resetStageUmimi() {
+  stageUmimi.active = false; stageUmimi.given = false; stageUmimi.t = 0;
+  stageUmimi.x = P.x; stageUmimi.y = P.y + P.h;
+}
+function giveStageUmimi(a) {
+  if (stageUmimi.given) return;
+  stageUmimi.given = true; stageUmimi.active = true; stageUmimi.t = 0;
+  stageUmimi.x = a.x + 16; stageUmimi.y = a.y - 2; stageUmimi.face = 1;
+  progress.support = 'lily'; support.used = false; saveProgress(); refreshSupportButton();
+  sfx('cp');
+  for (let k = 0; k < 10; k++) spawnPart(stageUmimi.x, stageUmimi.y - 14, DIR8X[k & 7] * 0.8, -0.45 - (k & 1) * 0.15, 28, 5, k & 1 ? '#ffd2ef' : '#fff1b8');
+}
+function updateStageUmimi() {
+  const u = stageUmimi; if (!u.active || support.active && support.kind === 'lily') return;
+  u.t++;
+  const side = P.face >= 0 ? -1 : 1;
+  const tx = P.x + P.w / 2 + side * 24;
+  const ty = P.y + P.h - 5 + Math.sin(frame * 0.09) * 2;
+  const dx = tx - u.x;
+  u.x += dx * 0.12; u.y += (ty - u.y) * 0.14;
+  if (Math.abs(dx) > 2) u.face = dx < 0 ? -1 : 1;
+}
+function drawStageUmimi(camX) {
+  const u = stageUmimi; if (!u.active || support.active && support.kind === 'lily') return;
+  const fr = sheetFrame('umimi', Math.abs((P.x + P.w / 2) - u.x) > 18 ? 'swim' : 'idle', u.t >> 3);
+  if (!fr) return;
+  g.drawImage(pick(fr, u.face, false), Math.round(u.x - camX - 16), Math.round(u.y - 32));
+}
+
 function resetBossUmimi() {
   bossUmimi.active = false; bossUmimi.state = 'off'; bossUmimi.t = 0;
   bossUmimi.x = 0; bossUmimi.y = 0; bossUmimi.face = -1; bossUmimi.healUsed = false; bossUmimi.encoreUsed = false; bossUmimi.shieldT = 0; bossUmimi.motion = 'idle';
@@ -2098,6 +2128,7 @@ const ALLY_LINES = {
   A1: 'ここは覚えておく。倒れても、ここから。',
   N: '援護するわ。落ち着いて進んで。',
   S: '青天が歌ってあげる！がんばって！',
+  I: '海音ちゃん、ウミミを連れていって！きっと力になるよ♪',
 };
 function makeAlly(s) {
   const cp = (s.type === 'A' || s.type === 'L') && s.c === CP_C;
@@ -2111,7 +2142,7 @@ function buildActors() {
   // the checkpoint Astarte is replaced by a star lantern when she can't help here (not rescued yet / her own stage)
   allies.length = 0;
   for (const sp of allySpawns) {
-    if (allyAvailable(sp.type)) allies.push(makeAlly(sp));
+    if (sp.type === 'I' || allyAvailable(sp.type)) allies.push(makeAlly(sp));
     else if (sp.type === 'A' && sp.c === CP_C) allies.push(makeAlly({ type: 'L', c: sp.c, r: sp.r }));
   }
   FLOOR_Y = (BOSS_R + 1) * TS; ROOM_L = ROOM_X + TS; ROOM_R = ROOM_X + VW - TS;
@@ -2207,7 +2238,7 @@ function resetStage(fromCP) {
   for (const a of allies) { a.said = false; a.bubbleT = 0; a.act = 0; a.t = 0; }
   bossReset();
   magic.mp = CONFIG.magicMaxMP; magic.regen = 0; magic.orb = null; magic.cooldown = 0;
-  support.used = false; support.t = 0; support.active = false; support.hit = false; refreshSupportButton();
+  support.used = false; support.t = 0; support.active = false; support.hit = false; resetStageUmimi(); refreshSupportButton();
   doorClosed = false; doorAnim = 0; introPhase = 0; hitStop = 0; shakeT = 0;
   cam.x = clampCam(P.x + P.w / 2 - VW / 2);
   setState('ready');
@@ -2252,9 +2283,9 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time. Future friends can join this roster.
-const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ' };
-const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ' };
+const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA', lily: 'LILY' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -2262,8 +2293,8 @@ function refreshSupportButton() {
   const ok = (state === 'play' || state === 'ready') && !!equippedSupport() && !P.dead;
   helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
-  helpBtn.textContent = support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[id] || 'HELP');
-  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff' }[id] || '#ffa8cf');
+  helpBtn.textContent = support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -2273,7 +2304,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NEENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NEENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -3519,6 +3550,9 @@ function castSupport() {
   support.x = Math.max(cam.x + 28, Math.min(cam.x + VW - 28, target));
   support.y = support.kind === 'tobiume' ? -42 : FLOOR_Y - 32;
   if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
+  if (support.kind === 'lily') {
+    support.x = P.x + P.w / 2; support.y = FLOOR_Y - 32; support.face = P.face;
+  }
   if (support.kind === 'astarte') {
     if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
     support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
@@ -3529,6 +3563,23 @@ function updateSupport() {
   if (!support.active) return;
   support.t++;
   const t = support.t;
+  if (support.kind === 'lily') {
+    // Idol support: spotlight entrance, then a friendly Starlight Rain over the whole viewport.
+    if (t === 28 || t === 44 || t === 60 || t === 76) {
+      sfx('arrow'); shake(4, 1);
+      for (const e of enemies) {
+        if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+        e.hp -= 1; e.flash = 8;
+        spawnPart(e.x + e.w / 2, e.y - 4, 0, -0.5, 16, 5, (t + Math.floor(e.x)) & 1 ? '#ffd2ef' : '#fff1b8');
+        if (e.hp <= 0) killEnemy(e);
+      }
+      if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+        boss.inv = 0; damageBoss(null, 1);
+      }
+    }
+    if (t >= 104) { support.active = false; if (stageUmimi.given) stageUmimi.active = true; }
+    return;
+  }
   if (support.kind === 'seiten') {
     // A single burst of restorative song; the shield then stays active for two seconds.
     support.x += (P.x + P.w / 2 + (P.face < 0 ? 20 : -20) - support.x) * 0.22;
@@ -3604,6 +3655,29 @@ function updateSupport() {
 function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
+  if (support.kind === 'lily') {
+    const pulse = 0.16 + 0.08 * Math.sin(frame * 0.14);
+    g.save();
+    g.globalAlpha = pulse;
+    g.fillStyle = '#fff1cf';
+    g.beginPath(); g.moveTo(x - 7, 34); g.lineTo(x - 34, FLOOR_Y); g.lineTo(x + 34, FLOOR_Y); g.lineTo(x + 7, 34); g.closePath(); g.fill();
+    g.restore();
+    const L = SHEETS.lily, U = SHEETS.umimi;
+    if (L) g.drawImage(pick(L[(t >> 4) & 1], support.face, false), x - 16, FLOOR_Y - 32);
+    if (U) {
+      const uf = sheetFrame('umimi', t < 24 ? 'enter' : 'idle', t >> 3);
+      if (uf) g.drawImage(pick(uf, -support.face, false), x + 16, FLOOR_Y - 28);
+    }
+    for (let i = 0; i < 11; i++) {
+      const phase = (i * 17 + t * (3 + (i & 1))) % 118;
+      if (phase > 92) continue;
+      const px = (i * 23 + 7) % VW;
+      const py = 26 + phase;
+      g.fillStyle = i & 1 ? '#ffd2ef' : '#fff1b8';
+      g.fillRect(px, py, 2, 7); g.fillStyle = '#ffffff'; g.fillRect(px, py + 1, 1, 3);
+    }
+    return;
+  }
   if (support.kind === 'seiten') {
     const fr = SHEETS.seiten, d = SHEET_DEFS.seiten, im = fr ? fr[(t >> 4) & 1] : SPR.ally.S[(t >> 4) & 1];
     g.drawImage(pick(im, support.face, false), x - (fr ? (support.face > 0 ? d.cx : d.fw - d.cx) : 16), y - 23);
@@ -3712,6 +3786,8 @@ function updateAllies() {
           }
         }
       }
+    } else if (a.type === 'I') {
+      if (!a.said && adx < A.talkRange && near) { a.said = true; say(a); giveStageUmimi(a); }
     } else if (a.type === 'S') {
       if (adx < A.seitenRange && near) {
         if (!a.said) { a.said = true; say(a); }
@@ -3908,7 +3984,7 @@ function update() {
         updateMagic(); updatePlayer();
         if (inp.supportPressed) castSupport();
         if (state !== 'play') break;
-        updateEnemies(); updateAllies(); updateBoss(); updateSupport(); updateShots(); updateArrows(); updateBullets(); playerContacts();
+        updateEnemies(); updateAllies(); updateBoss(); updateSupport(); updateStageUmimi(); updateShots(); updateArrows(); updateBullets(); playerContacts();
         updateCamera(); checkTriggers();
         break;
       case 'bossIntro':
@@ -4412,10 +4488,19 @@ function drawAstarte(a, camX) {
 }
 function drawNeenia(a, camX) { drawAllySprite(a, 'N', 'neenia', a.act > 0 ? 1 : 0, camX); }
 function drawSeiten(a, camX) { drawAllySprite(a, 'S', 'seiten', a.act > 0 ? (a.t >> 4) & 1 : (SHEETS.seiten ? (a.t >> 5) & 1 : 0), camX); }
+function drawLilyAlly(a, camX) {
+  const sh = SHEETS.lily, sp = sh ? sh[(a.t >> 5) & 1] : null;
+  if (sp) g.drawImage(pick(sp, a.face, false), Math.round(a.x - 16 - camX), Math.round(a.y - 32));
+  else {
+    g.fillStyle = '#ffd2ef'; g.fillRect(Math.round(a.x - camX - 6), Math.round(a.y - 20), 12, 20);
+    g.fillStyle = '#fff1b8'; g.fillRect(Math.round(a.x - camX - 2), Math.round(a.y - 27), 4, 5);
+  }
+}
+
 function drawAllies(camX) {
   for (let i = 0; i < allies.length; i++) {
     const a = allies[i]; if (a.x - camX < -24 || a.x - camX > VW + 24) continue;
-    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else drawSeiten(a, camX);
+    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else drawSeiten(a, camX);
   }
 }
 function drawArrows(camX) {
@@ -4770,7 +4855,7 @@ function render() {
   if (shakeT > 0) { sx = (shakeT & 1 ? 1 : -1) * shakeMag; sy = ((shakeT >> 1) & 1 ? 1 : -1) * Math.max(1, shakeMag >> 1); }
   g.setTransform(1, 0, 0, 1, sx, sy);
   g.drawImage(levelCv, camX, 0, VW, VH, 0, 0, VW, VH);
-  drawDoor(camX); drawAllies(camX);
+  drawDoor(camX); drawAllies(camX); drawStageUmimi(camX);
   for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.alive && e.active) drawEnemy(e, camX); }
   drawLilyBossSpotlight(camX);
   if (curArea.boss === 'lily' && bossUmimi.active && bossUmimi.state === 'platform') drawBossUmimi(camX);
