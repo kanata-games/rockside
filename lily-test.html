@@ -3454,13 +3454,14 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyHeal') {
     b.pose = 'idle'; b.poseF = -1; b.hopY = 0; bossFacePlayer(); b.vx = 0; b.vy = 0;
-    if (b.t === 26) {
+    if (b.t === 34) {
       b.hp = Math.min(B.hp, b.hp + B.healAmount); b.hpShown = b.hp;
       sfx('heal');
       const hx = bossUmimi.x, hy = bossUmimi.y - 14;
       for (let i = 0; i < 12; i++) spawnPart(hx + (i % 4 - 1.5) * 4, hy, 0, -0.45 - (i % 3) * 0.12, 38, i % 3 === 0 ? 5 : 0, i & 1 ? '#ffd2ef' : '#fff4b8');
     }
-    if (b.t > 58) bossSet('hover');
+    // Keep Umimi in front long enough to clearly read and test the water-shot shield.
+    if (b.t > 128) bossSet('hover');
   }
 }
 
