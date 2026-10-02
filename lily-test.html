@@ -4039,6 +4039,55 @@ function drawLilyLandmarks(camX) {
     }
   }
 
+  // Screen 3: dressing-room wing / side-stage corridor. Mirrors and vanity bulbs
+  // make this feel like the last quiet space before the show.
+  x = Math.round(screenX(48 * 16 + 128));
+  if (x > -120 && x < VW + 120) {
+    F(x - 84, 92, 56, 54, '#311d3f');
+    F(x - 78, 98, 44, 36, '#5a365f');
+    F(x - 74, 102, 36, 28, '#2a1833');
+    for (let k = 0; k < 7; k++) {
+      const bx = x - 82 + k * 9;
+      F(bx, 94, 2, 2, ((frame >> 4) + k) & 1 ? '#fff0bb' : '#ffd0ea');
+      F(bx, 136, 2, 2, ((frame >> 5) + k) & 1 ? '#fff0bb' : '#e7a6cf');
+    }
+    for (let k = 0; k < 5; k++) {
+      const by = 101 + k * 8;
+      F(x - 84, by, 2, 2, ((frame >> 4) + k) & 1 ? '#fff0bb' : '#ffd0ea');
+      F(x - 30, by, 2, 2, ((frame >> 4) + k + 1) & 1 ? '#fff0bb' : '#ffd0ea');
+    }
+    F(x + 34, 84, 10, 74, '#2f1b3c');
+    F(x + 46, 84, 10, 74, '#40244d');
+    F(x + 58, 84, 10, 74, '#2f1b3c');
+    F(x + 32, 82, 38, 3, '#6b3f68');
+    F(x + 31, 158, 40, 3, '#6b3f68');
+  }
+
+  // Screen 4 / boss room: the corridor opens into a proper stage proscenium.
+  x = Math.round(screenX(64 * 16 + 128));
+  if (x > -150 && x < VW + 150) {
+    F(x - 112, 48, 224, 6, '#2b1838');
+    F(x - 106, 54, 212, 3, '#7a456e');
+    for (let k = -8; k <= 8; k++) {
+      const lx = x + k * 12;
+      F(lx, 55, 1, 18 + (Math.abs(k) % 2) * 4, '#5b3a63');
+      const lit = (((frame >> 3) + k) & 3) !== 0;
+      F(lx - 2, 73 + (Math.abs(k) % 2) * 4, 5, 5, lit ? '#fff2ba' : '#b86893');
+    }
+    F(x - 104, 83, 14, 79, '#6f3058');
+    F(x + 90, 83, 14, 79, '#6f3058');
+    for (let yy = 88; yy < 158; yy += 10) {
+      F(x - 102, yy, 10, 3, '#b84e7e');
+      F(x + 92, yy + 4, 10, 3, '#b84e7e');
+    }
+    // Decorative footlights point toward Lily's arena.
+    for (let k = -5; k <= 5; k++) {
+      const fx = x + k * 16;
+      F(fx - 2, 158, 5, 3, '#4d304f');
+      if (((frame >> 4) + k) & 1) F(fx - 1, 154, 3, 4, '#ffd9ef');
+    }
+  }
+
   // Ambient floating glitter only in Lily's stage; decorative, no collision.
   for (let i = 0; i < 18; i++) {
     const h = hash(i, 911);
