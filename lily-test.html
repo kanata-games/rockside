@@ -1991,10 +1991,10 @@ const BOSS_TYPES = {
     aura: ['#1a1440', '#6a4aa8'], sparkle: '#e0e0ff', dust: '#b4aee0' },
 };
 
-const bossUmimi = { active: false, state: 'off', t: 0, x: 0, y: 0, face: -1, healUsed: false, motion: 'idle' };
+const bossUmimi = { active: false, state: 'off', t: 0, x: 0, y: 0, face: -1, healUsed: false, encoreUsed: false, shieldT: 0, motion: 'idle' };
 function resetBossUmimi() {
   bossUmimi.active = false; bossUmimi.state = 'off'; bossUmimi.t = 0;
-  bossUmimi.x = 0; bossUmimi.y = 0; bossUmimi.face = -1; bossUmimi.healUsed = false; bossUmimi.motion = 'idle';
+  bossUmimi.x = 0; bossUmimi.y = 0; bossUmimi.face = -1; bossUmimi.healUsed = false; bossUmimi.encoreUsed = false; bossUmimi.shieldT = 0; bossUmimi.motion = 'idle';
 }
 function setBossUmimi(st) {
   if (bossUmimi.state !== st) { bossUmimi.state = st; bossUmimi.t = 0; }
@@ -2025,9 +2025,11 @@ function updateBossUmimi(b) {
     return;
   }
 
+  if (u.shieldT > 0) u.shieldT--;
   if (b.state === 'lilyHeal') setBossUmimi('heal');
+  else if (u.shieldT > 0) setBossUmimi('shield');
   else if (b.state === 'lilyMoon') setBossUmimi('platform');
-  else if (u.state === 'heal' || u.state === 'platform') setBossUmimi('idle');
+  else if (u.state === 'heal' || u.state === 'shield' || u.state === 'platform') setBossUmimi('idle');
 
   if (u.state === 'platform') {
     // Umimi sits clearly under Lily's feet. The moon-disc frame reads as a mount.
@@ -2039,8 +2041,9 @@ function updateBossUmimi(b) {
     return;
   }
 
-  if (u.state === 'heal') {
-    // Move to Lily's front/outer side so the crescent + hearts remain visible.
+  if (u.state === 'heal' || u.state === 'shield') {
+    // Move to Lily's front/outer side. The encore shield reuses Umimi's heal pose,
+    // but does not restore HP.
     const tx = b.x + b.w / 2 + b.face * 40;
     const ty = Math.min(FLOOR_Y - 10, b.y + b.h - 9);
     u.x += (tx - u.x) * 0.18;
@@ -3279,6 +3282,17 @@ function aiLily(b, B, pcx, pcy) {
     if (!bossUmimi.healUsed && b.hp <= B.healTriggerHP) {
       bossUmimi.healUsed = true; bossSet('lilyHeal'); sfx('warn'); return;
     }
+    if (!bossUmimi.encoreUsed && b.hp <= 5) {
+      // Encore: no healing. Umimi shields Lily while Lily immediately launches
+      // her signature Starlight Rain for one final live-show sequence.
+      bossUmimi.encoreUsed = true;
+      bossUmimi.shieldT = 128;
+      setBossUmimi('shield');
+      bossSet('lilyRain');
+      bossSeen('rain');
+      sfx('warn');
+      return;
+    }
     bossFacePlayer(); b.poseF = -1;
     if (ad < 58) {
       b.x -= Math.sign(dx) * 0.72;
@@ -3718,9 +3732,9 @@ function updateShots() {
         break;
       }
     }
-    if (s.active && curArea.boss === 'lily' && boss.state === 'lilyHeal' && bossUmimi.active && bossUmimi.state === 'heal') {
-      // Umimi is a living water shield during Lily's heal. Umine's water shots
-      // splash harmlessly against her instead of reaching Lily.
+    if (s.active && curArea.boss === 'lily' && bossUmimi.active && (bossUmimi.state === 'heal' || bossUmimi.state === 'shield')) {
+      // Umimi is a living water shield during Lily's heal and encore. Umine's
+      // water shots splash harmlessly against her instead of reaching Lily.
       const uShield = { x: bossUmimi.x - 14, y: bossUmimi.y - 29, w: 28, h: 28 };
       if (overlap(s, uShield)) {
         s.active = false;
