@@ -194,7 +194,7 @@ const CONFIG = {
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
-const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
+const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hard: QS.get('hard') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0 };
 
 // =====================================================================
@@ -2509,7 +2509,10 @@ function bossSet(s) { boss.state = s; boss.t = 0; }
 function bossCfg() { return curArea.boss === 'tobiume' ? CONFIG.boss : CONFIG.bosses[curArea.boss]; }
 function bossType() { return BOSS_TYPES[curArea.boss] || BOSS_TYPES.tobiume; }
 function bossFacePlayer() { boss.face = (P.x + P.w / 2 < boss.x + boss.w / 2) ? -1 : 1; }
-function bossRage() { return boss.hp <= bossCfg().hp / 2; }
+function bossRage() {
+  if (DEBUG.hard && curArea.boss === 'lily') return true;
+  return boss.hp <= bossCfg().hp / 2;
+}
 function bossSeen(name) { if (!boss.seen.includes(name)) boss.seen.push(name); }
 // gravity for the ground bosses; returns true on the frame she lands
 function bossFall(b) {
@@ -3419,28 +3422,32 @@ function aiLily(b, B, pcx, pcy) {
 
   if (b.state === 'lilyRain') {
     bossFacePlayer(); b.hopY = 0; b.vx = 0; b.vy = 0;
-    const wind = 30, count = rage ? 9 : 7, interval = rage ? 7 : 8;
+    const hardRain = DEBUG.hard && curArea.boss === 'lily';
+    const wind = hardRain ? 24 : 30;
+    const count = hardRain ? 14 : (rage ? 9 : 7);
+    const interval = hardRain ? 5 : (rage ? 7 : 8);
+    const fallSpeed = hardRain ? 2.35 : (rage ? 1.95 : 1.7);
     if (b.t === 1) b.lilyRainSeed = (frame >> 2) % 7;
     if (b.t < wind) { b.pose = 'windup'; b.poseF = (b.t >> 3) & 1; }
     else { b.pose = 'attack'; b.poseF = 0; }
 
-    // Starlight Rain: live-show confetti. Each piece falls slowly and sways on its
-    // own phase, so the player reads the gaps instead of dodging fixed columns.
+    // Starlight Rain: live-show confetti. Hard mode turns the number and speed up,
+    // but each piece still sways independently so the attack remains readable.
     for (let k = 0; k < count; k++) if (b.t === wind + k * interval) {
       const lane = (k * 3 + b.lilyRainSeed) % 7;
       const baseX = ROOM_L + (lane + 0.5) * (ROOM_R - ROOM_L) / 7 - 2;
-      const n = spawnBullet(baseX, 31, 0, rage ? 1.95 : 1.7, 20, B.noteDamage);
+      const n = spawnBullet(baseX, 31, 0, fallSpeed, 20, B.noteDamage);
       if (n) {
-        n.life = 150;
+        n.life = hardRain ? 120 : 150;
         n.baseX = baseX;
-        n.swayAmp = 7 + (k % 3) * 2;
-        n.swayRate = 0.065 + (k % 2) * 0.012;
+        n.swayAmp = hardRain ? (8 + (k % 3) * 2) : (7 + (k % 3) * 2);
+        n.swayRate = hardRain ? (0.075 + (k % 2) * 0.014) : (0.065 + (k % 2) * 0.012);
         n.swayPhase = k * 1.37 + b.lilyRainSeed * 0.41;
       }
       for (let j = 0; j < 3; j++) spawnPart(baseX + 2, 34, (j - 1) * 0.18, 0.25 + j * 0.08, 20, j === 1 ? 5 : 0, j & 1 ? '#ffd2ef' : '#fff1b8');
       sfx('song');
     }
-    if (b.t > wind + (count - 1) * interval + 106) bossSet('hover');
+    if (b.t > wind + (count - 1) * interval + (hardRain ? 86 : 106)) bossSet('hover');
     return;
   }
 
