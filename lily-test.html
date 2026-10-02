@@ -2009,22 +2009,37 @@ const BOSS_TYPES = {
 };
 
 const bossUmimi = { active: false, state: 'off', t: 0, x: 0, y: 0, face: -1, healUsed: false, encoreUsed: false, shieldT: 0, motion: 'idle' };
-const stageUmimi = { active: false, x: 0, y: 0, face: 1, t: 0, given: false };
+const stageUmimi = { active: false, x: 0, y: 0, face: 1, t: 0, given: false, hp: 6, maxHp: 6, inv: 0, down: false, downT: 0 };
 function resetStageUmimi() {
-  stageUmimi.active = false; stageUmimi.given = false; stageUmimi.t = 0;
+  stageUmimi.active = false; stageUmimi.given = false; stageUmimi.t = 0; stageUmimi.hp = stageUmimi.maxHp; stageUmimi.inv = 0; stageUmimi.down = false; stageUmimi.downT = 0;
   stageUmimi.x = P.x; stageUmimi.y = P.y + P.h;
 }
 function giveStageUmimi(a) {
   if (stageUmimi.given) return;
-  stageUmimi.given = true; stageUmimi.active = true; stageUmimi.t = 0;
+  stageUmimi.given = true; stageUmimi.active = true; stageUmimi.t = 0; stageUmimi.hp = stageUmimi.maxHp; stageUmimi.inv = 0; stageUmimi.down = false; stageUmimi.downT = 0;
   stageUmimi.x = a.x + 16; stageUmimi.y = a.y - 2; stageUmimi.face = 1;
   progress.support = 'lily'; support.used = false; saveProgress(); refreshSupportButton();
   sfx('cp');
   for (let k = 0; k < 10; k++) spawnPart(stageUmimi.x, stageUmimi.y - 14, DIR8X[k & 7] * 0.8, -0.45 - (k & 1) * 0.15, 28, 5, k & 1 ? '#ffd2ef' : '#fff1b8');
 }
+function stageUmimiBox() {
+  const u = stageUmimi; return { x: u.x - 12, y: u.y - 25, w: 24, h: 24 };
+}
+function hurtStageUmimi(dmg, srcX) {
+  const u = stageUmimi; if (!u.active || u.down || u.inv > 0 || support.active && support.kind === 'lily') return false;
+  u.hp = Math.max(0, u.hp - Math.max(1, dmg | 0)); u.inv = 28;
+  u.face = srcX < u.x ? -1 : 1;
+  splashAt(u.x, u.y - 14, srcX < u.x ? -1 : 1); shake(4, 1); sfx('tink');
+  if (u.hp <= 0) {
+    u.down = true; u.downT = 0; support.active = false; support.used = false; refreshSupportButton();
+    for (let k = 0; k < 10; k++) spawnPart(u.x, u.y - 14, (k - 4.5) * 0.18, -0.7 - (k & 1) * 0.2, 24, 5, k & 1 ? '#bcecff' : '#ffffff');
+  }
+  return true;
+}
 function updateStageUmimi() {
   const u = stageUmimi; if (!u.active || support.active && support.kind === 'lily') return;
-  u.t++;
+  u.t++; if (u.inv > 0) u.inv--;
+  if (u.down) { u.downT++; return; }
   const side = P.face >= 0 ? -1 : 1;
   const tx = P.x + P.w / 2 + side * 24;
   const ty = P.y + P.h - 5 + Math.sin(frame * 0.09) * 2;
@@ -2034,8 +2049,10 @@ function updateStageUmimi() {
 }
 function drawStageUmimi(camX) {
   const u = stageUmimi; if (!u.active || support.active && support.kind === 'lily') return;
-  const fr = sheetFrame('umimi', Math.abs((P.x + P.w / 2) - u.x) > 18 ? 'swim' : 'idle', u.t >> 3);
+  const anim = u.down ? 'exit' : (Math.abs((P.x + P.w / 2) - u.x) > 18 ? 'swim' : 'idle');
+  const fr = sheetFrame('umimi', anim, u.down ? 0 : u.t >> 3);
   if (!fr) return;
+  if (u.inv > 0 && (u.inv & 2)) return;
   g.drawImage(pick(fr, u.face, false), Math.round(u.x - camX - 16), Math.round(u.y - 32));
 }
 
@@ -2290,10 +2307,11 @@ const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, fa
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
 function refreshSupportButton() {
-  const ok = (state === 'play' || state === 'ready') && !!equippedSupport() && !P.dead;
-  helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
-  helpBtn.textContent = support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE' }[id] || 'HELP');
+  const lilyReady = id !== 'lily' || (stageUmimi.given && stageUmimi.active && !stageUmimi.down && stageUmimi.hp > 0);
+  const ok = (state === 'play' || state === 'ready') && !!id && !P.dead;
+  helpBtn.style.display = ok ? 'flex' : 'none';
+  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE' }[id] || 'HELP');
   helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
@@ -3540,6 +3558,7 @@ const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astart
 // camera's visible combat space; the attack hits visible enemies, never the player.
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
+  if (equippedSupport() === 'lily' && (!stageUmimi.given || !stageUmimi.active || stageUmimi.down || stageUmimi.hp <= 0)) { sfx('buzz'); return; }
   support.used = true; support.active = true; support.hit = false; support.t = 0;
   support.kind = equippedSupport(); support.camX = cam.x;
   const bossVisible = bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW;
@@ -3870,6 +3889,16 @@ function updateBullets() {
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
     if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
     if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
+    if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
+        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && overlap(b, stageUmimiBox())) {
+      if (hurtStageUmimi(b.dmg || 1, b.x + b.w / 2)) {
+        b.active = false; continue;
+      }
+    }
+    if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
+        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20) && overlap(b, stageUmimiBox())) {
+      hurtStageUmimi(b.dmg || 1, b.x + b.w / 2);
+    }
     if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16) b.active = false; }
   }
 }
@@ -3898,13 +3927,22 @@ function neeniaArrowUpdate(b) {
   return false;
 }
 function playerContacts() {
-  if (P.dead || P.inv > 0) return;
-  for (let i = 0; i < enemies.length; i++) {
-    const e = enemies[i]; if (!e.alive || !e.active) continue;
-    if (overlap(P, e)) { hurtPlayer(enemyDamage(e), e.x + e.w / 2); return; }
+  if (!P.dead && P.inv <= 0) {
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i]; if (!e.alive || !e.active) continue;
+      if (overlap(P, e)) { hurtPlayer(enemyDamage(e), e.x + e.w / 2); break; }
+    }
+    const b = boss;
+    if (bossHittable() && overlap(P, b)) hurtPlayer(bossCfg().contactDamage, b.x + b.w / 2);
   }
-  const b = boss;
-  if (bossHittable() && overlap(P, b)) hurtPlayer(bossCfg().contactDamage, b.x + b.w / 2);
+  if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily')) {
+    const ub = stageUmimiBox();
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i]; if (!e.alive || !e.active) continue;
+      if (overlap(ub, e)) { hurtStageUmimi(enemyDamage(e), e.x + e.w / 2); break; }
+    }
+    if (bossHittable() && overlap(ub, boss)) hurtStageUmimi(bossCfg().contactDamage, boss.x + boss.w / 2);
+  }
 }
 function updateParticles() {
   for (let i = 0; i < parts.length; i++) {
@@ -4661,8 +4699,15 @@ function drawHUD() {
   for (let i = 0; i < CONFIG.magicMaxMP; i++) {
     g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
   }
-  if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: ' + ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[equippedSupport()] || 'HELP'), 8, 42, support.used ? 'b' : 'y', 1);
-  if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
+  if (equippedSupport()) {
+    const sid = equippedSupport(), lbl = ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE' }[sid] || 'HELP');
+    const unavailable = sid === 'lily' && (!stageUmimi.given || stageUmimi.down || stageUmimi.hp <= 0);
+    drawText(unavailable ? (stageUmimi.down ? 'SUP DOWN' : 'SUP WAIT') : support.used ? 'SUP USED' : 'SUP B: ' + lbl, 8, 42, unavailable || support.used ? 'b' : 'y', 1);
+    if (sid === 'lily' && stageUmimi.given) {
+      drawText('UMIMI ' + stageUmimi.hp + '/' + stageUmimi.maxHp, 8, 54, stageUmimi.down ? 'b' : 'c', 1);
+    }
+  }
+  if (DEBUG.god) drawText('GOD', 8, equippedSupport() === 'lily' && stageUmimi.given ? 66 : 54, 'g', 1);
 }
 function drawHitboxes(camX) {
   g.strokeStyle = '#00ff00'; g.lineWidth = 1;
@@ -4671,6 +4716,7 @@ function drawHitboxes(camX) {
   g.strokeStyle = '#ffff00'; // hurtboxes (what shots/arrows hit)
   for (const e of enemies) if (e.alive && e.active && e.hurtUp) g.strokeRect(Math.round(e.x - camX) + 0.5, Math.round(e.y - e.hurtUp) + 0.5, e.w - 1, e.h + e.hurtUp - 1);
   g.strokeStyle = '#00ff00';
+  if (stageUmimi.active && stageUmimi.given && !stageUmimi.down) { const ub = stageUmimiBox(); g.strokeRect(Math.round(ub.x - camX) + 0.5, Math.round(ub.y) + 0.5, ub.w - 1, ub.h - 1); }
   if (boss.state !== 'off') g.strokeRect(Math.round(boss.x - camX) + 0.5, Math.round(boss.y) + 0.5, boss.w - 1, boss.h - 1);
 }
 function dim(a) { g.fillStyle = 'rgba(8,6,20,' + a + ')'; g.fillRect(0, 0, VW, VH); }
