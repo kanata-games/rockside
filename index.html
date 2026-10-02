@@ -1417,8 +1417,9 @@ function loadSheets() {
   if (typeof EMBEDDED_META !== 'undefined') for (const k in EMBEDDED_META) if (SHEET_DEFS[k]) applySheetMeta(SHEET_DEFS[k], EMBEDDED_META[k]);
   const emb = (typeof EMBEDDED_SHEETS !== 'undefined' && QS.get('sprites') !== 'folder') ? EMBEDDED_SHEETS : null;
   const useFolder = !emb || Object.keys(emb).length === 0;
+  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi']);
   for (const k in SHEET_DEFS) {
-    if (!useFolder && !emb[k]) continue;
+    if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();
     img.onload = () => {
       const fr = sliceSheet(img, d); if (!fr) { console.warn('ROCKSIDE: sheet ' + d.file + ' has an unexpected size'); return; }
@@ -1426,7 +1427,7 @@ function loadSheets() {
       if (k === 'tobiume') SHEETS.tobiumeTint = fr.map(s => sheetSprite(tintCanvas(s.r, '#ffb8dc', 0.42)));
     };
     img.onerror = () => {}; // missing file -> keep procedural art
-    img.src = useFolder ? d.file : emb[k];
+    img.src = (useFolder || LILY_FOLDER_SHEETS.has(k)) ? d.file : emb[k];
   }
 }
 
