@@ -895,7 +895,7 @@ const STAGE_LILY = [
 "................",
 "................",
 "................",
-"....I.....A.....",
+"..........A.....",
 "################",
 "################"
 ],
@@ -2018,7 +2018,7 @@ function giveStageUmimi(a) {
   if (stageUmimi.given) return;
   stageUmimi.given = true; stageUmimi.active = true; stageUmimi.t = 0; stageUmimi.hp = stageUmimi.maxHp; stageUmimi.inv = 0; stageUmimi.down = false; stageUmimi.downT = 0;
   stageUmimi.x = a.x + 16; stageUmimi.y = a.y - 2; stageUmimi.face = 1;
-  progress.support = 'lily'; support.used = false; saveProgress(); refreshSupportButton();
+  support.used = false; refreshSupportButton();
   sfx('cp');
   for (let k = 0; k < 10; k++) spawnPart(stageUmimi.x, stageUmimi.y - 14, DIR8X[k & 7] * 0.8, -0.45 - (k & 1) * 0.15, 28, 5, k & 1 ? '#ffd2ef' : '#fff1b8');
 }
@@ -2159,13 +2159,22 @@ function buildActors() {
   // the checkpoint Astarte is replaced by a star lantern when she can't help here (not rescued yet / her own stage)
   allies.length = 0;
   for (const sp of allySpawns) {
-    if (sp.type === 'I' || allyAvailable(sp.type)) allies.push(makeAlly(sp));
+    if (allyAvailable(sp.type)) allies.push(makeAlly(sp));
     else if (sp.type === 'A' && sp.c === CP_C) allies.push(makeAlly({ type: 'L', c: sp.c, r: sp.r }));
+  }
+  // Lily support is special: after Lily is rescued and selected on stage select,
+  // she waits near the stage start and entrusts Umimi to Umine.
+  // Never spawn her in Lily's own DARK stage, where Lily + Umimi are the boss encounter.
+  const lilyTestReady = QS.get('lilyhelpertest') === '1';
+  if (curArea.friend !== 'lily' && progress.support === 'lily' && (isRescued('lily') || lilyTestReady)) {
+    const lc = Math.min(COLS - 2, START_C + 3);
+    allies.push(makeAlly({ type: 'I', c: lc, r: START_R }));
   }
   FLOOR_Y = (BOSS_R + 1) * TS; ROOM_L = ROOM_X + TS; ROOM_R = ROOM_X + VW - TS;
 }
 function allyAvailable(type) {
   const area = curArea;
+  if (type === 'I') return false; // Lily is spawned only by the selected-support rule in buildActors()
   if (ALLY_FRIEND[type] === area.friend) return false; // never a helper in her own DARK stage
   return DEBUG.allies || (area.guests && area.guests.includes(type)) || isRescued(ALLY_FRIEND[type]);
 }
