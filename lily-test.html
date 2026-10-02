@@ -2545,7 +2545,13 @@ function updateBoss() {
     if (b.state === 'fill') {
       b.pose = 'idle'; b.poseF = -1; bossFacePlayer(); if (T.fly) astarteFloat(b, B);
       if ((b.t & 1) === 0 && b.hpShown < b.hp) { b.hpShown++; sfx('tick'); }
-      if (b.hpShown >= b.hp && b.t > 20) { bossSet('hover'); setState('play'); }
+      if (b.hpShown >= b.hp && b.t > 20) {
+        // Lily opens every fight with her signature live-show Starlight Rain.
+        // Other bosses keep their normal neutral opening.
+        if (curArea.boss === 'lily') { bossSet('lilyRain'); bossSeen('rain'); }
+        else bossSet('hover');
+        setState('play');
+      }
       return;
     }
   }
