@@ -919,7 +919,7 @@ const AREAS = [
     map: STAGE_SUNSET_HILLS, theme: 'sunset',
     guests: ['A', 'N', 'S'] },  // first stage: Astarte / Neenia / Seiten help even though their DARK stages come later
   { id: 'neenia', no: 2, slot: 2, name: '月影の森', en: 'MOON WOODS', friend: 'neenia', boss: 'neenia',
-    bossName: 'DARK ネーニア', bossAlias: '闇落ちネーニア', bossEn: 'DARK NEENIA',
+    bossName: 'DARK ネーニア', bossAlias: '闇落ちネーニア', bossEn: 'DARK NENIA',
     face: 'face_neenia_dark', faceRescued: 'face_neenia',
     portrait: { sheet: 'neenia', frame: 0, x: 3, y: 1, size: 20, shadow: true },
     portraitRescued: { sheet: 'neenia', frame: 0, x: 3, y: 1, size: 20 },
@@ -1935,8 +1935,8 @@ const BOSS_TYPES = {
   tobiume: { hud: 'TOBIUME', speaker: '飛梅', speakerColor: '#ff8cc0', line: '…ありがとう、海音ちゃん！', face: 'face_tobiume',
     clearEn: 'TOBIUME RESCUED', clearJp: '飛梅を闇から救い出した！', dark: 'tobiume', normal: 'tobiumeNormal', fly: true, w: 20, h: 34,
     aura: ['#3a1040', '#7a2a70'], sparkle: '#ff9ad8' },
-  neenia: { hud: 'NEENIA', speaker: 'ネーニア', speakerColor: '#8fb0ff', line: '…助かったわ。ありがとう、海音', face: 'face_neenia',
-    clearEn: 'NEENIA RESCUED', clearJp: 'ネーニアを闇から救い出した！', dark: 'neeniaDark', normal: 'neenia', ally: 'N', w: 14, h: 34,
+  neenia: { hud: 'NENIA', speaker: 'ネーニア', speakerColor: '#8fb0ff', line: '…助かったわ。ありがとう、海音', face: 'face_neenia',
+    clearEn: 'NENIA RESCUED', clearJp: 'ネーニアを闇から救い出した！', dark: 'neeniaDark', normal: 'neenia', ally: 'N', w: 14, h: 34,
     aura: ['#1c1440', '#5a3a9a'], sparkle: '#b8d0ff', dust: '#7aa0b0' },
   seiten: { hud: 'SEITEN', speaker: '青天', speakerColor: '#ff8098', line: 'うみねちゃん…ごめんね、ありがとう！', face: 'face_seiten',
     clearEn: 'SEITEN RESCUED', clearJp: '青天を闇から救い出した！', dark: 'seitenDark', normal: 'seiten', ally: 'S', w: 16, h: 30,
@@ -2246,7 +2246,7 @@ function isRescued(friend) { return !!friend && progress.rescued.includes(friend
 // One equippable rescue special at a time.
 const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily'];
 const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ' };
-const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA', lily: 'LILY' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTE', lily: 'LILY' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -2266,7 +2266,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NEENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -2279,7 +2279,7 @@ buildActors();
 const SEL = { x0: 8, y0: 23, cw: 76, ch: 70, gx: 6, gy: 3 };
 function cellRect(slot) { const c = slot % 3, r = (slot / 3) | 0; return { x: SEL.x0 + c * (SEL.cw + SEL.gx), y: SEL.y0 + r * (SEL.ch + SEL.gy), w: SEL.cw, h: SEL.ch }; }
 const SEL_BACK = { x: 3, y: 4, w: 36, h: 13 };
-const SEL_SUPPORT = { x: 44, y: 3, w: 67, h: 15 };
+const SEL_SUPPORT = { x: 44, y: 3, w: 82, h: 15 };
 const TITLE_HARD = { x: 3, y: 3, w: 62, h: 13 };
 const TITLE_RESET = { x: 186, y: 3, w: 67, h: 12 };  // "ERASE DATA" button on the title (shown when there is progress)
 let selCursor = 0, selMsg = null, selMsgT = 0, introArea = null, resetArmT = 0;
@@ -2770,12 +2770,12 @@ function neeniaBackstep(b, B) {
   else { b.vx = away * B.backstepVx; b.vy = -B.backstepVy; }
   b.onGround = false; b.volleys = 0; b.pr = bossRage(); bossSet('backstep'); sfx('swoosh');
 }
-const NEENIA_OPTS = ['aim', 'rain', 'backstep', 'rico', 'lob', 'snare'];
+const NENIA_OPTS = ['aim', 'rain', 'backstep', 'rico', 'lob', 'snare'];
 // shuffle bag: every pattern once per round of 6 (never the same twice in a row) -> the new attacks show up every round
 function neeniaPick() {
   const neeniaBag = boss.bag;
   if (!neeniaBag.length) {
-    for (const o of NEENIA_OPTS) neeniaBag.push(o);
+    for (const o of NENIA_OPTS) neeniaBag.push(o);
     for (let i = neeniaBag.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0, t = neeniaBag[i]; neeniaBag[i] = neeniaBag[j]; neeniaBag[j] = t; }
     if (neeniaBag[neeniaBag.length - 1] === boss.last) { const t = neeniaBag[0]; neeniaBag[0] = neeniaBag[neeniaBag.length - 1]; neeniaBag[neeniaBag.length - 1] = t; }
   }
