@@ -931,7 +931,7 @@ const AREAS = [
     portraitRescued: { sheet: 'seiten', frame: 0, x: 5, y: 2, size: 20 },
     map: STAGE_NOCTURNE_CITY, theme: 'city' },
   { id: 'astarte', no: 4, slot: 8, name: '星導の聖堂', en: 'STAR SHRINE', friend: 'astarte', boss: 'astarte',
-    bossName: 'DARK アスターテ', bossAlias: '闇落ちアスターテ', bossEn: 'DARK ASTARTE',
+    bossName: 'DARK アスターテ', bossAlias: '闇落ちアスターテ', bossEn: 'DARK ASTARTHE',
     face: 'face_astarte_dark', faceRescued: 'face_astarte',
     portrait: { sheet: 'astarte', frame: 0, x: 3, y: 2, size: 20, shadow: true },
     portraitRescued: { sheet: 'astarte', frame: 0, x: 3, y: 2, size: 20 },
@@ -1944,8 +1944,8 @@ const BOSS_TYPES = {
   lily: { hud: 'LILY', speaker: 'リリィ', speakerColor: '#ffd2ef', line: '海音ちゃん！助けてくれてありがとうっ♪', face: 'face_lily',
     clearEn: 'LILY RESCUED', clearJp: 'リリィを闇から救い出した！', dark: 'lilyDark', normal: 'lily', w: 16, h: 34,
     aura: ['#31102f', '#8b2d6a'], sparkle: '#ffd2ef', dust: '#c9b9e8' },
-  astarte: { hud: 'ASTARTE', speaker: 'アスターテ', speakerColor: '#b0b8ff', line: '…道を見失っていた。ここからは、また照らす', face: 'face_astarte',
-    clearEn: 'ASTARTE RESCUED', clearJp: 'アスターテを闇から救い出した！', dark: 'astarteDark', normal: 'astarte', ally: 'A', fly: true, w: 16, h: 34,
+  astarte: { hud: 'ASTARTHE', speaker: 'アスターテ', speakerColor: '#b0b8ff', line: '…道を見失っていた。ここからは、また照らす', face: 'face_astarte',
+    clearEn: 'ASTARTHE RESCUED', clearJp: 'アスターテを闇から救い出した！', dark: 'astarteDark', normal: 'astarte', ally: 'A', fly: true, w: 16, h: 34,
     aura: ['#1a1440', '#6a4aa8'], sparkle: '#e0e0ff', dust: '#b4aee0' },
 };
 const bossUmimi = { active: false, state: 'off', t: 0, x: 0, y: 0, face: -1, healUsed: false, encoreUsed: false, shieldT: 0, motion: 'idle' };
@@ -2246,7 +2246,7 @@ function isRescued(friend) { return !!friend && progress.rescued.includes(friend
 // One equippable rescue special at a time.
 const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily'];
 const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ' };
-const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTE', lily: 'LILY' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -2266,7 +2266,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
