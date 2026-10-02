@@ -194,7 +194,7 @@ const CONFIG = {
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
-const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hard: QS.get('hard') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
+const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hard: QS.get('hard') === '1', allies: QS.get('allies') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0 };
 
 // =====================================================================
@@ -814,7 +814,7 @@ const STAGE_STAR_SHRINE = [
 // =====================================================================
 
 const STAGE_LILY = [
-[ // 0 - Moonlight Palace entrance: a gentle first "verse" with one optional upper route.
+[ // 0 - Moonlight Palace entrance: gentle opening.
 "................",
 "................",
 "................",
@@ -831,7 +831,7 @@ const STAGE_LILY = [
 "################",
 "################"
 ],
-[ // 1 - Backstage corridor: low platforms break the run while a flyer pressures the upper lane.
+[ // 1 - Backstage corridor.
 "................",
 "................",
 "................",
@@ -848,7 +848,7 @@ const STAGE_LILY = [
 "#####..#########",
 "#####..#########"
 ],
-[ // 2 - Stage machinery: staggered catwalks create a readable up/down rhythm before the checkpoint.
+[ // 2 - Stage machinery: the mid-stage gameplay peak.
 "................",
 "................",
 "................",
@@ -865,7 +865,7 @@ const STAGE_LILY = [
 "################",
 "################"
 ],
-[
+[ // 3 - Dressing-room wing: recovery beat with Seiten's song.
 "................",
 "................",
 "................",
@@ -878,11 +878,28 @@ const STAGE_LILY = [
 ".......====.....",
 "................",
 "................",
-"...A......H.....",
+".....S..........",
 "################",
 "################"
 ],
-[
+[ // 4 - Quiet side-stage corridor: Astarte checkpoint, no enemies.
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"..........A.....",
+"################",
+"################"
+],
+[ // 5 - Boss stage.
 "................",
 "................",
 "................",
@@ -2102,7 +2119,7 @@ function buildActors() {
 function allyAvailable(type) {
   const area = curArea;
   if (ALLY_FRIEND[type] === area.friend) return false; // never a helper in her own DARK stage
-  return (area.guests && area.guests.includes(type)) || isRescued(ALLY_FRIEND[type]);
+  return DEBUG.allies || (area.guests && area.guests.includes(type)) || isRescued(ALLY_FRIEND[type]);
 }
 let curArea = AREAS[0];
 // switch the world to an area: map -> tiles/background -> actors
@@ -4063,8 +4080,22 @@ function drawLilyLandmarks(camX) {
     F(x + 31, 158, 40, 3, '#6b3f68');
   }
 
-  // Screen 4 / boss room: the corridor opens into a proper stage proscenium.
+  // Screen 4: quiet side-stage corridor. Sparse lights leave breathing room before the boss.
   x = Math.round(screenX(64 * 16 + 128));
+  if (x > -130 && x < VW + 130) {
+    F(x - 96, 76, 192, 3, '#35233f');
+    for (let k = -4; k <= 4; k++) {
+      const lx = x + k * 22;
+      F(lx, 79, 1, 28, '#51365d');
+      if (k % 2 === 0) F(lx - 2, 106, 5, 3, '#8b5a82');
+    }
+    F(x - 70, 146, 140, 2, '#654563');
+    F(x + 46, 118, 8, 24, '#47314d');
+    F(x + 48, 114, 4, 4, ((frame >> 5) & 1) ? '#fff1b8' : '#d59bc4');
+  }
+
+  // Screen 5 / boss room: the corridor opens into a proper stage proscenium.
+  x = Math.round(screenX(80 * 16 + 128));
   if (x > -150 && x < VW + 150) {
     F(x - 112, 48, 224, 6, '#2b1838');
     F(x - 106, 54, 212, 3, '#7a456e');
