@@ -879,6 +879,7 @@ function loop(now) {
 loadSheets();
 resetStage(false); setState('title');
 if (DEBUG.area) { const a = AREAS.find(x => x.no === DEBUG.area && x.map); if (a) startGame(a); } // ?area=N: straight into the stage
+if (DEBUG.ending) startEnding(); // ?ending=1: straight to the ending party + credits
 requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
@@ -889,6 +890,7 @@ window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, 
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
   _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid, barGeom, cellLabel }, BOSS_TYPES,
+  get ending() { return { phase: ENDING.phase, t: ENDING.t, credY: ENDING.credY, thanksT: ENDING.thanksT, h: creditsHeight() }; },
   get final() { return { phase: FINAL.phase, rushIdx: FINAL.rushIdx, climaxT: FINAL.climaxT, finaleI: FINAL.finaleI, swallowed: FINAL.swallowed, boss: curArea.boss }; },
   get roomX() { return ROOM_X; }, get cpX() { return CP_C * TS; }, get levelW() { return LEVEL_W; } };
 </script>

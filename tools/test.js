@@ -685,7 +685,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
     ok('first climax cannot be skipped', await G(page, () => ROCKSIDE.state === 'climax' && ROCKSIDE.final.climaxT > 20));
     ok('climax lasts ~10-15 s and ends in the finale', await waitState(page, 'finale', 16000));
     for (let i = 0; i < 8 && (await G(page, () => ROCKSIDE.state)) === 'finale'; i++) { await sleep(900); await page.keyboard.press('Enter'); }
-    ok('finale dialogue -> ending', await waitFor(page, () => ROCKSIDE.state === 'theEnd' || ROCKSIDE.state === 'ending', 6000));
+    ok('finale dialogue -> ending party', await waitFor(page, () => ROCKSIDE.state === 'ending', 6000));
     const sv = await G(page, () => JSON.parse(localStorage.getItem(ROCKSIDE.PROGRESS_KEY) || '{}'));
     ok('game clear saved (cleared: final, climax seen)', sv.cleared && sv.cleared.includes('final') && sv.seen && sv.seen.includes('climax'), sv);
     await ctx.close();
@@ -699,6 +699,20 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
     ok('climax skippable by tap after the first view', await waitState(page, 'finale', 3000));
     await ctx.close();
   }
+  // ===== v11 ENDING: party + karaoke + credits (?ending=1), THANK YOU + teaser, back to the title =====
+  ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?ending=1'));
+  ok('?ending=1 jumps to the ending party', await waitState(page, 'ending', 4000) && (await G(page, () => ['partyBg', 'partyProps', 'kanata', 'umineOwner'].every(k => ROCKSIDE.SHEETS_LOADED.includes(k)))));
+  { const e0 = await G(page, () => ROCKSIDE.ending); await sleep(1500); const e1 = await G(page, () => ROCKSIDE.ending);
+    ok('credits scroll upward over the party (one editable CREDITS list incl. Created by 清掃員カナタ)', e1.credY < e0.credY && e1.phase === 'credits' && (await G(page, () => CREDITS.some(c => c.text === 'Created by 清掃員カナタ') && CREDITS.some(c => c.title && c.title.includes('ROCKSIDE')) && CREDITS.some(c => (c.text || '').includes(OWNER_NAME.jp)))), { e0, e1 }); }
+  ok('karaoke: Kanata takes a turn at the mic (sing frame)', await G(page, () => KARAOKE_TURNS.some(t => t.includes('kanata')) && KARAOKE_TURNS.some(t => t.includes('seiten')) && KARAOKE_TURNS.some(t => t.includes('lily'))));
+  await page.keyboard.press('Enter'); // fast-forward
+  ok('credits end -> THANK YOU FOR PLAYING', await waitFor(page, () => ROCKSIDE.ending.phase === 'thanks', 40000));
+  await waitFor(page, () => ROCKSIDE.ending.thanksT > 160, 6000); await page.keyboard.press('Enter');
+  ok('tap after THANK YOU -> title', await waitState(page, 'title', 3000));
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['final'], rescued: [], seen: ['climax', 'ending'] })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.reload(); await sleep(500);
+  ok('title knows the game is cleared (clear mark)', await G(page, () => ROCKSIDE.state === 'title' && ROCKSIDE._test.isCleared('final')));
+  await ctx.close();
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));
   await page.keyboard.press('KeyH'); await sleep(60);

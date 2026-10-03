@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.10.0';
+const GAME_VERSION = '0.11.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -256,6 +256,19 @@ const CONFIG = {
 
 // 海音の中の人 (the player behind Umine) - display name used in the finale / ending. Edit here only.
 const OWNER_NAME = { jp: '海音の中の人', en: "UMINE'S OWNER" };
+// Ending credits (scroll over the party). Edit freely: { title } big line, { head } section heading, { text } line, { gap } blank space (px).
+const CREDITS = [
+  { title: 'ROCKSIDE – 海音の冒険' }, { gap: 20 },
+  { head: 'CAST' },
+  { text: '海音 UMINE' }, { text: '飛梅 TOBIUME' }, { text: 'ネーニア NENIA' }, { text: '青天 SEITEN' }, { text: 'アスターテ ASTARTHE' },
+  { text: 'リリィ LILY' }, { text: 'ウミミ UMIMI' }, { text: 'スターさん STAR' }, { text: 'シラヌイ SHIRANUI' }, { text: 'ダイスロール DICEROLL' },
+  { text: '清掃員カナタ KANATA' }, { text: OWNER_NAME.jp + ' ' + OWNER_NAME.en }, { gap: 16 },
+  { head: 'GAME' }, { text: 'Created by 清掃員カナタ' }, { gap: 10 },
+  { head: 'ART' }, { text: 'Pixel art: ROCKSIDE art team' }, { gap: 10 },
+  { head: 'CODE' }, { text: 'Programming: ROCKSIDE dev team' }, { gap: 10 },
+  { head: 'CHARACTERS' }, { text: 'Characters belong to their owners' }, { gap: 10 },
+  { head: 'SPECIAL THANKS' }, { text: 'all friends' }, { text: '…and you!' }, { gap: 40 },
+];
 // ---------------------------------------------------------------------
 //  URL debug params: ?boss=1 (start at checkpoint before boss room),
 //  ?god=1 (no damage), ?hitbox=1 (draw hitboxes), ?sprites=0 (procedural art), ?sprites=folder (load assets/*.png instead of embedded)
