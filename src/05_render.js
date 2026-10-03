@@ -426,6 +426,7 @@ function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
   if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
   if (b.kind >= 35 && b.kind <= 39) { drawFinalBullet(b, camX); return; }
+  if (b.kind >= 40 && b.kind <= 43) { drawDarkUmineBullet(b, camX); return; }
   if (b.kind >= 29 && b.kind <= 34) { drawDicerollBullet(b, camX); return; }
   if (b.kind === 24 || b.kind === 25 || b.kind === 27 || b.kind === 28 || b.sspr >= 0) { drawShiranuiBullet(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);

@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.11.1';
+const GAME_VERSION = '0.12.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -171,6 +171,14 @@ const CONFIG = {
       spitWind: 20, spitCount: 6, spitCountRage: 8, spitSpread: 0.2, spitSpeed: 2.4, spitDamage: 2, spitBackMax: 6, spitBackSpeed: 2.6,
       ghostCount: 3, ghostCountRage: 4, ghostHover: 40, ghostSpeed: 3.0, ghostDamage: 2,
       glideSpeed: 2.2, rescueLineFrames: 240 },
+    // FINAL: 闇海音 DARK UMINE (after the rush, before Kanata): a mirror of Umine. shots: staff glint -> straight volley (jump) /
+    // charge: dotted aim line locks chargeLock frames before the big orb (x2 when enraged) / jump: landing mark beyond Umine, gap fan
+    // at the apex (stand still = safe), floor ripples on landing when enraged / umimi: dark Umimi drops water on floor marks
+    darkumine: { hp: 38, iFrames: 14, contactDamage: 2, idleFrames: 36, idleFramesRage: 26, dodgeVel: 4.2, dodgeCD: 80, dodgeCDRage: 55, comboChance: 0.2, comboChanceRage: 0.45, recover: 22, keepMin: 64, keepMax: 120, walkSpeed: 0.9,
+      shotWind: 24, shotGap: 20, shotCount: 3, shotCountRage: 5, shotSpeed: 3.0, summonShotGap: 34, shotDamage: 2,
+      chargeWind: 56, chargeWindRage: 46, chargeWind2: 34, chargeLock: 12, chargeSpeed: 3.8, chargeDamage: 3,
+      jumpWind: 18, jumpAir: 43, jumpVel: 5.4, jumpPast: 50, fanSpeed: 2.4, rippleSpeed: 1.9, rippleDamage: 2,
+      dropCount: 3, dropCountRage: 4, dropGapX: 30, dropFirst: 54, dropEvery: 24, dropFall: 26, dropDamage: 2, rescueLineFrames: 240 },
     // FINAL: 暴走ミミック form 2 (the vacuum alone, berserk; Kanata's ghost floats nearby and throws objects now and then)
     // charge: shakes + red eye (telegraph), then lunges along the floor with a small hop (jump over) / bigsuck: huge mouth suction
     // (stronger pull, swallows shots) -> spit: debris arcs + swallowed shots / leap: shadow marker on Umine, jumps, lands with 2 floor waves
@@ -281,7 +289,7 @@ function playerMaxHP() { return hardMode ? Math.max(1, Math.floor(CONFIG.playerM
 function toggleHardMode() { hardMode = !hardMode; P.hp = Math.min(P.hp, playerMaxHP()); sfx('cursor'); }
 const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0,
-  rush: parseInt(QS.get('rush') || '0', 10) || 0, kanata: QS.get('kanata') === '1', mimic: QS.get('mimic') === '1', climax: QS.get('climax') === '1', ending: QS.get('ending') === '1' };
+  rush: parseInt(QS.get('rush') || '0', 10) || 0, kanata: QS.get('kanata') === '1', mimic: QS.get('mimic') === '1', darkumine: QS.get('darkumine') === '1', climax: QS.get('climax') === '1', ending: QS.get('ending') === '1' };
 
 // =====================================================================
 //  STAGE MAPS  - each stage = N screens of 16x15 tiles (the last one is the boss room).

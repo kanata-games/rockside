@@ -648,8 +648,34 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
         if (s.f.rushIdx !== last) { if (last >= 0 && s.hp !== s.max) refillOk = false; last = s.f.rushIdx; order.push(s.f.boss); if (s.f.phase === 'rush') await G(page, () => { ROCKSIDE.P.hp = 6; }); }
         if (s.f.phase !== 'rush') break; await sleep(80); } }
     const fr = await G(page, () => ROCKSIDE.final);
-    ok('boss rush: all 8 shadows in order, then 清掃員カナタ', fr.phase === 'kanata' && order.slice(0, 8).join() === 'tobiume,neenia,seiten,astarte,disaster,lily,shiranui,diceroll', { order, fr });
+    ok('boss rush: all 8 shadows in order, then 闇海音 (DARK UMINE)', fr.phase === 'darkumine' && fr.boss === 'darkumine' && order.slice(0, 8).join() === 'tobiume,neenia,seiten,astarte,disaster,lily,shiranui,diceroll', { order, fr });
     ok('boss rush: HP refilled after every shadow', refillOk && (await G(page, () => ROCKSIDE.P.hp === ROCKSIDE.playerMaxHP)));
+    await ctx.close();
+    // v12 闇海音 DARK UMINE: after the rush, before Kanata (placeholder shadow-tinted kanon sheet)
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&darkumine=1'));
+    await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000);
+    ok('?darkumine=1: 闇海音 (HP 38) with the shadow sheet + face icon', await G(page, () => ROCKSIDE.final.boss === 'darkumine' && ROCKSIDE.boss.hp === 38 && ROCKSIDE.BOSS_TYPES.darkumine.dark === 'umineDark' && ROCKSIDE.SHEETS_LOADED.includes('umineDark') && ROCKSIDE.SHEETS_LOADED.includes('face_umine_dark')));
+    await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
+    let duAim = false, duKinds = new Set();
+    { const t0 = Date.now(); while (Date.now() - t0 < 120000) {
+        const r = await G(page, () => ({ st: ROCKSIDE.boss.state, aim: ROCKSIDE.boss.aimShow, k: ROCKSIDE.bullets.filter(q => q.active && q.kind >= 40 && q.kind <= 43).map(q => q.kind), seen: ROCKSIDE.bossSeen, ph: ROCKSIDE.final.phase }));
+        if (r.st === 'duCharge' && r.aim) duAim = true; r.k.forEach(k => duKinds.add(k));
+        if (r.st === 'rescue' || r.ph !== 'darkumine') break; await sleep(50); } }
+    const seenD = await G(page, () => ROCKSIDE.bossSeen);
+    ok('闇海音: shots / charge (aim line) / jump / dark Umimi all appear', ['shots', 'charge', 'jump', 'umimi'].every(p => seenD.includes(p)) && duAim && [40, 41, 43].every(k => duKinds.has(k)), { seenD, duAim, kinds: [...duKinds] });
+    ok('闇海音 defeated -> fades back into 海音 -> 清掃員カナタ, HP refilled', await waitFor(page, () => ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.P.hp === ROCKSIDE.playerMaxHP, 40000));
+    await ctx.close();
+    // checkpoint: dying against Kanata restarts at Kanata (no replay of 闇海音)
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&boss=1&darkumine=1'));
+    await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000);
+    await G(page, () => { ROCKSIDE.boss.hp = 1; ROCKSIDE.boss.inv = 0; ROCKSIDE.P.inv = 9999; });
+    await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
+    await waitFor(page, () => ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.state === 'play', 40000);
+    await G(page, () => { window.__rocksideBot = null; ROCKSIDE.P.inv = 0; ROCKSIDE.P.y = 400; });
+    const back = await waitFor(page, () => ROCKSIDE.state === 'play' && !ROCKSIDE.P.dead && ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.P.x < ROCKSIDE.roomX, 20000);
+    ok('death in the Kanata fight keeps the checkpoint (phase stays kanata, no 闇海音 replay)', back, await G(page, () => ({ f: ROCKSIDE.final, st: ROCKSIDE.state })));
     await ctx.close();
     // form 1: patterns + suction swallows a shot that comes back
     ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&kanata=1'));

@@ -22,10 +22,10 @@ Object.assign(BULLET_SIZE, { 35: [10, 10], 36: [8, 8], 37: [7, 5], 38: [9, 9], 3
 const UMINE_SPEAKER = { name: '海音', color: '#7fd8ff', face: 'face_kanon' };
 const KANATA_SPEAKER = { name: '清掃員カナタ', color: '#b8d0ff', face: 'face_kanata' };
 
-function finalBossId() { return FINAL.phase === 'rush' ? RUSH_ORDER[FINAL.rushIdx] : FINAL.phase === 'mimic' ? 'mimic' : 'kanata'; }
+function finalBossId() { return FINAL.phase === 'rush' ? RUSH_ORDER[FINAL.rushIdx] : FINAL.phase === 'mimic' ? 'mimic' : FINAL.phase === 'darkumine' ? 'darkumine' : 'kanata'; }
 // called by startGame() when the final area is entered (debug params pick the starting phase)
 function finalBegin() {
-  FINAL.phase = DEBUG.mimic ? 'mimic' : DEBUG.kanata ? 'kanata' : 'rush';
+  FINAL.phase = DEBUG.mimic ? 'mimic' : DEBUG.kanata ? 'kanata' : DEBUG.darkumine ? 'darkumine' : 'rush'; FINAL.queue = null; FINAL.duMet = false; duReset();
   FINAL.rushIdx = Math.max(0, Math.min(7, DEBUG.rush | 0));
   FINAL.line = null; FINAL.body = null; FINAL.ghost.show = false; FINAL.swallowed = 0; FINAL.flash = 0;
   curArea.boss = finalBossId();
@@ -41,7 +41,7 @@ function finalShadowAlpha() { return FINAL.phase === 'rush' ? 0.8 + Math.sin(fra
 function finalSay(sp, text, frames) { FINAL.line = { sp: sp, text: text }; FINAL.lineT = frames || 200; }
 // on (re)start of the stage: keep the rush progress, the right boss waits in the room
 function finalOnReset() {
-  curArea.boss = finalBossId(); FINAL.line = null; FINAL.body = null; FINAL.ghost.show = FINAL.phase === 'mimic'; FINAL.swallowed = 0;
+  curArea.boss = finalBossId(); FINAL.line = null; FINAL.queue = null; duReset(); FINAL.body = null; FINAL.ghost.show = FINAL.phase === 'mimic'; FINAL.swallowed = 0;
 }
 function finalSpawnBoss(dropY) {
   bossReset(); boss.triggered = true;
@@ -52,6 +52,7 @@ function finalSpawnBoss(dropY) {
 // the room trigger: first boss of the current phase (also used after a retry)
 function finalIntroLine() {
   if (FINAL.phase === 'rush' && FINAL.rushIdx === 0) finalSay(KANATA_SPEAKER, '…ふぁ。来ちゃったんだ。…じゃあ、まずは影たちと遊んでて。', 200);
+  else if (FINAL.phase === 'darkumine') { if (!FINAL.duMet) duIntroLines(); else { finalSay(DARK_SPEAKER, '……また来たの？ …いいよ。わたしは、あなただから。', 200); FINAL.queue = null; } }
   else if (FINAL.phase === 'kanata') finalSay(KANATA_SPEAKER, '…めんどくさいけど、お掃除の時間。', 200);
   else if (FINAL.phase === 'mimic') { if (DEBUG.climax) boss.hp = bossCfg().climaxHp + 1; FINAL.ghost.show = true; FINAL.ghost.x = boss.x - 30; FINAL.ghost.y = FLOOR_Y - 90; finalSay(KANATA_SPEAKER, '…この子、まだおなかぺこぺこみたい。…止めてあげて。', 200); }
 }
@@ -67,11 +68,12 @@ function finalRescue(b) {
       FINAL.rushIdx++;
       P.hp = playerMaxHP(); magic.mp = CONFIG.magicMaxMP; P.inv = 0; sfx('heal');
       for (let i = 0; i < 10; i++) spawnPart(P.x + P.w / 2, P.y + P.h / 2, DIR8X[i & 7] * 1.1, DIR8Y[i & 7] * 1.1 - 0.4, 26, 5, i & 1 ? '#8fffb0' : '#ffffff');
-      if (FINAL.rushIdx >= RUSH_ORDER.length) { FINAL.phase = 'kanata'; curArea.boss = 'kanata'; finalSpawnBoss(); finalSay(KANATA_SPEAKER, '…はぁ。全部やっつけちゃった。…めんどくさいけど、お掃除の時間。', 220); }
+      if (FINAL.rushIdx >= RUSH_ORDER.length) { FINAL.phase = 'darkumine'; curArea.boss = 'darkumine'; finalSpawnBoss(); duIntroLines(); }
       else { curArea.boss = RUSH_ORDER[FINAL.rushIdx]; finalSpawnBoss(); }
     }
     return true;
   }
+  if (FINAL.phase === 'darkumine') return duRescue(b);
   if (FINAL.phase === 'kanata') { // she kneels (6), collapses (7), her body fades, the vacuum mimic breaks loose
     b.pose = b.t < 50 ? 'hurt' : 'defeat'; b.poseF = -1; b.suckOn = false; b.objs = null;
     if (b.y + b.h < FLOOR_Y) b.y = Math.min(FLOOR_Y - b.h, b.y + 0.8);
@@ -620,6 +622,7 @@ function drawFinalWorld(camX) {
   if (state === 'climax') drawClimaxWorld(camX);
   if (state === 'finale') drawFinaleWorld(camX);
   if (curArea.boss === 'mimic' || state === 'climax') drawKanataGhost(camX);
+  if (curArea.boss === 'darkumine') drawDarkUmineWorld(camX);
 }
 function drawFriendSprite(id, x, y, f, face, scale) {
   const map = { tobiume: ['tobiumeNormal', 13], neenia: ['neenia', 11], seiten: ['seiten', 14], astarte: ['astarte', 10], star: ['starNormal', 16], lily: ['lily', 16], shiranui: ['shiranui', 16], diceroll: ['diceroll', 16], umimi: ['umimi', 16], kanata: ['kanata', 16] };
@@ -758,6 +761,7 @@ function drawFinalHi() {
   if (state === 'finale' && FINAL.finaleT > 40 && FINAL.finaleI < FINALE_LINES.length) {
     const L = FINALE_LINES[FINAL.finaleI]; drawDialogue(L[0].name, L[0].color, L[1], Math.min(1, (FINAL.finaleT - 40) / 8), 30, L[0].face); return;
   }
+  if ((!FINAL.line || FINAL.lineT <= 0) && FINAL.queue && FINAL.queue.length && (state === 'play' || state === 'bossIntro')) { const q = FINAL.queue.shift(); finalSay(q[0], q[1], q[2]); }
   if (FINAL.line && FINAL.lineT > 0 && (state === 'play' || state === 'bossIntro')) {
     FINAL.lineT--; drawDialogue(FINAL.line.sp.name, FINAL.line.sp.color, FINAL.line.text, Math.min(1, FINAL.lineT / 15), 30, FINAL.line.sp.face);
   }
