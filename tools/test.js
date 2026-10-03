@@ -472,7 +472,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(400);
   let loaded = await G(page, () => ROCKSIDE.SHEETS_LOADED.slice().sort());
   const newMiss = assetMisses.slice(missBefore);
-  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui|diceroll|kanata|mimic|party/.test(u)), { loaded, misses: newMiss.length });
+  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui|diceroll|kanata|mimic|party|sea_split|umine_spell|umine_dark/.test(u)), { loaded, misses: newMiss.length });
   await page.screenshot({ path: path.join(SHOTS, 'v2_standalone_title.png') });
   await ctx.close();
   // 6b. default build + a dummy assets/ folder: the folder sheets are used
@@ -701,7 +701,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   }
   // ===== v11 ENDING: party + karaoke + credits (?ending=1), THANK YOU + teaser, back to the title =====
   ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?ending=1'));
-  ok('?ending=1 jumps to the ending party', await waitState(page, 'ending', 4000) && (await G(page, () => ['partyBg', 'partyProps', 'kanata'].every(k => ROCKSIDE.SHEETS_LOADED.includes(k)) && !ROCKSIDE.SHEETS_LOADED.some(k => /owner|seaSplit/i.test(k)))));
+  ok('?ending=1 jumps to the ending party', await waitState(page, 'ending', 4000) && (await G(page, () => ['partyBg', 'partyProps', 'kanata'].every(k => ROCKSIDE.SHEETS_LOADED.includes(k)) && !ROCKSIDE.SHEETS_LOADED.some(k => /owner/i.test(k)))));
   { const e0 = await G(page, () => ROCKSIDE.ending); await sleep(1500); const e1 = await G(page, () => ROCKSIDE.ending);
     ok('credits scroll upward over the party (one editable CREDITS list incl. Created by 清掃員カナタ)', e1.credY < e0.credY && e1.phase === 'credits' && (await G(page, () => CREDITS.some(c => c.text === 'Created by 清掃員カナタ') && CREDITS.some(c => c.title && c.title.includes('ROCKSIDE')) && !CREDITS.some(c => /中の人|OWNER/.test(c.text || '')) && typeof OWNER_NAME === 'undefined')), { e0, e1 }); }
   ok('karaoke: Kanata takes a turn at the mic (sing frame)', await G(page, () => KARAOKE_TURNS.some(t => t.includes('kanata')) && KARAOKE_TURNS.some(t => t.includes('seiten')) && KARAOKE_TURNS.some(t => t.includes('lily'))));
