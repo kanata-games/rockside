@@ -18,6 +18,7 @@
 | mimic_rampage.png | 64×64 | 7 | 0 待機 / 1 飛びかかり / 2 大口で吸い込み（渦を含む）/ 3 がれきを吐く / 4 被弾（火花）/ 5 破壊 / 6 待機2（呼吸）|
 | kanata.png | 32×32 | 5 | 0 待機 / 1 まばたき / 2 だるそうに手を振る / 3 喜ぶ（ジャンプ）/ 4 マイクで歌う |
 | kanata_ghost.png | 32×32 | 3 | 0-1 浮遊 / 2 青い玉を投げる（玉はゲーム側）|
+| umine_dark.png | 32×32 | 14 | 闇海音（仮）: kanon.png と同じフレーム配置を影色に変換（青→紫がかった黒、白→灰ラベンダー、肌→灰）。本番の絵に差し替え予定 |
 | umine_spell.png | 48×48 | 6 | 海音の覚醒（クライマックス）: 0 構え / 1-4 水が集まる / 5 杖を掲げる＋魔法陣 |
 | sea_split.png | 48×96 | 5 | 海割りの水の壁: 0 せり上がる / 1 巻く / 2-3 最大（交互）/ 4 縦タイル用の胴体 |
 
@@ -138,6 +139,9 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - プレビュー: work/kanata_preview.png（4倍・全フレーム＋発生点＋当たり判定＋3倍のゲーム内合成）、整列確認: work/kanata_alignment.png
 - 生成: ボス: work/kanata_work/kanata_sheet_green_sharp.png（シートを緑背景に＋シャープ）→ work/body_sheet.py work/kanata_boss_spec.json → work/kanata_post.py（肌・ジト目・アウトライン）。ミミック: work/mimic_raw.jpg → body_sheet.py work/mimic_spec.json → work/mimic_post.py。通常／幽霊: work/kanata_small_raw.jpg → body_sheet.py work/kanata_small_spec.json / work/kanata_ghost_spec.json → work/kanata_small_post.py normal / ghost。弾: work/build_icons.py work/kanata_bullets_spec.json / work/kanata_wind_spec.json（風は口を消した work/kanata_work/kb_nomouth.png から）。顔: work/kanata_faces.py。プレビュー: work/make_kanata_preview.py
 - body_sheet.py に追加（既存の処理は変更なし）: フレームごとの "move"（原画の矩形の中身を切り取ってずらして貼る。吐き出しの掃除機の頭を体に寄せるのに使用）。sprite_lib.py に追加: skin_pale（とても白い肌の判定）。
+
+## 闇海音（umine_dark・仮）
+- umine_dark.png / umine_dark_face.png: kanon.png / kanon_face.png を色変換しただけの仮素材（顔は目を赤く）。本番の闇海音の絵ができたら同じ 32×32×14 の配置で上書きすればそのまま使えます（cx 11、杖の先 30,17）。
 
 ## 海音の覚醒（umine_spell）48×48 × 6フレーム と 海割りの水の壁（sea_split）48×96 × 5フレーム
 - umine_spell.png: refs/umine_spell_sequence.png（3×2 の詠唱シーケンス）を 31/375 に縮小（アルファは2値化）。各フレームで足元の中心が x=24、足元 y≈46。杖は右向き（左向きは反転）。仮の自動縮小なので、ドット絵で描き直してもらえると助かります。
