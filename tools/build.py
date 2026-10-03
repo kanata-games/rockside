@@ -10,7 +10,7 @@ EDIT src/*, NEVER index.html directly - it is overwritten by this script.
 """
 import base64, json, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PARTS = ['01_head.html', '02_setup.js', '02b_chars.js', '03_world.js', '04_game.js', '04b_disaster.js', '05_render.js']
+PARTS = ['01_head.html', '02_setup.js', '02b_chars.js', '03_world.js', '04_game.js', '04b_disaster.js', '04c_shiranui.js', '05_render.js']
 EMBED = '--embed' in sys.argv
 OUT = os.path.join(ROOT, 'index.html')
 if '--out' in sys.argv: OUT = os.path.abspath(sys.argv[sys.argv.index('--out') + 1])
@@ -28,7 +28,7 @@ if EMBED:
         if os.path.exists(p):
             emb[k] = 'data:image/png;base64,' + base64.b64encode(open(p, 'rb').read()).decode()
 META = {'tobiumeNormal': 'tobiume.json', 'neeniaDark': 'neenia_dark.json', 'seitenDark': 'seiten_dark.json', 'astarteDark': 'astarte_dark.json',
-        'disasterDark': 'disaster_dark.json', 'starNormal': 'star.json'}
+        'disasterDark': 'disaster_dark.json', 'starNormal': 'star.json', 'shiranui': 'shiranui.json', 'shiranuiDark': 'shiranui_dark.json'}
 meta = {}
 for k, f in META.items():
     p = os.path.join(ROOT, 'assets', f)

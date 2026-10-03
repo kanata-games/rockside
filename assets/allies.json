@@ -3,5 +3,6 @@
   "seiten":  {"image": "seiten.png",  "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"sing": {"frames": [0, 1]}}},
   "astarte": {"image": "astarte.png", "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}}},
   "lily":    {"image": "lily.png",    "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}}},
-  "star":    {"image": "star.png",    "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}, "joy": {"frames": [2]}, "happy": {"frames": [3]}, "thanks": {"frames": [4]}, "wave": {"frames": [5]}, "sword": {"frames": [6]}}}
+  "star":    {"image": "star.png",    "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}, "joy": {"frames": [2]}, "happy": {"frames": [3]}, "thanks": {"frames": [4]}, "wave": {"frames": [5]}, "sword": {"frames": [6]}}},
+  "shiranui": {"image": "shiranui.png", "frameWidth": 32, "frameHeight": 32, "facing": "right", "animations": {"idle": {"frames": [0, 1]}, "happy": {"frames": [2]}, "thanks": {"frames": [3]}, "wave": {"frames": [4]}, "foxfire": {"frames": [5]}}}
 }

@@ -271,7 +271,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const tryKey = async (slot) => { await page.evaluate(s => { /* move by keys */ }, slot);
     while ((await cur()) !== slot) { await page.keyboard.press('ArrowRight'); await sleep(40); }
     await page.keyboard.press('Enter'); await sleep(120); return G(page, () => ({ st: ROCKSIDE.state, msg: ROCKSIDE.selMsg })); };
-  let r7 = await tryKey(5);
+  let r7 = await tryKey(7);
   ok('??? reserved cell: message, stays on select', r7.st === 'select' && r7.msg && /COMING SOON/.test(r7.msg.en), r7);
   await sleep(200); await page.screenshot({ path: path.join(SHOTS, 'v3_select_msg.png') });
   await page.keyboard.press('Enter'); await sleep(80);
@@ -341,7 +341,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   // v5: HP bar scales with max HP: one pip per HP, never wider than the cap, never overlapping the player bar
   { const pg = await browser.newPage(); await pg.goto(FILE); await sleep(200);
     const bars = await pg.evaluate(() => { const C = ROCKSIDE.CONFIG, G = ROCKSIDE._test.barGeom, me = G(C.playerMaxHP), out = {};
-      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp], ['lily', C.bosses.lily.hp], ['disaster', C.bosses.disaster.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
+      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp], ['lily', C.bosses.lily.hp], ['disaster', C.bosses.disaster.hp], ['shiranui', C.bosses.shiranui.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
       return out; });
     await pg.close();
     ok('boss HP bars scale to max HP (<=124px, 1 pip per HP, no overlap with UMINE bar)', Object.values(bars).every(b => b.w <= 124 && b.w === b.hp * b.step + 3 && b.pip >= 2 && b.gap > 8) && bars.astarte.hp === 40, bars); }
@@ -350,7 +350,8 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
               { no: 3, id: 'seiten', slot: 6, hud: 'SEITEN', screens: 9, minEn: 8, allies: 'L', pats: ['pounce', 'song', 'multi'], shot: 'v4_seiten_boss.png', stage: 'v4_stage3.png' },
               { no: 4, id: 'astarte', slot: 8, hud: 'ASTARTHE', screens: 9, minEn: 8, allies: 'L', pats: ['slash', 'warp', 'orbs'], shot: 'v4_astarte_boss.png', stage: 'v4_stage4.png' },
               { no: 5, id: 'disaster', friend: 'star', slot: 1, hud: 'DISASTER', screens: 7, minEn: 8, allies: 'L', pats: ['sword', 'spear', 'axe', 'scythe', 'bow', 'whip', 'lance'], shot: 'v7_disaster_boss_test.png', stage: 'v7_disaster_stage_test.png' },
-              { no: 6, id: 'lily', slot: 3, hud: 'LILY', screens: 6, minEn: 4, allies: 'L', pats: ['rain', 'song', 'notes', 'hearts', 'moon', 'line'], shot: 'v6_lily_boss.png', stage: 'v6_stage_lily.png' }];
+              { no: 6, id: 'lily', slot: 3, hud: 'LILY', screens: 6, minEn: 4, allies: 'L', pats: ['rain', 'song', 'notes', 'hearts', 'moon', 'line'], shot: 'v6_lily_boss.png', stage: 'v6_stage_lily.png' },
+              { no: 7, id: 'shiranui', slot: 5, hud: 'SHIRANUI', screens: 9, minEn: 8, allies: 'L', pats: ['volley', 'wisp', 'crescent', 'fan', 'pillar', 'illusion'], shot: 'v8_shiranui_boss_test.png', stage: 'v8_shiranui_stage_test.png' }];
   const ONLY = process.env.AREAS ? process.env.AREAS.split(',') : null; // e.g. AREAS=lily node tools/test.js (still runs everything else)
   for (const A of V4) {
     if (ONLY && !ONLY.includes(A.id)) continue;
@@ -393,6 +394,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
           : a === 'seiten' ? (b.state === 'sing' && b.t > 24 && act(8)) || (b.state === 'leap' && b.t > 10)
           : a === 'astarte' ? (b.state === 'orbs' && b.t > 70) || (b.state === 'warpWarn' && b.warn < 24) || act(9)
           : a === 'disaster' ? (['disSpear', 'disChain', 'disAxe', 'disMorph'].includes(b.state) && b.t > 10) || act(9) || act(21) || act(22)
+          : a === 'shiranui' ? act(24) || act(25) || act(27) || act(28) || act(9)
           : ROCKSIDE.bullets.filter(q => q.active).length >= 3; })(), bx: ROCKSIDE.boss.x, px: ROCKSIDE.P.x }), A.id);
       const pre = A.id === 'seiten' ? A.pats.slice(0, 2) : A.pats;
       if (pre.every(p => s.seen.includes(p))) await G(page, () => { window.__botCfg.fire = true; });
@@ -437,15 +439,15 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await page.screenshot({ path: path.join(SHOTS, 'v4_select_cleared.png') });
   // 8d. helpers in the new stages follow the rescue rule; never in their own stage
   const helpers = await G(page, () => { const T = ROCKSIDE._test, A = id => ROCKSIDE.AREAS.find(a => a.id === id), out = {};
-    const pr = ROCKSIDE.progress.rescued; pr.length = 0; pr.push('tobiume', 'neenia', 'seiten', 'astarte');
-    for (const id of ['neenia', 'seiten', 'astarte']) { T.loadArea(A(id)); out[id] = ROCKSIDE.allies.map(a => a.type).sort().join(''); }
+    const pr = ROCKSIDE.progress.rescued; pr.length = 0; pr.push('tobiume', 'neenia', 'seiten', 'astarte', 'shiranui');
+    for (const id of ['neenia', 'seiten', 'astarte', 'shiranui', 'disaster']) { T.loadArea(A(id)); out[id] = ROCKSIDE.allies.map(a => a.type).sort().join(''); }
     pr.length = 0; pr.push('neenia'); T.loadArea(A('seiten')); out.seitenWithN = ROCKSIDE.allies.map(a => a.type).sort().join('');
     pr.length = 0; T.loadArea(A('sunset')); out.sunset = ROCKSIDE.allies.length;
     pr.push('tobiume', 'neenia', 'seiten', 'astarte', 'lily'); T.loadArea(A('lily')); out.lily = ROCKSIDE.allies.map(a => a.type).sort().join('');
     ROCKSIDE.progress.support = 'lily'; T.loadArea(A('neenia')); out.neeniaLilySup = ROCKSIDE.allies.map(a => a.type).sort().join('');
     T.loadArea(A('lily')); out.lilyLilySup = ROCKSIDE.allies.map(a => a.type).sort().join('');
     ROCKSIDE.progress.support = null; pr.length = 0; return out; });
-  ok('helpers: all rescued -> each stage has the others (never herself), area 1 guests kept; Lily joins only as equipped support, never in her own stage', helpers.neenia === 'AS' && helpers.seiten === 'AN' && helpers.astarte === 'LNS' && helpers.seitenWithN === 'LN' && helpers.sunset === 4 && helpers.lily === 'AS' && helpers.neeniaLilySup === 'AIS' && helpers.lilyLilySup === 'AS', helpers);
+  ok('helpers: all rescued -> each stage has the others (never herself; Shiranui K joins Night City / Star Shrine / Disaster Castle), area 1 guests kept; Lily joins only as equipped support, never in her own stage', helpers.neenia === 'AS' && helpers.seiten === 'AKN' && helpers.astarte === 'KLNS' && helpers.shiranui === 'ANS' && helpers.disaster === 'AK' && helpers.seitenWithN === 'LN' && helpers.sunset === 4 && helpers.lily === 'AS' && helpers.neeniaLilySup === 'AIS' && helpers.lilyLilySup === 'AS', helpers);
   await ctx.close();
 
   // ---------------- 6. sprite sheets: --embed standalone build, ?sprites=folder, ?sprites=0 ----------------
@@ -459,7 +461,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(400);
   let loaded = await G(page, () => ROCKSIDE.SHEETS_LOADED.slice().sort());
   const newMiss = assetMisses.slice(missBefore);
-  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx/.test(u)), { loaded, misses: newMiss.length });
+  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui/.test(u)), { loaded, misses: newMiss.length });
   await page.screenshot({ path: path.join(SHOTS, 'v2_standalone_title.png') });
   await ctx.close();
   // 6b. default build + a dummy assets/ folder: the folder sheets are used
@@ -541,6 +543,22 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(200); const ehp = await G(page, i => ROCKSIDE.enemies[i].hp, sw);
   await page.keyboard.press('KeyB'); await sleep(1400);
   ok('MORPH slash/thrust damages the enemy ahead and ends', await G(page, ([i, h]) => { const e = ROCKSIDE.enemies[i]; return (!e.alive || e.hp < h) && ROCKSIDE.support.used && !ROCKSIDE.support.active; }, [sw, ehp]));
+  await ctx.close();
+  // シラヌイ support (FOX): homing foxfires damage the enemy ahead
+  ({ ctx, page } = await newPage(browser, 390, 844));
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['shiranui'], rescued: ['shiranui'], support: 'shiranui' })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.goto(FILE + '?area=1&god=1'); await waitState(page, 'play', 4000);
+  ok('Shiranui support equipped: HELP shows FOX', await waitFor(page, () => document.getElementById('bSupport').textContent === 'FOX', 2000));
+  const sf = await G(page, () => { const R = ROCKSIDE, e = R.enemies.find(q => q.alive); R.teleport(e.x - 70, e.y + e.h - R.P.h); R.P.face = 1; return R.enemies.indexOf(e); });
+  await sleep(200); const fhp = await G(page, i => ROCKSIDE.enemies[i].hp, sf);
+  await page.keyboard.press('KeyB'); await sleep(2600);
+  ok('FOX foxfires home in, damage the enemy and the move ends', await G(page, ([i, h]) => { const e = ROCKSIDE.enemies[i]; return (!e.alive || e.hp < h) && ROCKSIDE.support.used && !ROCKSIDE.support.active; }, [sf, fhp]));
+  // シラヌイ helper (K) in Night City once rescued: shoots homing foxfire
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['shiranui'], rescued: ['shiranui'], support: null })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.goto(FILE + '?area=3&god=1'); await waitState(page, 'play', 4000);
+  const kInfo = await G(page, () => { const R = ROCKSIDE, k = R.allies.find(a => a.type === 'K'); if (!k) return null; R.teleport(k.x - 20, k.y - R.P.h); return { x: k.x }; });
+  await sleep(2500);
+  ok('Shiranui helper (K) appears in Night City after her rescue and fires foxfire', !!kInfo && (await G(page, () => ROCKSIDE.allies.find(a => a.type === 'K').said)), kInfo);
   await ctx.close();
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));

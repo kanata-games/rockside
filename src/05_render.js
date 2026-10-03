@@ -256,7 +256,8 @@ function drawBoss(camX) {
       fi = Math.min(fi, sh.length - 1);
     }
     const cx = D.cxF ? D.cxF[fi] : D.cx;
-    g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
+    if (curArea.boss === 'shiranui' && b.dark) { if (D.map && b.flash > 7 && b.state !== 'shIllusion') fi = D.map.hurt[0]; drawShiranuiBody(b, sh, D, fi, mx, by, camX); }
+    else g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
     if (curArea.boss === 'lily' && b.dark && lilySongFxActive(b) && SHEETS.lilySongWave) {
       const W = SHEET_DEFS.lilySongWave, fx = SHEETS.lilySongWave[0];
       g.drawImage(pick(fx, b.face, false), mx - (b.face >= 0 ? W.cx : W.fw - W.cx), by - W.fh);
@@ -274,6 +275,7 @@ function drawBoss(camX) {
 function drawBossMarks(camX) {
   const b = boss, blink = (frame >> 2) & 1;
   if (curArea.boss === 'disaster') drawDisasterMarks(b, camX, blink);
+  if (curArea.boss === 'shiranui') drawShiranuiMarks(b, camX, blink);
   if (b.aimShow) { // Neenia's aim: dotted line to the predicted spot
     const dx = b.aimX - b.mx, dy = b.aimY - b.my, len = Math.hypot(dx, dy) || 1, n = Math.min(40, Math.floor(len / 6));
     g.fillStyle = blink ? '#ff5a8a' : '#ffb0c8';
@@ -388,6 +390,7 @@ function drawAstarte(a, camX) {
   }
 }
 function drawNeenia(a, camX) { drawAllySprite(a, 'N', 'neenia', a.act > 0 ? 1 : 0, camX); }
+function drawShiranuiAlly(a, camX) { drawAllySprite(a, 'K', 'shiranui', a.act > 0 ? 5 : (a.t >> 5) & 1, camX); }
 function drawSeiten(a, camX) { drawAllySprite(a, 'S', 'seiten', a.act > 0 ? (a.t >> 4) & 1 : (SHEETS.seiten ? (a.t >> 5) & 1 : 0), camX); }
 function drawLilyAlly(a, camX) {
   const sh = SHEETS.lily, sp = sh ? sh[(a.t >> 5) & 1] : null;
@@ -396,22 +399,24 @@ function drawLilyAlly(a, camX) {
 function drawAllies(camX) {
   for (let i = 0; i < allies.length; i++) {
     const a = allies[i]; if (a.x - camX < -24 || a.x - camX > VW + 24) continue;
-    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else drawSeiten(a, camX);
+    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else if (a.type === 'K') drawShiranuiAlly(a, camX); else drawSeiten(a, camX);
   }
 }
 function drawArrows(camX) {
   g.fillStyle = '#eef0ff';
   for (let i = 0; i < arrows.length; i++) {
     const r = arrows[i]; if (!r.active) continue;
+    if (r.fox) { drawFoxfire(r.x + 2 - camX, r.y + 2, r.vx, r.vy, (frame >> 2) & 1, 0.75); g.fillStyle = '#eef0ff'; continue; }
     const sp = Math.hypot(r.vx, r.vy) || 1, ux = r.vx / sp, uy = r.vy / sp, x = r.x + 2 - camX, y = r.y + 2;
     for (let k = 0; k < 6; k++) g.fillRect(Math.round(x - ux * k), Math.round(y - uy * k), 1, 1);
   }
   g.fillStyle = '#8fd0ff';
-  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
+  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active && !r.fox) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
 }
 function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
   if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
+  if (b.kind === 24 || b.kind === 25 || b.kind === 27 || b.kind === 28 || b.sspr >= 0) { drawShiranuiBullet(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);
   else if (b.kind === 2) g.drawImage(SPR.heart.r, x - 1, y - 1);
   else if (b.kind === 3) g.drawImage(SPR.star.r, x - 1, y - 1);
@@ -632,7 +637,7 @@ function drawPortrait(a, x, y) {
   // procedural fallback art (?sprites=0)
   const pal = (a.friend === 'tobiume' && !rescued) ? 'dark' : 'normal';
   if (a.friend === 'tobiume') g.drawImage(SPR.tobi[pal].idle[0].r, 10, 0, 20, 20, x, y, 40, 40);
-  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
+  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A', shiranui: 'K' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
 }
 function drawCheck(x, y) { // 13x10 green check mark with dark outline
   const pts = [[0, 5], [1, 6], [2, 7], [3, 8], [4, 7], [5, 6], [6, 5], [7, 4], [8, 3], [9, 2], [10, 1], [11, 0]];
@@ -803,6 +808,7 @@ function render() {
     else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
     else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
     else if (support.kind === 'lily') drawHiText('リリィ＆ウミミ・スターライトレイン！', VW / 2, 67, 8, '#fff1cf', '#6e285e');
+    else if (support.kind === 'shiranui') { if (support.t < 80) drawHiText('シラヌイ・狐火の舞じゃ！', VW / 2, 67, 8, '#ffe8d8', '#6e1a24'); }
     else if (support.kind === 'star') { if (support.t < 80) drawHiText('スターさん・錬金モーフスラッシュ！', VW / 2, 67, 8, '#e0f8ff', '#1d3e6e'); }
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
   }

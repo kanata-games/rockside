@@ -46,6 +46,11 @@ const BOSS_TYPES = {
   disaster: { hud: 'DISASTER', speaker: 'スターさん', speakerColor: '#71d9ff', line: '……海音、ありがとな。錬金剣に光が戻ったぜ！', face: 'face_star',
     clearEn: 'STAR RESCUED', clearJp: 'スターさんを闇から救い出した！', dark: 'disasterDark', normal: 'starNormal', ally: 'A', fly: true, w: 21, h: 35,
     aura: ['#5a1a8a', '#a51c54'], sparkle: '#72eaff', dust: '#8a6aa8' },
+  // DARK シラヌイ -> シラヌイ (fox lady, oiran style, speaks archaic 'noja' Japanese: わらわ / おぬし / 〜のじゃ).
+  // In-stage helper letter K (homing foxfire).
+  shiranui: { hud: 'SHIRANUI', speaker: 'シラヌイ', speakerColor: '#ff8a7a', line: 'ふふ…わらわとしたことが、闇に飲まれておったのじゃな。礼を言うぞ、海音よ。', face: 'face_shiranui',
+    clearEn: 'SHIRANUI RESCUED', clearJp: 'シラヌイを闇から救い出した！', dark: 'shiranuiDark', normal: 'shiranui', ally: 'K', fly: true, w: 16, h: 34,
+    aura: ['#3a0a1a', '#b0203a'], sparkle: '#ffb070', dust: '#a06a6a' },
   lily: { hud: 'LILY', speaker: 'リリィ', speakerColor: '#ffd2ef', line: '海音ちゃん！助けてくれてありがとうっ♪', face: 'face_lily',
     clearEn: 'LILY RESCUED', clearJp: 'リリィを闇から救い出した！', dark: 'lilyDark', normal: 'lily', w: 16, h: 34,
     aura: ['#31102f', '#8b2d6a'], sparkle: '#ffd2ef', dust: '#c9b9e8' },
@@ -190,6 +195,7 @@ const ALLY_LINES = {
   A0: 'この先、道が分かれている…上を行って。',
   A1: 'ここは覚えておく。倒れても、ここから。',
   N: '援護するわ。落ち着いて進んで。',
+  K: 'ふふ、迷うでないぞ。わらわの狐火が道を照らしてやろう。',
   S: '青天が歌ってあげる！がんばって！',
   I: '海音ちゃん、ウミミを連れていって！きっと力になるよ♪',
 };
@@ -316,6 +322,7 @@ function bossReset() {
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.weapon = 'sword'; b.nextWeapon = ''; b.comboLeft = 0; b.chainB = null; b.chainReach = 0; b.recT = 0;
+  b.clones = []; b.fanB = null; b.pillars = []; b.blink = false; b.wisps = [];
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
@@ -350,9 +357,9 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time.
-const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん' };
-const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star', 'shiranui'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん', shiranui: 'シラヌイ' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR', shiranui: 'SHIRANUI' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -361,8 +368,8 @@ function refreshSupportButton() {
   helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
   const lilyReady = id !== 'lily' || (stageUmimi.given && stageUmimi.active && !stageUmimi.down && stageUmimi.hp > 0);
-  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH' }[id] || 'HELP');
-  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff' }[id] || '#ffa8cf');
+  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH', shiranui: 'FOX' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff', shiranui: '#ff8a7a' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -372,7 +379,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!', shiranui: 'SHIRANUI: FOXFIRE DANCE!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -593,7 +600,7 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
@@ -601,7 +608,8 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
 }
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10], 19: [6, 6], 20: [5, 8],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9],
-  21: [12, 4], 22: [8, 8], 23: [7, 7] }; // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
+  21: [12, 4], 22: [8, 8], 23: [7, 7],  // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
+  24: [8, 8], 25: [8, 8], 27: [14, 14], 28: [12, 38] }; // Shiranui: 24 foxfire, 25 wisp, 27 spinning fan, 28 fire pillar (crescent = kind 9)
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
 function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
@@ -733,6 +741,12 @@ function tobiumeRescuePose(b) {
 // the rescued friend's little "back to herself" moment (normal 32x32 sheet: 2 frames each)
 function friendRescuePose(b, type) {
   const t = b.t - 150, cx = b.x + b.w / 2;
+  if (type === 'shiranui') {      // Shiranui (shiranui.png): bows "thanks" (3) -> happy (2) -> waves her open fan (4) / idle
+    b.pose = 'pose'; b.poseF = t < 56 ? 3 : t < 104 ? 2 : ((t - 104) >> 5) & 1 ? 0 : 4;
+    if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx, b.y + 12, DIR8X[i] * 1.1, DIR8Y[i] * 1.1, 26, 0, i & 1 ? '#ffd080' : '#ffffff'); }
+    if (t > 8 && t % 7 === 0) { const h = hash(t, 29); spawnPart(cx - 14 + (h % 28), b.y + 6 + ((h >> 8) % 24), 0, -0.4, 26, 4, (h >> 4) & 1 ? '#ffb070' : '#ffe0a0'); }
+    return;
+  }
   if (type === 'disaster') {      // Star (star.png): raises his cyan sword (6) -> bows "thanks" (4) -> happy (3) / waves (5)
     b.pose = 'pose'; b.poseF = t < 60 ? 6 : t < 104 ? 4 : ((t - 104) >> 5) & 1 ? 5 : 3;
     if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx + b.face * 10, b.y + 10, DIR8X[i] * 1.2, DIR8Y[i] * 1.2, 24, 0, i & 1 ? '#72eaff' : '#ffffff'); }
@@ -1566,7 +1580,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 }
 
-const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster };
+const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster, shiranui: aiShiranui };
 
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
@@ -1583,6 +1597,7 @@ function castSupport() {
   if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
   if (support.kind === 'lily') { support.x = P.x + P.w / 2; support.y = FLOOR_Y - 32; support.face = P.face; }
   if (support.kind === 'star') { support.x = P.x + P.w / 2 - P.face * 16; support.y = P.y; }
+  if (support.kind === 'shiranui') { support.x = P.x + P.w / 2 - P.face * 20; support.y = P.y; support.fx = []; }
   if (support.kind === 'astarte') {
     if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
     support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
@@ -1594,6 +1609,7 @@ function updateSupport() {
   support.t++;
   const t = support.t;
   if (support.kind === 'star') { updateStarSupport(t); return; }
+  if (support.kind === 'shiranui') { updateShiranuiSupport(t); return; }
   if (support.kind === 'lily') {
     // Idol support: spotlight entrance, then a friendly Starlight Rain over the whole viewport.
     if (t === 28 || t === 44 || t === 60 || t === 76) {
@@ -1687,6 +1703,7 @@ function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
   if (support.kind === 'star') { drawStarSupport(t, x, y, camX); return; }
+  if (support.kind === 'shiranui') { drawShiranuiSupport(t, x, y, camX); return; }
   if (support.kind === 'lily') {
     const pulse = 0.16 + 0.08 * Math.sin(frame * 0.14);
     g.save();
@@ -1813,9 +1830,28 @@ function updateAllies() {
             const ax = a.x + (best.x + best.w / 2 < a.x ? -12 : 12), ay = a.y - 18, tx = best.x + best.w / 2 - ax, ty = best.y + best.h / 2 - ay, len = Math.hypot(tx, ty) || 1;
             for (let k = 0; k < arrows.length; k++) {
               const r = arrows[k]; if (r.active) continue;
-              r.active = true; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
+              r.active = true; r.fox = null; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
             }
             a.face = tx < 0 ? -1 : 1; a.act = 18; stats.arrows++; sfx('arrow');
+          }
+        }
+      }
+    } else if (a.type === 'K') { // シラヌイ: slow homing foxfire at enemies near Umine
+      if (adx < A.foxRange) {
+        if (!a.said) { a.said = true; say(a); }
+        if (a.t % A.foxInterval === 0) {
+          let best = null, bd = A.foxTargetRange;
+          for (let j = 0; j < enemies.length; j++) {
+            const e = enemies[j]; if (!e.alive || !e.active) continue;
+            const d = Math.hypot(e.x + e.w / 2 - a.x, e.y + e.h / 2 - (a.y - 16)); if (d < bd) { bd = d; best = e; }
+          }
+          if (best) {
+            const f = best.x + best.w / 2 < a.x ? -1 : 1;
+            for (let k = 0; k < arrows.length; k++) {
+              const r = arrows[k]; if (r.active) continue;
+              r.active = true; r.fox = best; r.x = a.x + f * 8 - 2; r.y = a.y - 20; r.vx = f * A.foxSpeed; r.vy = -0.6; r.life = 150; break;
+            }
+            a.face = f; a.act = 18; sfx('arrow');
           }
         }
       }
@@ -1834,12 +1870,15 @@ function updateAllies() {
 function updateArrows() {
   for (let i = 0; i < arrows.length; i++) {
     const r = arrows[i]; if (!r.active) continue;
+    if (r.fox) { // シラヌイ's foxfire steers toward its target
+      const e = r.fox; if (e.alive) { const tx = e.x + e.w / 2 - r.x - 2, ty = e.y + e.h / 2 - r.y - 2, l = Math.hypot(tx, ty) || 1; r.vx += (tx / l * CONFIG.allies.foxSpeed - r.vx) * 0.12; r.vy += (ty / l * CONFIG.allies.foxSpeed - r.vy) * 0.12; }
+    }
     r.x += r.vx; r.y += r.vy;
     if (--r.life <= 0 || r.x < cam.x - 24 || r.x > cam.x + VW + 24 || r.y > VH || r.y < -24) { r.active = false; continue; }
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j]; if (!e.alive || !e.active) continue;
       if (hitsEnemy(r, e)) {
-        r.active = false; e.hp -= CONFIG.allies.arrowDamage; e.flash = 6;
+        r.active = false; e.hp -= r.fox ? CONFIG.allies.foxDamage : CONFIG.allies.arrowDamage; e.flash = 6;
         spawnPart(r.x + 2, r.y + 2, 0, 0, 6, 3, '#e8e8ff');
         if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; } else sfx('ehit');
         break;
@@ -1883,6 +1922,7 @@ function updateBullets() {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (!b.active) continue;
     b.t++;
+    if (b.hook && b.hook(b)) continue;   // per-bullet behaviour (Shiranui homing / orbit / boomerang); true = finished
     if (b.orbit) { // star orb circling Astarte (ellipse, so it skims the floor)
       if (boss.state !== 'orbs') { b.orbit = false; b.vx = Math.cos(b.ang) * 1.5; b.vy = Math.sin(b.ang) * 1.1; }
       else { b.ang += b.spin; b.rad = Math.min(b.rad + 0.7, CONFIG.bosses.astarte.orbRadius);
@@ -1902,19 +1942,19 @@ function updateBullets() {
     if (b.kind >= 13 && b.kind <= 15 && neeniaArrowUpdate(b)) continue;
     if (b.x < cam.x - 16 || b.x > cam.x + VW + 16 || b.y < -16 || b.y > VH + 16) { b.active = false; continue; }
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
-    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
+    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && b.kind !== 25 && b.kind !== 27 && b.kind !== 28 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
     if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && overlap(b, stageUmimiBox())) {
+        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && b.kind !== 27 && b.kind !== 28 && overlap(b, stageUmimiBox())) {
       if (hurtStageUmimi(b.dmg || 1, b.x + b.w / 2)) {
         b.active = false; continue;
       }
     }
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20 || b.kind === 22) && overlap(b, stageUmimiBox())) {
+        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20 || b.kind === 22 || b.kind === 27 || b.kind === 28) && overlap(b, stageUmimiBox())) {
       hurtStageUmimi(b.dmg || 1, b.x + b.w / 2);
     }
-    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16 && b.kind !== 22) b.active = false; }
+    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16 && b.kind !== 22 && b.kind !== 27 && b.kind !== 28) b.active = false; }
   }
 }
 // v5 Neenia arrows: lob (13) breaks on the floor, ricochet (14) bounces, snare (15) plants a thorn patch (16).

@@ -20,6 +20,10 @@ const TILESETS = {
     girder: ['#6a5020', '#b89040', '#f4d680', '#4a3810'], cave: ['#161434', '#1e1a44'],
     metal: ['#131334', '#1b1b46', '#0f0f2a', '#2a2a5a', '#46469a', '#5656b2', '#9a9aea', '#d4d4ff'] },
 };
+// 狐火の社: dark shrine stone with moss, vermilion (shu-iro) girders like torii beams, warm lantern-lit hall
+TILESETS.foxfire = { rock: ['#4a4250', '#3a3240', '#625a6a', '#2c2632', '#221c28'], top: ['#3e6a4a', '#86c08a', '#2c4e38'],
+  girder: ['#7a1a1a', '#c8382c', '#f07a50', '#5a1010'], cave: ['#1a1020', '#24162a'],
+  metal: ['#1e0e14', '#2a141c', '#16080e', '#3a1a22', '#6a2a30', '#7e3438', '#c86a5a', '#f4b090'] };
 const THEMES = {
   sunset: { sky: ['#181238', '#55306e', '#e8845c'], stars: 40, sun: { x: 190, y: 120, r: 20, cols: ['#ffcf7a', '#ffe9b0'] },
     far: { style: 'hills', cols: ['#6a4a82', '#7d5a95'] }, near: { style: 'hills', cols: ['#3c2c56', '#4b3868'] }, tiles: TILESETS.sunset },
@@ -31,6 +35,8 @@ const THEMES = {
     far: { style: 'ruins', cols: ['#5d376f', '#86598f'] }, near: { style: 'city', cols: ['#241834', '#3a2548'], lights: '#ffd6ef' }, tiles: TILESETS.shrine },
   disaster: { sky: ['#160719', '#4a102c', '#a22b45'], stars: 70, moon: { x: 188, y: 54, r: 32, cols: ['#ff3a58', '#ff8495', '#c5264b'] },
     far: { style: 'ruins', cols: ['#36102d', '#581b3f'] }, near: { style: 'ruins', cols: ['#1a0c22', '#300d30'] }, tiles: TILESETS.shrine, castle: true },
+  foxfire: { sky: ['#07061a', '#1e1240', '#5a2448'], stars: 90, moon: { x: 196, y: 52, r: 20, cols: ['#fff2d8', '#fffaf0', '#e8d0b0'] },
+    far: { style: 'trees', cols: ['#1c1434', '#2a1e48'] }, near: { style: 'trees', cols: ['#0e0a1c', '#1c1230'] }, tiles: TILESETS.foxfire, foxShrine: true },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
     far: { style: 'ruins', cols: ['#2a2460', '#3a347a'] }, near: { style: 'ruins', cols: ['#151238', '#221e50'] }, tiles: TILESETS.shrine },
 };
@@ -115,6 +121,42 @@ function buildBackground(th) {
   drawLayer(farCv.getContext('2d'), th.far, 132, 44, 1);
   drawLayer(nearCv.getContext('2d'), th.near, 168, 40, 2);
   if (th.castle) { drawCrimsonCastle(farCv.getContext('2d'), false); drawCrimsonCastle(nearCv.getContext('2d'), true); }
+  if (th.foxShrine) { drawFoxShrine(farCv.getContext('2d'), false); drawFoxShrine(nearCv.getContext('2d'), true); }
+}
+// FOXFIRE SHRINE parallax: rows of vermilion torii, stone lanterns with warm light, a shrine roof, drifting foxfire dots
+function drawFoxShrine(cg, near) {
+  const F = (x, y, w, h, c) => { cg.fillStyle = c; cg.fillRect(x, y, w, h); };
+  const base = near ? 168 : 132, red = near ? '#8a1c22' : '#5a1a2e', redHi = near ? '#c83a30' : '#7a2a3e', ink = near ? '#120a16' : '#1e1430';
+  if (!near) { // distant shrine hall on the hill
+    for (const ox of [96, 352]) {
+      F(ox, base - 34, 64, 34, ink); for (let k = 0; k < 10; k++) F(ox - 10 + k * 2, base - 44 + k, 84 - k * 4, 1, ink);
+      F(ox - 12, base - 35, 88, 2, ink); F(ox + 8, base - 26, 48, 8, '#3a1a20');
+      for (let k = 0; k < 6; k++) F(ox + 10 + k * 8, base - 25, 4, 6, (k & 1) ? '#ffb060' : '#ff8a40');
+    }
+  }
+  const step = near ? 128 : 64;
+  for (let x = near ? 40 : 10, n = 0; x < 512; x += step, n++) { // torii gates
+    const w = near ? 46 : 26, h = near ? 52 : 30, top = base - h;
+    F(x, top + 4, near ? 4 : 2, h, red); F(x + w - (near ? 4 : 2), top + 4, near ? 4 : 2, h, red);          // pillars
+    F(x - 6, top, w + 12, near ? 4 : 2, red); F(x - 7, top - 1, w + 14, 1, redHi);                      // kasagi (top beam)
+    F(x - 2, top + (near ? 10 : 6), w + 4, near ? 3 : 2, red);                                           // nuki
+    F(x + (w >> 1) - 2, top + 4, 4, near ? 6 : 3, red);                                                   // gakuzuka
+    if (near) { F(x, top + 4, 1, h, redHi); F(x + w - 4, top + 4, 1, h, redHi);
+      for (let k = 0; k < 3; k++) { const lx = x + 6 + k * 15, ly = top + 15; // 紅提灯 (red paper lanterns) hanging from the nuki
+        F(lx + 2, ly - 2, 1, 2, ink); F(lx, ly, 6, 8, '#d0302a'); F(lx + 1, ly - 1, 4, 10, '#d0302a'); F(lx + 1, ly + 2, 4, 1, '#ff9a60'); F(lx + 1, ly + 5, 4, 1, '#ff9a60'); F(lx + 1, ly, 1, 7, '#ff7048'); F(lx, ly - 1, 6, 1, ink); F(lx, ly + 8, 6, 1, ink); }
+    }
+  }
+  for (let x = near ? 100 : 40, n = 0; x < 512; x += near ? 128 : 64, n++) { // stone lanterns (tōrō) with light
+    const s = near ? 2 : 1, y = base;
+    F(x - 3 * s, y - 4 * s, 6 * s, 4 * s, ink); F(x - 1 * s, y - 12 * s, 2 * s, 8 * s, ink);
+    F(x - 4 * s, y - 17 * s, 8 * s, 5 * s, ink); F(x - 5 * s, y - 19 * s, 10 * s, 2 * s, ink); F(x - 1 * s, y - 21 * s, 2 * s, 2 * s, ink);
+    F(x - 2 * s, y - 16 * s, 4 * s, 3 * s, near ? '#ffb85a' : '#d07a40');
+  }
+  for (let i = 0; i < (near ? 14 : 22); i++) { // foxfire dots (red / orange / pale)
+    const h = hash(i, near ? 61 : 63), x = h % 512, y = 40 + ((h >> 9) % (base - 60)), c = (h >> 20) % 3;
+    F(x, y, near ? 2 : 1, near ? 2 : 1, c === 0 ? '#ff5a3a' : c === 1 ? '#ffb060' : '#c08aff');
+    if (near) { cg.globalAlpha = 0.3; F(x - 1, y - 1, 4, 4, c === 0 ? '#ff5a3a' : '#ffb060'); cg.globalAlpha = 1; }
+  }
 }
 // DISASTER CASTLE parallax towers (scenery only, no collision): drawn into the far/near background layers.
 function drawCrimsonCastle(cg, foreground) {

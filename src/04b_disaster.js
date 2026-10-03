@@ -12,7 +12,7 @@
 //
 //  ART (assets/disaster_dark.json): every form has its own body frame with the weapon baked in (pose = form name,
 //  'transform' during the morph). Muzzle points below are in the RIGHT-facing 48x48 frame (body x=23); mirrored
-//  when he faces left. assets/alchemic_weapons.png icons (sword..whip; no lance icon yet) are shown above his head
+//  when he faces left. assets/alchemic_weapons.png icons (sword..whip, lance = cell 6) are shown above his head
 //  during the morph, and replace the weapon if the body sheet is missing. Without any sheet the code-drawn
 //  shapes (drawWeaponShape) are used. Projectiles use assets/disaster_bullets.png (b.dspr) when it is loaded.
 // =====================================================================
@@ -25,7 +25,7 @@ const DISASTER_WEAPONS = {
   scythe: { icon: 3, grip: [0.266, 0.734], muz: [46, 27] },
   bow:    { icon: 4, grip: [0.609, 0.547], muz: [46, 22] },
   whip:   { icon: 5, grip: [0.734, 0.359], muz: [46, 20] },
-  lance:  { icon: -1, grip: [0.3, 0.7], muz: [46, 24] },   // cannon-spear: no icon cell yet (code-drawn)
+  lance:  { icon: 6, grip: [0.359, 0.734], muz: [46, 24] },   // cannon-spear (alchemic_weapons.png cell 6, added 2026-10-03)
 };
 const DIS_SPR = { wave: 0, spear: 1, burst: 2, arrow: 3, scythe: 4, orb: 5 };   // disaster_bullets.png cells
 // world position of a weapon's muzzle (falls back to an estimate when the sheet is not loaded)

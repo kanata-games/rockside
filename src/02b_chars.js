@@ -89,11 +89,26 @@ function artSeiten(R, f) {
   if (f) { R('#8a2030', 19, 10, 1, 1); R(black, 19, 14, 4, 2); R(skin, 23, 14, 1, 2); }
   else { R(black, 19, 13, 2, 3); R(skin, 19, 11, 2, 2); }
 }
+// シラヌイ (fox girl): red hair + fox ears, red/black kimono, folding fan (fallback art for ?sprites=0)
+function artShiranui(R, f) {
+  const hair = '#c81e2c', hairD = '#8a1020', kim = '#2a1418', red = '#d0303a', skin = '#fff0ea', white = '#f4ecec';
+  R(hairD, 4, 18, 5, 8); R(red, 3, 21, 3, 4); R(white, 3, 25, 2, 1);                // fox tail
+  R(hair, 9, 6, 11, 20); R(hairD, 9, 20, 3, 6);                                    // long hair
+  R(hair, 11, 1, 3, 4); R(hair, 18, 1, 3, 4); R(white, 12, 2, 1, 2); R(white, 19, 2, 1, 2); // fox ears
+  R(kim, 11, 18, 11, 8); R(red, 12, 20, 2, 2); R(red, 18, 22, 2, 2); R(white, 15, 18, 3, 8); // kimono skirt
+  R(kim, 13, 12, 7, 7); R(white, 15, 12, 3, 3); R('#101010', 13, 17, 7, 2);         // kimono top + obi
+  R(skin, 14, 26, 2, 2); R(skin, 17, 26, 2, 2); R('#1a1014', 13, 28, 3, 4); R('#1a1014', 17, 28, 3, 4);
+  R(skin, 14, 6, 6, 6); R(hair, 13, 5, 8, 2); R(hair, 13, 7, 2, 5);
+  R('#f0c040', 18, 8, 1, 2);                                                        // golden eye
+  if (f) { R('#101010', 20, 9, 5, 3); R(red, 21, 10, 3, 1); R(skin, 19, 13, 2, 2); }   // open fan
+  else { R('#101010', 19, 13, 2, 4); R(skin, 19, 12, 2, 2); }
+}
 const ALLY_W = 32, ALLY_H = 32;
 const ALLY_INFO = {
   A: { name: 'アスターテ', color: '#5a6ad8', art: artAstarte },
   N: { name: 'ネーニア', color: '#4a60b0', art: artNeenia },
   S: { name: '青天', color: '#c0203a', art: artSeiten },
+  K: { name: 'シラヌイ', color: '#d0303a', art: artShiranui },
 };
 (function buildChars() {
   for (const pal of ['dark', 'normal']) for (const p of TOBI_POSES) {
@@ -147,7 +162,15 @@ const SHEET_DEFS = {
   starNormal: { file: 'assets/star.png', fw: 32, fh: 32, frames: 7, cx: 16,
     map: { idle: [0, 2], joy: [2, 1], happy: [3, 1], thanks: [4, 1], wave: [5, 1], sword: [6, 1] } },
   // Disaster fight FX sheets (assets/alchemic_weapons.json, assets/disaster_bullets.json)
-  alchemicWeapons: { file: 'assets/alchemic_weapons.png', fw: 32, fh: 32, frames: 6, cx: 16 },  // sword spear axe scythe bow whip (tip up-right)
+  alchemicWeapons: { file: 'assets/alchemic_weapons.png', fw: 32, fh: 32, frames: 7, cx: 16 },  // sword spear axe scythe bow whip lance (tip up-right)
+  // シラヌイ (fox girl) NORMAL 32x32 x6: 0-1 idle, 2 happy, 3 thanks (bow), 4 wave (open fan), 5 foxfire in palm (21,14)
+  shiranui: { file: 'assets/shiranui.png', fw: 32, fh: 32, frames: 6, cx: 16,
+    map: { idle: [0, 2], happy: [2, 1], thanks: [3, 1], wave: [4, 1], foxfire: [5, 1] } },
+  // DARK シラヌイ 48x48 x8: body x=24, floating feet y=44. 3 = illusion (blinked in code), 4 fan wind-up, 5 throw (fan tip 38,24)
+  shiranuiDark: { file: 'assets/shiranui_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, muzX: 38, muzY: 24,
+    map: { idle: [0, 2], glide: [2, 1], vanish: [3, 1], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  shiranuiBullets: { file: 'assets/shiranui_bullets.png', fw: 24, fh: 24, frames: 5, cx: 12 },       // foxfire a/b, wisp, flame crescent, fan (face right)
+  shiranuiPillar:  { file: 'assets/shiranui_bullets_pillar.png', fw: 24, fh: 48, frames: 2, cx: 12 }, // fire pillar, floor line y=45
   transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
   starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
   disasterBullets: { file: 'assets/disaster_bullets.png', fw: 24, fh: 24, frames: 6, cx: 12 },  // sword wave, spear bolt, ground burst, arrow, scythe wave, orb
@@ -155,7 +178,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -234,7 +257,8 @@ function loadSheets() {
   const useFolder = !emb || Object.keys(emb).length === 0;
   // sheets never embedded by build.py --embed: always loaded from assets/ (Lily, Umimi, Disaster / Star)
   const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
-    'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets']);
+    'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets',
+    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();

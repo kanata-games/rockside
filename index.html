@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.7.0';
+const GAME_VERSION = '0.8.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -152,6 +152,19 @@ const CONFIG = {
     // DARK リリィ: idol-princess boss. Song waves, stars, heart hop, plus Umimi moon support.
     lily: { hp: 34, iFrames: 12, contactDamage: 3, noteDamage: 2, starDamage: 2, heartDamage: 2,
       idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healTriggerHP: 10, healAmount: 5, rescueLineFrames: 240 },
+    // DARK シラヌイ (fox girl, floats). Every attack starts from a readable pose: fan raised (wind-up glow at the fan tip)
+    // volley: aimed foxfires that home a little at first (enraged 5) / wisp: purple will-o-wisps orbit her, then drift at Umine one by one
+    // crescent: flame crescent along the floor (jump; enraged a 2nd faster one) / fan: spinning fan boomerang, out low (jump), back high (enraged: back low too)
+    // pillar: ember marks on the floor (Umine's spot + 1, enraged +2), then fire pillars erupt there
+    // illusion: vanishes, reappears blinking with 2 clones (shoot a clone to pop it); all of them throw a foxfire
+    shiranui: { hp: 38, iFrames: 12, contactDamage: 3, floatGap: 2, idleFrames: 34, idleFramesRage: 24, recover: 26, recoverRage: 18,
+      comboChance: 0.15, comboChanceRage: 0.55,
+      volleyWind: 24, volleyWindRage: 18, volleyCount: 3, volleyCountRage: 5, volleyGap: 6, foxSpeed: 2.3, foxHome: 34, foxTurn: 0.05, foxDamage: 2,
+      wispCount: 3, wispCountRage: 4, wispOrbit: 40, wispGap: 16, wispGapRage: 11, wispSpeed: 1.5, wispHome: 60, wispTurn: 0.035, wispDamage: 2,
+      crescentWind: 20, crescentWindRage: 15, crescentSpeed: 2.5, crescentSpeedRage: 2.9, crescentGap: 30, crescentDamage: 3,
+      fanWind: 20, fanWindRage: 15, fanSpeed: 3.6, fanDecel: 0.085, fanDamage: 2,
+      pillarWarn: 46, pillarWarnRage: 34, pillarCount: 2, pillarCountRage: 3, pillarGap: 64, pillarLife: 32, pillarDamage: 3,
+      illusionVanish: 22, illusionHidden: 14, illusionBlink: 32, illusionBlinkRage: 24, illusionSpeed: 2.0, illusionDamage: 2, rescueLineFrames: 240 },
     // 魔王ディザスター (Demon Lord Disaster = dark-fallen スターさん, he/him; floats). Alchemy-sword (錬金剣) boss:
     // every attack starts with a purple MORPH flash + the next weapon's icon above his head, then that weapon's own telegraph.
     // sword: low crescent wave (enraged: then a HIGH one - stay on the ground) / spear: aim line, locks, thrown spear (enraged: 2)
@@ -187,6 +200,7 @@ const CONFIG = {
     neeniaRange: 170,       // player within this horizontal distance -> support fire
     neeniaTargetRange: 230, // enemies within this distance of her get shot
     neeniaInterval: 60, arrowSpeed: 4.2, arrowDamage: 1,
+    foxRange: 160, foxTargetRange: 220, foxInterval: 72, foxSpeed: 2.4, foxDamage: 2,   // シラヌイ helper (K): slow homing foxfire
     seitenRange: 44, seitenHealEvery: 6,   // +1 HP every N frames while near
   },
 
@@ -204,7 +218,7 @@ const CONFIG = {
 // ---------------------------------------------------------------------
 //  URL debug params: ?boss=1 (start at checkpoint before boss room),
 //  ?god=1 (no damage), ?hitbox=1 (draw hitboxes), ?sprites=0 (procedural art), ?sprites=folder (load assets/*.png instead of embedded)
-//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂; combine with boss=1 / god=1)
+//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂, 5 災厄の紅月城, 6 月光の歌劇城, 7 狐火の社; combine with boss=1 / god=1)
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
@@ -609,7 +623,7 @@ const STAGE_NOCTURNE_CITY = [
 "................",
 ".............H..",
 "..........######",
-"...W......######",
+".K.W......######",
 "################",
 "################"],
 [ // 6 rooftop gap + flyer, walker
@@ -723,7 +737,7 @@ const STAGE_STAR_SHRINE = [
 "................",
 "................",
 "................",
-"....H...........",
+"....H.......K...",
 "################",
 "################"],
 [ // 4 Neenia's perch (upper route), walker
@@ -855,7 +869,7 @@ const STAGE_DISASTER = [
 "................","................","................","................",
 ".......===......",
 "................",
-"....W....H......",
+".K..W....H......",
 "################","################"],
 [ // 4 - gauntlet: two short gaps, walkers, a bat
 "................","................","................","................","................",
@@ -880,6 +894,153 @@ const STAGE_DISASTER = [
 "D...............",
 "D..........B....",
 "################","################"]
+];
+// 狐火の社 FOXFIRE SHRINE (area 7, cell 5): night shrine of red torii and fox lanterns. 8 screens + boss room.
+const STAGE_SHIRANUI = [
+[ // 0 - torii gate at the foot of the shrine steps
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"..........===...",
+"................",
+"..P......W......",
+"################",
+"################"],
+[ // 1 - stone steps up and down, a bat over them
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"......F.........",
+"................",
+"................",
+"................",
+"...........###..",
+"....W...######..",
+"################",
+"################"],
+[ // 2 - broken shrine bridge: hop onto the low girder (row 11) over the gap
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".............F..",
+"................",
+"................",
+"......===.......",
+".............H..",
+"####.......#####",
+"####.......#####"],
+[ // 3 - Neenia's perch above the lantern path
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"....N...........",
+"..=====.........",
+"................",
+"................",
+"................",
+"..........W.....",
+"################",
+"################"],
+[ // 4 - fox-lantern gauntlet: two short gaps
+"................",
+"................",
+"................",
+"................",
+"................",
+".....F..........",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"...W....W.......",
+"#####..####..###",
+"#####..####..###"],
+[ // 5 - quiet grove: Seiten's rest spot
+"................",
+"................",
+"................",
+"................",
+"............F...",
+"................",
+"................",
+"................",
+"................",
+"........====....",
+"................",
+"................",
+"......S.........",
+"################",
+"################"],
+[ // 6 - steps over the spring + gap
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".....##.........",
+"..W.####.....H..",
+"###########..###",
+"###########..###"],
+[ // 7 - inner gate: checkpoint (Astarthe / lantern)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......===......",
+"................",
+"...A.......H....",
+"################",
+"################"],
+[ // 8 - main hall (boss)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"D...............",
+"D...............",
+"D..........B....",
+"################",
+"################"]
 ];
 const STAGE_LILY = [
 [ // 0 - Moonlight Palace entrance: gentle opening.
@@ -1024,11 +1185,16 @@ const AREAS = [
     portrait: { sheet: 'lilyDark', frame: 0, x: 12, y: 5, size: 22 },
     portraitRescued: { sheet: 'lily', frame: 0, x: 5, y: 3, size: 20 },
     map: STAGE_LILY, theme: 'lily' },
-  { id: 'friend7', no: 7, slot: 5, reserved: true }, { id: 'friend8', no: 8, slot: 7, reserved: true },
+  { id: 'shiranui', no: 7, slot: 5, name: '狐火の社', en: 'FOXFIRE SHRINE', enShort: 'FOX SHRINE', friend: 'shiranui', boss: 'shiranui',
+    bossName: 'DARK シラヌイ', bossAlias: '揺らぐ幻火', bossEn: 'DARK SHIRANUI',
+    face: 'face_shiranui_dark', faceRescued: 'face_shiranui',
+    portrait: { sheet: 'shiranuiDark', frame: 0, x: 14, y: 4, size: 21 },
+    portraitRescued: { sheet: 'shiranui', frame: 0, x: 6, y: 2, size: 20 },
+    map: STAGE_SHIRANUI, theme: 'foxfire' }, { id: 'friend8', no: 8, slot: 7, reserved: true },
   { id: 'final', slot: 4, final: true, name: '最終エリア', en: 'FINAL AREA' }, // no stage yet -> "coming soon" even when unlocked
 ];
 // in-stage ally type (map letter) -> friend id
-const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten' };
+const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten', K: 'shiranui' };
 
 // =====================================================================
 //  Globals / setup
@@ -1060,7 +1226,7 @@ function loadMap(screens) {
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
     else if (ch === 'W' || ch === 'H' || ch === 'F') spawns.push({ type: ch, c: c, r: r });
-    else if (ch === 'A' || ch === 'N' || ch === 'S') allySpawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'K') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
   ROOM_X = ROOM_COL * TS;
@@ -1260,7 +1426,7 @@ const OUT = [16, 14, 40];
 
 // ---- sprite sheets embedded at build time (tools/build.py) ----
 const EMBEDDED_SHEETS = {};
-const EMBEDDED_META = {"tobiumeNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"fly":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"kick":{"frames":[7,8,9,10]},"special_dive_kick":{"frames":[11,12,13,14]}}},"neeniaDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"walk":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"seitenDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"leap":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"astarteDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"disasterDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"transform":{"frames":[4]},"sword":{"frames":[5]},"spear":{"frames":[6]},"axe":{"frames":[7]},"scythe":{"frames":[8]},"bow":{"frames":[9]},"whip":{"frames":[10]},"lance":{"frames":[11]},"hurt":{"frames":[12]},"defeat":{"frames":[13]}}},"starNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"joy":{"frames":[2]},"happy":{"frames":[3]},"thanks":{"frames":[4]},"wave":{"frames":[5]},"sword":{"frames":[6]}}}};
+const EMBEDDED_META = {"tobiumeNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"fly":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"kick":{"frames":[7,8,9,10]},"special_dive_kick":{"frames":[11,12,13,14]}}},"neeniaDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"walk":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"seitenDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"leap":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"astarteDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"disasterDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"transform":{"frames":[4]},"sword":{"frames":[5]},"spear":{"frames":[6]},"axe":{"frames":[7]},"scythe":{"frames":[8]},"bow":{"frames":[9]},"whip":{"frames":[10]},"lance":{"frames":[11]},"hurt":{"frames":[12]},"defeat":{"frames":[13]}}},"starNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"joy":{"frames":[2]},"happy":{"frames":[3]},"thanks":{"frames":[4]},"wave":{"frames":[5]},"sword":{"frames":[6]}}},"shiranui":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"happy":{"frames":[2]},"thanks":{"frames":[3]},"wave":{"frames":[4]},"foxfire":{"frames":[5]}}},"shiranuiDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2]},"vanish":{"frames":[3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}}};
 
 // =====================================================================
 //  CHARACTERS (part 2): boss 闇落ち飛梅 + allies, procedural placeholders.
@@ -1352,11 +1518,26 @@ function artSeiten(R, f) {
   if (f) { R('#8a2030', 19, 10, 1, 1); R(black, 19, 14, 4, 2); R(skin, 23, 14, 1, 2); }
   else { R(black, 19, 13, 2, 3); R(skin, 19, 11, 2, 2); }
 }
+// シラヌイ (fox girl): red hair + fox ears, red/black kimono, folding fan (fallback art for ?sprites=0)
+function artShiranui(R, f) {
+  const hair = '#c81e2c', hairD = '#8a1020', kim = '#2a1418', red = '#d0303a', skin = '#fff0ea', white = '#f4ecec';
+  R(hairD, 4, 18, 5, 8); R(red, 3, 21, 3, 4); R(white, 3, 25, 2, 1);                // fox tail
+  R(hair, 9, 6, 11, 20); R(hairD, 9, 20, 3, 6);                                    // long hair
+  R(hair, 11, 1, 3, 4); R(hair, 18, 1, 3, 4); R(white, 12, 2, 1, 2); R(white, 19, 2, 1, 2); // fox ears
+  R(kim, 11, 18, 11, 8); R(red, 12, 20, 2, 2); R(red, 18, 22, 2, 2); R(white, 15, 18, 3, 8); // kimono skirt
+  R(kim, 13, 12, 7, 7); R(white, 15, 12, 3, 3); R('#101010', 13, 17, 7, 2);         // kimono top + obi
+  R(skin, 14, 26, 2, 2); R(skin, 17, 26, 2, 2); R('#1a1014', 13, 28, 3, 4); R('#1a1014', 17, 28, 3, 4);
+  R(skin, 14, 6, 6, 6); R(hair, 13, 5, 8, 2); R(hair, 13, 7, 2, 5);
+  R('#f0c040', 18, 8, 1, 2);                                                        // golden eye
+  if (f) { R('#101010', 20, 9, 5, 3); R(red, 21, 10, 3, 1); R(skin, 19, 13, 2, 2); }   // open fan
+  else { R('#101010', 19, 13, 2, 4); R(skin, 19, 12, 2, 2); }
+}
 const ALLY_W = 32, ALLY_H = 32;
 const ALLY_INFO = {
   A: { name: 'アスターテ', color: '#5a6ad8', art: artAstarte },
   N: { name: 'ネーニア', color: '#4a60b0', art: artNeenia },
   S: { name: '青天', color: '#c0203a', art: artSeiten },
+  K: { name: 'シラヌイ', color: '#d0303a', art: artShiranui },
 };
 (function buildChars() {
   for (const pal of ['dark', 'normal']) for (const p of TOBI_POSES) {
@@ -1410,7 +1591,15 @@ const SHEET_DEFS = {
   starNormal: { file: 'assets/star.png', fw: 32, fh: 32, frames: 7, cx: 16,
     map: { idle: [0, 2], joy: [2, 1], happy: [3, 1], thanks: [4, 1], wave: [5, 1], sword: [6, 1] } },
   // Disaster fight FX sheets (assets/alchemic_weapons.json, assets/disaster_bullets.json)
-  alchemicWeapons: { file: 'assets/alchemic_weapons.png', fw: 32, fh: 32, frames: 6, cx: 16 },  // sword spear axe scythe bow whip (tip up-right)
+  alchemicWeapons: { file: 'assets/alchemic_weapons.png', fw: 32, fh: 32, frames: 7, cx: 16 },  // sword spear axe scythe bow whip lance (tip up-right)
+  // シラヌイ (fox girl) NORMAL 32x32 x6: 0-1 idle, 2 happy, 3 thanks (bow), 4 wave (open fan), 5 foxfire in palm (21,14)
+  shiranui: { file: 'assets/shiranui.png', fw: 32, fh: 32, frames: 6, cx: 16,
+    map: { idle: [0, 2], happy: [2, 1], thanks: [3, 1], wave: [4, 1], foxfire: [5, 1] } },
+  // DARK シラヌイ 48x48 x8: body x=24, floating feet y=44. 3 = illusion (blinked in code), 4 fan wind-up, 5 throw (fan tip 38,24)
+  shiranuiDark: { file: 'assets/shiranui_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, muzX: 38, muzY: 24,
+    map: { idle: [0, 2], glide: [2, 1], vanish: [3, 1], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  shiranuiBullets: { file: 'assets/shiranui_bullets.png', fw: 24, fh: 24, frames: 5, cx: 12 },       // foxfire a/b, wisp, flame crescent, fan (face right)
+  shiranuiPillar:  { file: 'assets/shiranui_bullets_pillar.png', fw: 24, fh: 48, frames: 2, cx: 12 }, // fire pillar, floor line y=45
   transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
   starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
   disasterBullets: { file: 'assets/disaster_bullets.png', fw: 24, fh: 24, frames: 6, cx: 12 },  // sword wave, spear bolt, ground burst, arrow, scythe wave, orb
@@ -1418,7 +1607,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -1497,7 +1686,8 @@ function loadSheets() {
   const useFolder = !emb || Object.keys(emb).length === 0;
   // sheets never embedded by build.py --embed: always loaded from assets/ (Lily, Umimi, Disaster / Star)
   const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
-    'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets']);
+    'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets',
+    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();
@@ -1611,6 +1801,10 @@ const TILESETS = {
     girder: ['#6a5020', '#b89040', '#f4d680', '#4a3810'], cave: ['#161434', '#1e1a44'],
     metal: ['#131334', '#1b1b46', '#0f0f2a', '#2a2a5a', '#46469a', '#5656b2', '#9a9aea', '#d4d4ff'] },
 };
+// 狐火の社: dark shrine stone with moss, vermilion (shu-iro) girders like torii beams, warm lantern-lit hall
+TILESETS.foxfire = { rock: ['#4a4250', '#3a3240', '#625a6a', '#2c2632', '#221c28'], top: ['#3e6a4a', '#86c08a', '#2c4e38'],
+  girder: ['#7a1a1a', '#c8382c', '#f07a50', '#5a1010'], cave: ['#1a1020', '#24162a'],
+  metal: ['#1e0e14', '#2a141c', '#16080e', '#3a1a22', '#6a2a30', '#7e3438', '#c86a5a', '#f4b090'] };
 const THEMES = {
   sunset: { sky: ['#181238', '#55306e', '#e8845c'], stars: 40, sun: { x: 190, y: 120, r: 20, cols: ['#ffcf7a', '#ffe9b0'] },
     far: { style: 'hills', cols: ['#6a4a82', '#7d5a95'] }, near: { style: 'hills', cols: ['#3c2c56', '#4b3868'] }, tiles: TILESETS.sunset },
@@ -1622,6 +1816,8 @@ const THEMES = {
     far: { style: 'ruins', cols: ['#5d376f', '#86598f'] }, near: { style: 'city', cols: ['#241834', '#3a2548'], lights: '#ffd6ef' }, tiles: TILESETS.shrine },
   disaster: { sky: ['#160719', '#4a102c', '#a22b45'], stars: 70, moon: { x: 188, y: 54, r: 32, cols: ['#ff3a58', '#ff8495', '#c5264b'] },
     far: { style: 'ruins', cols: ['#36102d', '#581b3f'] }, near: { style: 'ruins', cols: ['#1a0c22', '#300d30'] }, tiles: TILESETS.shrine, castle: true },
+  foxfire: { sky: ['#07061a', '#1e1240', '#5a2448'], stars: 90, moon: { x: 196, y: 52, r: 20, cols: ['#fff2d8', '#fffaf0', '#e8d0b0'] },
+    far: { style: 'trees', cols: ['#1c1434', '#2a1e48'] }, near: { style: 'trees', cols: ['#0e0a1c', '#1c1230'] }, tiles: TILESETS.foxfire, foxShrine: true },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
     far: { style: 'ruins', cols: ['#2a2460', '#3a347a'] }, near: { style: 'ruins', cols: ['#151238', '#221e50'] }, tiles: TILESETS.shrine },
 };
@@ -1706,6 +1902,42 @@ function buildBackground(th) {
   drawLayer(farCv.getContext('2d'), th.far, 132, 44, 1);
   drawLayer(nearCv.getContext('2d'), th.near, 168, 40, 2);
   if (th.castle) { drawCrimsonCastle(farCv.getContext('2d'), false); drawCrimsonCastle(nearCv.getContext('2d'), true); }
+  if (th.foxShrine) { drawFoxShrine(farCv.getContext('2d'), false); drawFoxShrine(nearCv.getContext('2d'), true); }
+}
+// FOXFIRE SHRINE parallax: rows of vermilion torii, stone lanterns with warm light, a shrine roof, drifting foxfire dots
+function drawFoxShrine(cg, near) {
+  const F = (x, y, w, h, c) => { cg.fillStyle = c; cg.fillRect(x, y, w, h); };
+  const base = near ? 168 : 132, red = near ? '#8a1c22' : '#5a1a2e', redHi = near ? '#c83a30' : '#7a2a3e', ink = near ? '#120a16' : '#1e1430';
+  if (!near) { // distant shrine hall on the hill
+    for (const ox of [96, 352]) {
+      F(ox, base - 34, 64, 34, ink); for (let k = 0; k < 10; k++) F(ox - 10 + k * 2, base - 44 + k, 84 - k * 4, 1, ink);
+      F(ox - 12, base - 35, 88, 2, ink); F(ox + 8, base - 26, 48, 8, '#3a1a20');
+      for (let k = 0; k < 6; k++) F(ox + 10 + k * 8, base - 25, 4, 6, (k & 1) ? '#ffb060' : '#ff8a40');
+    }
+  }
+  const step = near ? 128 : 64;
+  for (let x = near ? 40 : 10, n = 0; x < 512; x += step, n++) { // torii gates
+    const w = near ? 46 : 26, h = near ? 52 : 30, top = base - h;
+    F(x, top + 4, near ? 4 : 2, h, red); F(x + w - (near ? 4 : 2), top + 4, near ? 4 : 2, h, red);          // pillars
+    F(x - 6, top, w + 12, near ? 4 : 2, red); F(x - 7, top - 1, w + 14, 1, redHi);                      // kasagi (top beam)
+    F(x - 2, top + (near ? 10 : 6), w + 4, near ? 3 : 2, red);                                           // nuki
+    F(x + (w >> 1) - 2, top + 4, 4, near ? 6 : 3, red);                                                   // gakuzuka
+    if (near) { F(x, top + 4, 1, h, redHi); F(x + w - 4, top + 4, 1, h, redHi);
+      for (let k = 0; k < 3; k++) { const lx = x + 6 + k * 15, ly = top + 15; // 紅提灯 (red paper lanterns) hanging from the nuki
+        F(lx + 2, ly - 2, 1, 2, ink); F(lx, ly, 6, 8, '#d0302a'); F(lx + 1, ly - 1, 4, 10, '#d0302a'); F(lx + 1, ly + 2, 4, 1, '#ff9a60'); F(lx + 1, ly + 5, 4, 1, '#ff9a60'); F(lx + 1, ly, 1, 7, '#ff7048'); F(lx, ly - 1, 6, 1, ink); F(lx, ly + 8, 6, 1, ink); }
+    }
+  }
+  for (let x = near ? 100 : 40, n = 0; x < 512; x += near ? 128 : 64, n++) { // stone lanterns (tōrō) with light
+    const s = near ? 2 : 1, y = base;
+    F(x - 3 * s, y - 4 * s, 6 * s, 4 * s, ink); F(x - 1 * s, y - 12 * s, 2 * s, 8 * s, ink);
+    F(x - 4 * s, y - 17 * s, 8 * s, 5 * s, ink); F(x - 5 * s, y - 19 * s, 10 * s, 2 * s, ink); F(x - 1 * s, y - 21 * s, 2 * s, 2 * s, ink);
+    F(x - 2 * s, y - 16 * s, 4 * s, 3 * s, near ? '#ffb85a' : '#d07a40');
+  }
+  for (let i = 0; i < (near ? 14 : 22); i++) { // foxfire dots (red / orange / pale)
+    const h = hash(i, near ? 61 : 63), x = h % 512, y = 40 + ((h >> 9) % (base - 60)), c = (h >> 20) % 3;
+    F(x, y, near ? 2 : 1, near ? 2 : 1, c === 0 ? '#ff5a3a' : c === 1 ? '#ffb060' : '#c08aff');
+    if (near) { cg.globalAlpha = 0.3; F(x - 1, y - 1, 4, 4, c === 0 ? '#ff5a3a' : '#ffb060'); cg.globalAlpha = 1; }
+  }
 }
 // DISASTER CASTLE parallax towers (scenery only, no collision): drawn into the far/near background layers.
 function drawCrimsonCastle(cg, foreground) {
@@ -2049,6 +2281,11 @@ const BOSS_TYPES = {
   disaster: { hud: 'DISASTER', speaker: 'スターさん', speakerColor: '#71d9ff', line: '……海音、ありがとな。錬金剣に光が戻ったぜ！', face: 'face_star',
     clearEn: 'STAR RESCUED', clearJp: 'スターさんを闇から救い出した！', dark: 'disasterDark', normal: 'starNormal', ally: 'A', fly: true, w: 21, h: 35,
     aura: ['#5a1a8a', '#a51c54'], sparkle: '#72eaff', dust: '#8a6aa8' },
+  // DARK シラヌイ -> シラヌイ (fox lady, oiran style, speaks archaic 'noja' Japanese: わらわ / おぬし / 〜のじゃ).
+  // In-stage helper letter K (homing foxfire).
+  shiranui: { hud: 'SHIRANUI', speaker: 'シラヌイ', speakerColor: '#ff8a7a', line: 'ふふ…わらわとしたことが、闇に飲まれておったのじゃな。礼を言うぞ、海音よ。', face: 'face_shiranui',
+    clearEn: 'SHIRANUI RESCUED', clearJp: 'シラヌイを闇から救い出した！', dark: 'shiranuiDark', normal: 'shiranui', ally: 'K', fly: true, w: 16, h: 34,
+    aura: ['#3a0a1a', '#b0203a'], sparkle: '#ffb070', dust: '#a06a6a' },
   lily: { hud: 'LILY', speaker: 'リリィ', speakerColor: '#ffd2ef', line: '海音ちゃん！助けてくれてありがとうっ♪', face: 'face_lily',
     clearEn: 'LILY RESCUED', clearJp: 'リリィを闇から救い出した！', dark: 'lilyDark', normal: 'lily', w: 16, h: 34,
     aura: ['#31102f', '#8b2d6a'], sparkle: '#ffd2ef', dust: '#c9b9e8' },
@@ -2193,6 +2430,7 @@ const ALLY_LINES = {
   A0: 'この先、道が分かれている…上を行って。',
   A1: 'ここは覚えておく。倒れても、ここから。',
   N: '援護するわ。落ち着いて進んで。',
+  K: 'ふふ、迷うでないぞ。わらわの狐火が道を照らしてやろう。',
   S: '青天が歌ってあげる！がんばって！',
   I: '海音ちゃん、ウミミを連れていって！きっと力になるよ♪',
 };
@@ -2319,6 +2557,7 @@ function bossReset() {
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.weapon = 'sword'; b.nextWeapon = ''; b.comboLeft = 0; b.chainB = null; b.chainReach = 0; b.recT = 0;
+  b.clones = []; b.fanB = null; b.pillars = []; b.blink = false; b.wisps = [];
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
@@ -2353,9 +2592,9 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time.
-const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん' };
-const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star', 'shiranui'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん', shiranui: 'シラヌイ' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR', shiranui: 'SHIRANUI' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -2364,8 +2603,8 @@ function refreshSupportButton() {
   helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
   const lilyReady = id !== 'lily' || (stageUmimi.given && stageUmimi.active && !stageUmimi.down && stageUmimi.hp > 0);
-  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH' }[id] || 'HELP');
-  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff' }[id] || '#ffa8cf');
+  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH', shiranui: 'FOX' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff', shiranui: '#ff8a7a' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -2375,7 +2614,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!', shiranui: 'SHIRANUI: FOXFIRE DANCE!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -2596,7 +2835,7 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
@@ -2604,7 +2843,8 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
 }
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10], 19: [6, 6], 20: [5, 8],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9],
-  21: [12, 4], 22: [8, 8], 23: [7, 7] }; // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
+  21: [12, 4], 22: [8, 8], 23: [7, 7],  // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
+  24: [8, 8], 25: [8, 8], 27: [14, 14], 28: [12, 38] }; // Shiranui: 24 foxfire, 25 wisp, 27 spinning fan, 28 fire pillar (crescent = kind 9)
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
 function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
@@ -2736,6 +2976,12 @@ function tobiumeRescuePose(b) {
 // the rescued friend's little "back to herself" moment (normal 32x32 sheet: 2 frames each)
 function friendRescuePose(b, type) {
   const t = b.t - 150, cx = b.x + b.w / 2;
+  if (type === 'shiranui') {      // Shiranui (shiranui.png): bows "thanks" (3) -> happy (2) -> waves her open fan (4) / idle
+    b.pose = 'pose'; b.poseF = t < 56 ? 3 : t < 104 ? 2 : ((t - 104) >> 5) & 1 ? 0 : 4;
+    if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx, b.y + 12, DIR8X[i] * 1.1, DIR8Y[i] * 1.1, 26, 0, i & 1 ? '#ffd080' : '#ffffff'); }
+    if (t > 8 && t % 7 === 0) { const h = hash(t, 29); spawnPart(cx - 14 + (h % 28), b.y + 6 + ((h >> 8) % 24), 0, -0.4, 26, 4, (h >> 4) & 1 ? '#ffb070' : '#ffe0a0'); }
+    return;
+  }
   if (type === 'disaster') {      // Star (star.png): raises his cyan sword (6) -> bows "thanks" (4) -> happy (3) / waves (5)
     b.pose = 'pose'; b.poseF = t < 60 ? 6 : t < 104 ? 4 : ((t - 104) >> 5) & 1 ? 5 : 3;
     if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx + b.face * 10, b.y + 10, DIR8X[i] * 1.2, DIR8Y[i] * 1.2, 24, 0, i & 1 ? '#72eaff' : '#ffffff'); }
@@ -3569,7 +3815,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 }
 
-const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster };
+const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster, shiranui: aiShiranui };
 
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
@@ -3586,6 +3832,7 @@ function castSupport() {
   if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
   if (support.kind === 'lily') { support.x = P.x + P.w / 2; support.y = FLOOR_Y - 32; support.face = P.face; }
   if (support.kind === 'star') { support.x = P.x + P.w / 2 - P.face * 16; support.y = P.y; }
+  if (support.kind === 'shiranui') { support.x = P.x + P.w / 2 - P.face * 20; support.y = P.y; support.fx = []; }
   if (support.kind === 'astarte') {
     if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
     support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
@@ -3597,6 +3844,7 @@ function updateSupport() {
   support.t++;
   const t = support.t;
   if (support.kind === 'star') { updateStarSupport(t); return; }
+  if (support.kind === 'shiranui') { updateShiranuiSupport(t); return; }
   if (support.kind === 'lily') {
     // Idol support: spotlight entrance, then a friendly Starlight Rain over the whole viewport.
     if (t === 28 || t === 44 || t === 60 || t === 76) {
@@ -3690,6 +3938,7 @@ function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
   if (support.kind === 'star') { drawStarSupport(t, x, y, camX); return; }
+  if (support.kind === 'shiranui') { drawShiranuiSupport(t, x, y, camX); return; }
   if (support.kind === 'lily') {
     const pulse = 0.16 + 0.08 * Math.sin(frame * 0.14);
     g.save();
@@ -3816,9 +4065,28 @@ function updateAllies() {
             const ax = a.x + (best.x + best.w / 2 < a.x ? -12 : 12), ay = a.y - 18, tx = best.x + best.w / 2 - ax, ty = best.y + best.h / 2 - ay, len = Math.hypot(tx, ty) || 1;
             for (let k = 0; k < arrows.length; k++) {
               const r = arrows[k]; if (r.active) continue;
-              r.active = true; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
+              r.active = true; r.fox = null; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
             }
             a.face = tx < 0 ? -1 : 1; a.act = 18; stats.arrows++; sfx('arrow');
+          }
+        }
+      }
+    } else if (a.type === 'K') { // シラヌイ: slow homing foxfire at enemies near Umine
+      if (adx < A.foxRange) {
+        if (!a.said) { a.said = true; say(a); }
+        if (a.t % A.foxInterval === 0) {
+          let best = null, bd = A.foxTargetRange;
+          for (let j = 0; j < enemies.length; j++) {
+            const e = enemies[j]; if (!e.alive || !e.active) continue;
+            const d = Math.hypot(e.x + e.w / 2 - a.x, e.y + e.h / 2 - (a.y - 16)); if (d < bd) { bd = d; best = e; }
+          }
+          if (best) {
+            const f = best.x + best.w / 2 < a.x ? -1 : 1;
+            for (let k = 0; k < arrows.length; k++) {
+              const r = arrows[k]; if (r.active) continue;
+              r.active = true; r.fox = best; r.x = a.x + f * 8 - 2; r.y = a.y - 20; r.vx = f * A.foxSpeed; r.vy = -0.6; r.life = 150; break;
+            }
+            a.face = f; a.act = 18; sfx('arrow');
           }
         }
       }
@@ -3837,12 +4105,15 @@ function updateAllies() {
 function updateArrows() {
   for (let i = 0; i < arrows.length; i++) {
     const r = arrows[i]; if (!r.active) continue;
+    if (r.fox) { // シラヌイ's foxfire steers toward its target
+      const e = r.fox; if (e.alive) { const tx = e.x + e.w / 2 - r.x - 2, ty = e.y + e.h / 2 - r.y - 2, l = Math.hypot(tx, ty) || 1; r.vx += (tx / l * CONFIG.allies.foxSpeed - r.vx) * 0.12; r.vy += (ty / l * CONFIG.allies.foxSpeed - r.vy) * 0.12; }
+    }
     r.x += r.vx; r.y += r.vy;
     if (--r.life <= 0 || r.x < cam.x - 24 || r.x > cam.x + VW + 24 || r.y > VH || r.y < -24) { r.active = false; continue; }
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j]; if (!e.alive || !e.active) continue;
       if (hitsEnemy(r, e)) {
-        r.active = false; e.hp -= CONFIG.allies.arrowDamage; e.flash = 6;
+        r.active = false; e.hp -= r.fox ? CONFIG.allies.foxDamage : CONFIG.allies.arrowDamage; e.flash = 6;
         spawnPart(r.x + 2, r.y + 2, 0, 0, 6, 3, '#e8e8ff');
         if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; } else sfx('ehit');
         break;
@@ -3886,6 +4157,7 @@ function updateBullets() {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (!b.active) continue;
     b.t++;
+    if (b.hook && b.hook(b)) continue;   // per-bullet behaviour (Shiranui homing / orbit / boomerang); true = finished
     if (b.orbit) { // star orb circling Astarte (ellipse, so it skims the floor)
       if (boss.state !== 'orbs') { b.orbit = false; b.vx = Math.cos(b.ang) * 1.5; b.vy = Math.sin(b.ang) * 1.1; }
       else { b.ang += b.spin; b.rad = Math.min(b.rad + 0.7, CONFIG.bosses.astarte.orbRadius);
@@ -3905,19 +4177,19 @@ function updateBullets() {
     if (b.kind >= 13 && b.kind <= 15 && neeniaArrowUpdate(b)) continue;
     if (b.x < cam.x - 16 || b.x > cam.x + VW + 16 || b.y < -16 || b.y > VH + 16) { b.active = false; continue; }
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
-    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
+    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && b.kind !== 25 && b.kind !== 27 && b.kind !== 28 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
     if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && overlap(b, stageUmimiBox())) {
+        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && b.kind !== 27 && b.kind !== 28 && overlap(b, stageUmimiBox())) {
       if (hurtStageUmimi(b.dmg || 1, b.x + b.w / 2)) {
         b.active = false; continue;
       }
     }
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20 || b.kind === 22) && overlap(b, stageUmimiBox())) {
+        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20 || b.kind === 22 || b.kind === 27 || b.kind === 28) && overlap(b, stageUmimiBox())) {
       hurtStageUmimi(b.dmg || 1, b.x + b.w / 2);
     }
-    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16 && b.kind !== 22) b.active = false; }
+    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16 && b.kind !== 22 && b.kind !== 27 && b.kind !== 28) b.active = false; }
   }
 }
 // v5 Neenia arrows: lob (13) breaks on the floor, ricochet (14) bounces, snare (15) plants a thorn patch (16).
@@ -4076,7 +4348,7 @@ function update() {
 //
 //  ART (assets/disaster_dark.json): every form has its own body frame with the weapon baked in (pose = form name,
 //  'transform' during the morph). Muzzle points below are in the RIGHT-facing 48x48 frame (body x=23); mirrored
-//  when he faces left. assets/alchemic_weapons.png icons (sword..whip; no lance icon yet) are shown above his head
+//  when he faces left. assets/alchemic_weapons.png icons (sword..whip, lance = cell 6) are shown above his head
 //  during the morph, and replace the weapon if the body sheet is missing. Without any sheet the code-drawn
 //  shapes (drawWeaponShape) are used. Projectiles use assets/disaster_bullets.png (b.dspr) when it is loaded.
 // =====================================================================
@@ -4089,7 +4361,7 @@ const DISASTER_WEAPONS = {
   scythe: { icon: 3, grip: [0.266, 0.734], muz: [46, 27] },
   bow:    { icon: 4, grip: [0.609, 0.547], muz: [46, 22] },
   whip:   { icon: 5, grip: [0.734, 0.359], muz: [46, 20] },
-  lance:  { icon: -1, grip: [0.3, 0.7], muz: [46, 24] },   // cannon-spear: no icon cell yet (code-drawn)
+  lance:  { icon: 6, grip: [0.359, 0.734], muz: [46, 24] },   // cannon-spear (alchemic_weapons.png cell 6, added 2026-10-03)
 };
 const DIS_SPR = { wave: 0, spear: 1, burst: 2, arrow: 3, scythe: 4, orb: 5 };   // disaster_bullets.png cells
 // world position of a weapon's muzzle (falls back to an estimate when the sheet is not loaded)
@@ -4382,6 +4654,305 @@ function drawStarSupport(t, x, y, camX) {
 }
 
 // =====================================================================
+//  AREA 7  狐火の社 FOXFIRE SHRINE - boss DARK シラヌイ (Shiranui, an oiran-style fox lady who speaks
+//  archaic "noja" Japanese: わらわ / おぬし / 〜のじゃ). Floats; every attack starts from a readable pose
+//  (fan raised = sprite frame 4, with a glow above her head in the attack's colour), then the attack's own telegraph:
+//    volley    3 aimed foxfires (enraged 5) that home a little right after the throw
+//    wisp      purple will-o-wisps orbit her first, then drift at Umine one by one (slow homing)
+//    crescent  flame crescent along the floor (jump it); enraged: a second, faster one
+//    fan       spinning fan boomerang: out LOW (jump it), back HIGH over Umine's head (enraged: back low too)
+//    pillar    ember marks on the floor (Umine's spot + 1 more, enraged +2), then fire pillars erupt there
+//    illusion  vanishes (blinking illusion frame), reappears blinking with 2 clones; shoot a clone to pop it;
+//              everyone left throws a foxfire (enraged: 2 each)
+//  Tuning: CONFIG.bosses.shiranui. Art: assets/shiranui_dark.png (+ .json), shiranui_bullets.png, shiranui_bullets_pillar.png.
+// =====================================================================
+const SHIRANUI_PATS = ['volley', 'wisp', 'crescent', 'fan', 'pillar', 'illusion'];
+const SH_STATE = { volley: 'shVolley', wisp: 'shWisp', crescent: 'shCrescent', fan: 'shFan', pillar: 'shPillar', illusion: 'shIllusion' };
+const SH_GLOW = { shVolley: '#ffa040', shCrescent: '#ff4030', shFan: '#c02040', shPillar: '#ffd060', shWisp: '#b070ff' };
+// fan tip (frame 5) in world space
+function shiranuiTip(b) { const D = SHEET_DEFS.shiranuiDark; return { x: b.x + b.w / 2 + b.face * (D.muzX - D.cx), y: b.y + b.h + b.hopY - D.fh + D.muzY }; }
+function shiranuiPick(b) {
+  const unseen = SHIRANUI_PATS.filter(k => !b.seen.includes(k) && k !== b.last);
+  return unseen.length && Math.random() < 0.6 ? pickPattern([unseen[(Math.random() * unseen.length) | 0]]) : pickPattern(SHIRANUI_PATS);
+}
+function shiranuiRecover(b, B) { b.recT = bossRage() ? B.recoverRage : B.recover; b.blink = false; bossSet('shRecover'); }
+function shiranuiStart(b, pat) { bossFacePlayer(); sfx('warn'); bossSet(SH_STATE[pat]); }
+
+// ---- per-bullet hooks (run first in updateBullets; return true = bullet finished this frame) ----
+function shSteer(q, tx, ty, speed, turn) {
+  const a = Math.atan2(q.vy, q.vx), want = Math.atan2(ty - (q.y + q.h / 2), tx - (q.x + q.w / 2));
+  let d = want - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+  const na = a + Math.max(-turn, Math.min(turn, d)); q.vx = Math.cos(na) * speed; q.vy = Math.sin(na) * speed;
+}
+function shHomeHook(q) { if (q.t <= q.homeT && !P.dead) shSteer(q, P.x + P.w / 2, P.y + P.h / 2, q.spd, q.turn); return false; }
+function shWispHook(q) {
+  if (!q.rel) {
+    if (boss.state !== 'shWisp') { q.rel = true; q.t = 0; const a = Math.atan2(P.y - q.y, P.x - q.x); q.vx = Math.cos(a) * q.spd; q.vy = Math.sin(a) * q.spd; return false; }
+    q.ang += 0.09; q.rad = Math.min(q.rad + 1.2, 26);
+    q.x = boss.x + boss.w / 2 + Math.cos(q.ang) * q.rad - q.w / 2; q.y = boss.y + boss.h / 2 - 6 + Math.sin(q.ang) * q.rad * 0.8 - q.h / 2; q.vx = 0; q.vy = 0;
+    return false;
+  }
+  return shHomeHook(q);
+}
+function shFanHook(q) {
+  const B = CONFIG.bosses.shiranui;
+  if (!q.back) {
+    q.vx -= q.f * B.fanDecel;
+    if ((q.f > 0 && q.x + q.w > ROOM_R - 2) || (q.f < 0 && q.x < ROOM_L + 2)) q.vx = -q.f * Math.abs(q.vx) * 0.5;
+    if (Math.sign(q.vx) !== q.f) { q.back = true; sfx('swoosh'); }
+  } else {
+    q.vx = -q.f * Math.min(B.fanSpeed, Math.abs(q.vx) + B.fanDecel);
+    q.y += (q.backY - q.y) * 0.12;
+    const bc = boss.x + boss.w / 2;
+    if ((q.x + q.w / 2 - bc) * q.f <= 0 || q.t > 260 || boss.state === 'rescue') { q.active = false; return true; } // caught
+  }
+  return false;
+}
+function shSpawn(x, y, vx, vy, kind, dmg, spr) { const q = spawnBullet(x, y, vx, vy, kind, dmg); if (q) q.sspr = spr; return q; }
+function shFoxfire(x, y, ang, B, speed, home) {
+  const q = shSpawn(x - 4, y - 4, Math.cos(ang) * speed, Math.sin(ang) * speed, 24, B.foxDamage, 0);
+  if (q && home) { q.hook = shHomeHook; q.homeT = home; q.spd = speed; q.turn = B.foxTurn; }
+  return q;
+}
+
+// ---- AI ----
+function aiShiranui(b, B, pcx, pcy) {
+  const rage = bossRage(), cx = b.x + b.w / 2, dx = pcx - cx, dist = Math.abs(dx);
+  if (b.state === 'hover') {
+    astarteFloat(b, B); bossFacePlayer(); b.blink = false;
+    const ideal = 92, sp = rage ? 1.0 : 0.8;
+    if (dist > ideal + 14) b.x += Math.sign(dx) * sp; else if (dist < ideal - 20 && dist > 2) b.x -= Math.sign(dx) * sp;
+    b.x = Math.max(ROOM_L + 4, Math.min(ROOM_R - b.w - 4, b.x));
+    b.pose = Math.abs(dist - ideal) > 16 ? 'glide' : 'idle'; b.poseF = -1;
+    if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) { b.comboLeft = Math.random() < (rage ? B.comboChanceRage : B.comboChance) ? 1 : 0; shiranuiStart(b, shiranuiPick(b)); }
+    return;
+  }
+  if (b.state === 'shVolley') { // fan raised (glow) -> throws N foxfires at Umine, each homes briefly
+    astarteFloat(b, B);
+    const wind = rage ? B.volleyWindRage : B.volleyWind, n = rage ? B.volleyCountRage : B.volleyCount;
+    b.pose = 'attack'; b.poseF = b.t < wind ? 0 : 1;
+    if (b.t < wind) bossFacePlayer();
+    const k = b.t - wind;
+    if (k >= 0 && k % B.volleyGap === 0 && k / B.volleyGap < n) {
+      const tp = shiranuiTip(b), i = k / B.volleyGap, a = Math.atan2(pcy - tp.y, pcx - tp.x) + (i - (n - 1) / 2) * 0.22;
+      shFoxfire(tp.x, tp.y, a, B, B.foxSpeed, B.foxHome); sfx('bshoot'); b.fireT = 8;
+    }
+    if (k >= n * B.volleyGap + 14) shiranuiRecover(b, B);
+    return;
+  }
+  if (b.state === 'shWisp') { // wisps gather and orbit her, then drift at Umine one by one
+    astarteFloat(b, B); bossFacePlayer(); b.pose = 'idle'; b.poseF = 1;
+    const n = rage ? B.wispCountRage : B.wispCount, gap = rage ? B.wispGapRage : B.wispGap;
+    if (b.t === 1) {
+      b.wisps.length = 0;
+      for (let i = 0; i < n; i++) { const q = shSpawn(cx, b.y + b.h / 2, 0, 0, 25, B.wispDamage, 2); if (q) { q.hook = shWispHook; q.ang = i * Math.PI * 2 / n; q.rad = 0; q.rel = false; q.spd = B.wispSpeed; q.homeT = B.wispHome; q.turn = B.wispTurn; b.wisps.push(q); } }
+      sfx('cp');
+    }
+    const k = b.t - B.wispOrbit;
+    if (k >= 0 && k % gap === 0) {
+      const i = k / gap, q = b.wisps[i];
+      if (q && q.active && q.kind === 25 && !q.rel) { q.rel = true; q.t = 0; const a = Math.atan2(pcy - q.y, pcx - q.x); q.vx = Math.cos(a) * q.spd; q.vy = Math.sin(a) * q.spd; sfx('arrow'); }
+      if (i >= n - 1) { b.wisps.length = 0; shiranuiRecover(b, B); }
+    }
+    return;
+  }
+  if (b.state === 'shCrescent') { // flame crescent along the floor (jump); enraged: a second faster one
+    astarteFloat(b, B);
+    const wind = rage ? B.crescentWindRage : B.crescentWind, sp = rage ? B.crescentSpeedRage : B.crescentSpeed;
+    b.pose = 'attack'; b.poseF = b.t < wind || (rage && b.t >= wind + 10 && b.t < wind + B.crescentGap) ? 0 : 1;
+    if (b.t < wind) bossFacePlayer();
+    const tp = shiranuiTip(b);
+    if (b.t === wind) { shSpawn(tp.x - 6, FLOOR_Y - 20, b.face * sp, 0, 9, B.crescentDamage, 3); sfx('swoosh'); b.fireT = 10; }
+    if (rage && b.t === wind + B.crescentGap) { shSpawn(tp.x - 6, FLOOR_Y - 20, b.face * (sp + 0.5), 0, 9, B.crescentDamage, 3); sfx('swoosh'); b.fireT = 10; }
+    if (b.t >= wind + (rage ? B.crescentGap + 14 : 16)) shiranuiRecover(b, B);
+    return;
+  }
+  if (b.state === 'shFan') { // spinning fan boomerang: out low (jump), back high (enraged: back low too)
+    astarteFloat(b, B);
+    const wind = rage ? B.fanWindRage : B.fanWind;
+    b.pose = 'attack'; b.poseF = b.t < wind ? 0 : 1;
+    if (b.t < wind) bossFacePlayer();
+    if (b.t === wind) {
+      const tp = shiranuiTip(b), q = shSpawn(tp.x - 7, FLOOR_Y - 16, b.face * B.fanSpeed, 0, 27, B.fanDamage, 4);
+      if (q) { q.hook = shFanHook; q.f = b.face; q.back = false; q.backY = rage ? FLOOR_Y - 16 : FLOOR_Y - 48; b.fanB = q; }
+      sfx('swoosh'); b.fireT = 10;
+    }
+    if (b.t > wind) { b.pose = 'idle'; b.poseF = -1; }
+    if (b.t > wind + 10 && (!b.fanB || !b.fanB.active || b.fanB.kind !== 27 || b.t > wind + 240)) { b.fanB = null; shiranuiRecover(b, B); }
+    return;
+  }
+  if (b.state === 'shPillar') { // ember marks on the floor, then fire pillars erupt there
+    astarteFloat(b, B);
+    const warn = rage ? B.pillarWarnRage : B.pillarWarn, n = rage ? B.pillarCountRage : B.pillarCount;
+    b.pose = 'attack'; b.poseF = b.t < warn ? 0 : 1;
+    if (b.t === 1) {
+      const clamp = x => Math.max(ROOM_L + 10, Math.min(ROOM_R - 10, x)), side = Math.random() < 0.5 ? -1 : 1;
+      b.pillars = [clamp(pcx)];
+      if (n >= 2) b.pillars.push(clamp(pcx + side * B.pillarGap));
+      if (n >= 3) b.pillars.push(clamp(pcx - side * B.pillarGap));
+      sfx('tick');
+    }
+    if (b.t === warn) {
+      for (const x of b.pillars) { const q = shSpawn(x - 6, FLOOR_Y - 38, 0, 0, 28, B.pillarDamage, -1); if (q) q.life = B.pillarLife; }
+      shake(8, 2); sfx('boomS'); b.fireT = 10;
+    }
+    if (b.t >= warn + B.pillarLife) { b.pillars = []; shiranuiRecover(b, B); }
+    return;
+  }
+  if (b.state === 'shIllusion') { // vanish -> hidden -> reappear blinking with 2 clones -> everyone throws a foxfire
+    const V = B.illusionVanish, H = V + B.illusionHidden, blinkT = rage ? B.illusionBlinkRage : B.illusionBlink, A = H + blinkT;
+    astarteFloat(b, B); b.pose = 'vanish'; b.poseF = 0;
+    if (b.t < V) { b.blink = true; if (b.t === 1) sfx('swoosh'); }
+    else if (b.t === V) { b.hidden = true; b.blink = false; }
+    else if (b.t === H) {
+      const slots = [ROOM_L + 36, (ROOM_L + ROOM_R) / 2, ROOM_R - 36].map(x => x + (Math.random() - 0.5) * 16), real = (Math.random() * 3) | 0;
+      // never right on top of Umine: push slots away from her
+      for (let i = 0; i < 3; i++) if (Math.abs(slots[i] - pcx) < 34) slots[i] = pcx + (slots[i] < pcx ? -34 : 34);
+      b.x = Math.max(ROOM_L + 2, Math.min(ROOM_R - b.w - 2, slots[real] - b.w / 2));
+      b.clones = slots.filter((_, i) => i !== real).map(x => ({ x: Math.max(ROOM_L + 2, Math.min(ROOM_R - b.w - 2, x - b.w / 2)), alive: true }));
+      b.hidden = false; b.blink = true; bossFacePlayer(); sfx('swoosh');
+      for (const s of [{ x: b.x }, ...b.clones]) for (let i = 0; i < 6; i++) spawnPart(s.x + b.w / 2, b.y + b.h / 2, DIR8X[i] * 1.2, DIR8Y[i] * 1.2, 16, 0, i & 1 ? '#b070ff' : '#ff6a4a');
+    } else if (b.t > H && b.t < A) {
+      bossFacePlayer();
+      for (const c of b.clones) { // a water shot pops a clone
+        if (!c.alive) continue;
+        const box = { x: c.x, y: b.y, w: b.w, h: b.h };
+        for (const s of shots) if (s.active && overlap(s, box)) { s.active = false; c.alive = false; popAt(c.x + b.w / 2, b.y + b.h / 2, '#b070ff'); sfx('pop'); break; }
+      }
+    } else if (b.t === A) {
+      b.blink = false; b.pose = 'attack'; b.poseF = 1;
+      const shooters = [b.x, ...b.clones.filter(c => c.alive).map(c => c.x)];
+      for (const sx of shooters) {
+        const f = pcx < sx + b.w / 2 ? -1 : 1, tx = sx + b.w / 2 + f * 14, ty = b.y + b.h - 48 + 24, a = Math.atan2(pcy - ty, pcx - tx);
+        for (const sp of (rage ? [-0.14, 0.14] : [0])) shFoxfire(tx, ty, a + sp, { foxDamage: B.illusionDamage, foxTurn: 0 }, B.illusionSpeed, 0);
+      }
+      sfx('bshoot'); b.fireT = 10;
+    }
+    if (b.t > A) { b.pose = 'attack'; b.poseF = 1; }
+    if (b.t >= A + 16) { b.clones = []; shiranuiRecover(b, B); }
+    return;
+  }
+  if (b.state === 'shRecover') {
+    astarteFloat(b, B); b.pose = 'idle'; b.poseF = -1; b.blink = false; b.hidden = false;
+    if (b.t >= b.recT) {
+      if (b.comboLeft > 0) { b.comboLeft--; shiranuiStart(b, shiranuiPick(b)); }
+      else bossSet('hover');
+    }
+    return;
+  }
+  bossSet('hover');
+}
+
+// ---- drawing ----
+const SHIRANUI_RED = {};   // red hit-flash copies per frame
+function shiranuiRedFrame(sh, fi, face) {
+  if (!SHIRANUI_RED[fi]) { const c = tintCanvas(sh[fi].r, '#ff2a40', 0.65); SHIRANUI_RED[fi] = { r: c, l: flipCanvas(c) }; }
+  return face >= 0 ? SHIRANUI_RED[fi].r : SHIRANUI_RED[fi].l;
+}
+function drawShiranuiBody(b, sh, D, fi, mx, by, camX) {
+  if (b.blink && (frame & 2)) return;            // illusion blink
+  const red = b.flash > 0 && (b.flash & 2) && b.state !== 'rescue', ox = b.face >= 0 ? D.cx : D.fw - D.cx;
+  const img = red ? shiranuiRedFrame(sh, fi, b.face) : pick(sh[fi], b.face, b.state === 'rescue' && b.t < 70 && (b.t & 4) !== 0);
+  g.drawImage(img, mx - ox, by - D.fh);
+  for (const c of (b.state === 'shIllusion' ? b.clones : [])) if (c.alive) g.drawImage(pick(sh[fi], b.face, false), Math.round(c.x + b.w / 2 - camX) - ox, by - D.fh);
+}
+function drawShiranuiMarks(b, camX, blink) {
+  const glow = SH_GLOW[b.state];
+  if (glow && b.pose === 'attack' && b.poseF === 0 || b.state === 'shWisp' && b.t < 20) { // wind-up glow above her raised fan
+    const x = Math.round(b.x + b.w / 2 - camX + b.face * 6), y = Math.round(b.y + b.h - 46), r = 3 + ((frame >> 2) & 1) * 2;
+    g.save(); g.globalAlpha = 0.45; g.fillStyle = glow; g.beginPath(); g.arc(x, y, r + 3, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 0.9; g.fillStyle = '#fff0d0'; g.fillRect(x - 1, y - 1, 2, 2); g.restore();
+  }
+  if (b.state === 'shPillar' && b.pillars.length) { // ember marks; the last frames show a faint pillar preview
+    const warn = bossRage() ? CONFIG.bosses.shiranui.pillarWarnRage : CONFIG.bosses.shiranui.pillarWarn;
+    if (b.t < warn) for (const px of b.pillars) {
+      const x = Math.round(px - camX);
+      g.fillStyle = blink ? '#ff5a2a' : '#ffd070'; g.fillRect(x - 7, FLOOR_Y - 2, 14, 2);
+      for (let k = 0; k < 3; k++) { const h = hash(frame + k * 7, px | 0); g.fillRect(x - 6 + (h % 12), FLOOR_Y - 4 - ((h >> 6) % 6), 1, 1); }
+      if (warn - b.t < 14 && SHEETS.shiranuiPillar && blink) { g.save(); g.globalAlpha = 0.4; g.drawImage(SHEETS.shiranuiPillar[0].r, 0, 32, 24, 16, x - 12, FLOOR_Y - 13, 24, 16); g.restore(); }
+    }
+  }
+}
+// foxfire sprite (cell faces right, hit centre at (16,12)); used by the boss, the helper and the support move
+function drawFoxfire(x, y, vx, vy, f, scale) {
+  const S = SHEETS.shiranuiBullets;
+  g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(Math.atan2(vy, vx || 0.0001)); if (scale !== 1) g.scale(scale, scale);
+  if (S) g.drawImage(S[f & 1].r, -16, -12);
+  else { g.fillStyle = '#ff6a2a'; g.fillRect(-8, -2, 8, 4); g.fillStyle = '#ffd070'; g.fillRect(-3, -3, 6, 6); g.fillStyle = '#ffffff'; g.fillRect(-1, -1, 2, 2); }
+  g.restore();
+}
+function drawShiranuiBullet(q, camX) {
+  const S = SHEETS.shiranuiBullets, cx = q.x + q.w / 2 - camX, cy = q.y + q.h / 2;
+  if (q.kind === 24) { drawFoxfire(cx, cy, q.vx, q.vy, (q.t >> 2) & 1, 1); return; }
+  if (q.kind === 25) {
+    const a = q.rel ? Math.atan2(q.vy, q.vx) : q.ang + Math.PI / 2;
+    g.save(); g.translate(Math.round(cx), Math.round(cy)); g.rotate(a);
+    if (S) g.drawImage(S[2].r, -15, -12); else { g.fillStyle = '#b070ff'; g.fillRect(-4, -4, 8, 8); }
+    g.restore(); return;
+  }
+  if (q.kind === 27) {
+    g.save(); g.translate(Math.round(cx), Math.round(cy)); g.rotate(((q.t >> 2) & 3) * Math.PI / 2);
+    if (S) g.drawImage(S[4].r, -12, -12); else { g.fillStyle = '#201014'; g.fillRect(-7, -7, 14, 14); g.fillStyle = '#c02040'; g.fillRect(-5, -1, 10, 2); }
+    g.restore(); return;
+  }
+  if (q.kind === 28) {
+    const PS = SHEETS.shiranuiPillar;
+    if (PS) g.drawImage(PS[(q.t >> 2) & 1].r, Math.round(cx) - 12, FLOOR_Y - 45);
+    else { g.fillStyle = (q.t & 2) ? '#ff5a2a' : '#ffb040'; g.fillRect(Math.round(q.x - camX), q.y, q.w, q.h); }
+    return;
+  }
+  // kind 9 + sspr 3: flame crescent (hit centre at (15,12) of the right-facing cell)
+  const f = q.vx < 0 ? -1 : 1;
+  if (S) g.drawImage(pick(S[3], f, false), Math.round(cx) - (f > 0 ? 15 : 9), Math.round(cy) - 12);
+  else { g.fillStyle = '#ff4030'; g.fillRect(Math.round(q.x - camX), q.y, q.w, q.h); }
+}
+
+// ---- rescued シラヌイ as support: FOXFIRE DANCE (HELP button "FOX") ----
+//  t20/30/40/50: four homing foxfires from her palm; each seeks the nearest enemy on screen (2 dmg) or the boss (1 dmg).
+//  Total vs a boss: 4 (same as Star's MORPH / Astarthe's MOON CLEAVE).
+function shiranuiSupportTarget(fx) {
+  if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) return { boss: true, x: boss.x + boss.w / 2, y: boss.y + boss.h / 2 };
+  let best = null, bd = 1e9;
+  for (const e of enemies) {
+    if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+    const d = Math.hypot(e.x + e.w / 2 - fx.x, e.y + e.h / 2 - fx.y); if (d < bd) { bd = d; best = e; }
+  }
+  return best ? { e: best, x: best.x + best.w / 2, y: best.y + best.h / 2 } : null;
+}
+function updateShiranuiSupport(t) {
+  support.x += (P.x + P.w / 2 - P.face * 20 - support.x) * 0.25; support.y += (P.y - support.y) * 0.25;
+  if (t < 20) support.face = P.face;
+  const f = support.face, fxs = support.fx || (support.fx = []);
+  if (t === 20 || t === 30 || t === 40 || t === 50) {
+    fxs.push({ x: support.x + f * 5, y: support.y + 2, vx: f * 2.2, vy: -1.4, t: 0, alive: true }); sfx('bshoot');
+  }
+  for (const q of fxs) {
+    if (!q.alive) continue;
+    q.t++;
+    const tg = shiranuiSupportTarget(q);
+    if (tg && q.t > 6) { const tx = tg.x - q.x, ty = tg.y - q.y, l = Math.hypot(tx, ty) || 1; q.vx += (tx / l * 3.4 - q.vx) * 0.18; q.vy += (ty / l * 3.4 - q.vy) * 0.18; }
+    q.x += q.vx; q.y += q.vy;
+    if (q.t % 3 === 0) spawnPart(q.x, q.y, -q.vx * 0.2, -q.vy * 0.2, 12, 4, (q.t >> 2) & 1 ? '#ffb060' : '#ff5a3a');
+    if (tg && Math.abs(tg.x - q.x) < 9 && Math.abs(tg.y - q.y) < 12) {
+      q.alive = false; popAt(q.x, q.y, '#ff8a4a');
+      if (tg.boss) { boss.inv = 0; damageBoss(null, 1); }
+      else { tg.e.hp -= 2; tg.e.flash = 10; if (tg.e.hp <= 0) killEnemy(tg.e); else sfx('ehit'); }
+    }
+    if (q.t > 110 || q.x < cam.x - 20 || q.x > cam.x + VW + 20 || q.y < -20 || q.y > VH) q.alive = false;
+  }
+  if ((t > 56 && !fxs.some(q => q.alive)) || t > 170) support.active = false;
+}
+function drawShiranuiSupport(t, x, y, camX) {
+  const fr = SHEETS.shiranui, d = SHEET_DEFS.shiranui, f = support.face;
+  const fi = t < 16 ? (t >> 3) & 1 : t < 56 ? 5 : 4;   // idle -> foxfire in palm -> waves her fan
+  if (t < 12) g.globalAlpha = t / 12;
+  if (fr) g.drawImage(pick(fr[Math.min(fi, fr.length - 1)], f, false), x - (f > 0 ? d.cx : d.fw - d.cx), y - 12);
+  else g.drawImage(pick(SPR.ally.K[fi === 4 ? 1 : 0], f, false), x - 16, y - 12);
+  g.globalAlpha = 1;
+  for (const q of (support.fx || [])) if (q.alive) drawFoxfire(q.x - camX, q.y, q.vx, q.vy, (q.t >> 2) & 1, 1);
+}
+
+// =====================================================================
 //  Rendering
 // =====================================================================
 // "海音" (Umine) as a 32x16 1-bit bitmap (generated by tools/gen_kanji.js
@@ -4638,7 +5209,8 @@ function drawBoss(camX) {
       fi = Math.min(fi, sh.length - 1);
     }
     const cx = D.cxF ? D.cxF[fi] : D.cx;
-    g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
+    if (curArea.boss === 'shiranui' && b.dark) { if (D.map && b.flash > 7 && b.state !== 'shIllusion') fi = D.map.hurt[0]; drawShiranuiBody(b, sh, D, fi, mx, by, camX); }
+    else g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
     if (curArea.boss === 'lily' && b.dark && lilySongFxActive(b) && SHEETS.lilySongWave) {
       const W = SHEET_DEFS.lilySongWave, fx = SHEETS.lilySongWave[0];
       g.drawImage(pick(fx, b.face, false), mx - (b.face >= 0 ? W.cx : W.fw - W.cx), by - W.fh);
@@ -4656,6 +5228,7 @@ function drawBoss(camX) {
 function drawBossMarks(camX) {
   const b = boss, blink = (frame >> 2) & 1;
   if (curArea.boss === 'disaster') drawDisasterMarks(b, camX, blink);
+  if (curArea.boss === 'shiranui') drawShiranuiMarks(b, camX, blink);
   if (b.aimShow) { // Neenia's aim: dotted line to the predicted spot
     const dx = b.aimX - b.mx, dy = b.aimY - b.my, len = Math.hypot(dx, dy) || 1, n = Math.min(40, Math.floor(len / 6));
     g.fillStyle = blink ? '#ff5a8a' : '#ffb0c8';
@@ -4770,6 +5343,7 @@ function drawAstarte(a, camX) {
   }
 }
 function drawNeenia(a, camX) { drawAllySprite(a, 'N', 'neenia', a.act > 0 ? 1 : 0, camX); }
+function drawShiranuiAlly(a, camX) { drawAllySprite(a, 'K', 'shiranui', a.act > 0 ? 5 : (a.t >> 5) & 1, camX); }
 function drawSeiten(a, camX) { drawAllySprite(a, 'S', 'seiten', a.act > 0 ? (a.t >> 4) & 1 : (SHEETS.seiten ? (a.t >> 5) & 1 : 0), camX); }
 function drawLilyAlly(a, camX) {
   const sh = SHEETS.lily, sp = sh ? sh[(a.t >> 5) & 1] : null;
@@ -4778,22 +5352,24 @@ function drawLilyAlly(a, camX) {
 function drawAllies(camX) {
   for (let i = 0; i < allies.length; i++) {
     const a = allies[i]; if (a.x - camX < -24 || a.x - camX > VW + 24) continue;
-    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else drawSeiten(a, camX);
+    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else if (a.type === 'K') drawShiranuiAlly(a, camX); else drawSeiten(a, camX);
   }
 }
 function drawArrows(camX) {
   g.fillStyle = '#eef0ff';
   for (let i = 0; i < arrows.length; i++) {
     const r = arrows[i]; if (!r.active) continue;
+    if (r.fox) { drawFoxfire(r.x + 2 - camX, r.y + 2, r.vx, r.vy, (frame >> 2) & 1, 0.75); g.fillStyle = '#eef0ff'; continue; }
     const sp = Math.hypot(r.vx, r.vy) || 1, ux = r.vx / sp, uy = r.vy / sp, x = r.x + 2 - camX, y = r.y + 2;
     for (let k = 0; k < 6; k++) g.fillRect(Math.round(x - ux * k), Math.round(y - uy * k), 1, 1);
   }
   g.fillStyle = '#8fd0ff';
-  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
+  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active && !r.fox) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
 }
 function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
   if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
+  if (b.kind === 24 || b.kind === 25 || b.kind === 27 || b.kind === 28 || b.sspr >= 0) { drawShiranuiBullet(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);
   else if (b.kind === 2) g.drawImage(SPR.heart.r, x - 1, y - 1);
   else if (b.kind === 3) g.drawImage(SPR.star.r, x - 1, y - 1);
@@ -5014,7 +5590,7 @@ function drawPortrait(a, x, y) {
   // procedural fallback art (?sprites=0)
   const pal = (a.friend === 'tobiume' && !rescued) ? 'dark' : 'normal';
   if (a.friend === 'tobiume') g.drawImage(SPR.tobi[pal].idle[0].r, 10, 0, 20, 20, x, y, 40, 40);
-  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
+  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A', shiranui: 'K' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
 }
 function drawCheck(x, y) { // 13x10 green check mark with dark outline
   const pts = [[0, 5], [1, 6], [2, 7], [3, 8], [4, 7], [5, 6], [6, 5], [7, 4], [8, 3], [9, 2], [10, 1], [11, 0]];
@@ -5185,6 +5761,7 @@ function render() {
     else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
     else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
     else if (support.kind === 'lily') drawHiText('リリィ＆ウミミ・スターライトレイン！', VW / 2, 67, 8, '#fff1cf', '#6e285e');
+    else if (support.kind === 'shiranui') { if (support.t < 80) drawHiText('シラヌイ・狐火の舞じゃ！', VW / 2, 67, 8, '#ffe8d8', '#6e1a24'); }
     else if (support.kind === 'star') { if (support.t < 80) drawHiText('スターさん・錬金モーフスラッシュ！', VW / 2, 67, 8, '#e0f8ff', '#1d3e6e'); }
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
   }
