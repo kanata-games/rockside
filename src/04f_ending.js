@@ -1,7 +1,7 @@
 
 // =====================================================================
 //  ENDING: party in the hall (party_bg_wide + party_props), karaoke on the stage, credits scroll
-//  (CREDITS in 01_head.html), THANK YOU FOR PLAYING + sequel teaser, then back to the title.
+//  (CREDITS in 01_head.html), a clean THANK YOU FOR PLAYING screen, then back to the title.
 //  ?ending=1 jumps here.
 // =====================================================================
 // props: [name, x, y, w, h] in party_props.png (bottom anchor = bottom centre of the cell)
@@ -17,7 +17,7 @@ const PARTY_LAYOUT = [
 ];
 // party guests: [id, x, feetY, face, mode]  (mode: idle | toast | smoke | fly | float)
 const PARTY_GUESTS = [
-  ['umine', 46, 212, 1, 'idle'], ['owner', 112, 212, -1, 'toast'], ['tobiume', 132, 196, -1, 'fly'],
+  ['umine', 112, 212, -1, 'idle'], ['tobiume', 132, 196, -1, 'fly'],
   ['neenia', 140, 230, 1, 'idle'], ['astarte', 196, 230, -1, 'idle'], ['star', 214, 218, -1, 'happy'],
   ['umimi', 258, 204, 1, 'float'], ['shiranui', 346, 230, -1, 'happy'], ['diceroll', 376, 210, -1, 'smoke'],
 ];
@@ -26,7 +26,7 @@ const PARTY_SINGERS = { seiten: [222, 158, 1, 266, 232, -1], lily: [244, 158, -1
 const KARAOKE_TURNS = [['seiten'], ['lily'], ['kanata'], ['seiten', 'lily']];
 const KARAOKE_TURN = 300;
 const ENDING = { t: 0, credY: 0, fast: false, phase: 'credits', thanksT: 0 };
-const SPRITE_CX = { umine: ['kanon', 11], owner: ['umineOwner', 16], tobiume: ['tobiumeNormal', 13], neenia: ['neenia', 11], seiten: ['seiten', 14], astarte: ['astarte', 10],
+const SPRITE_CX = { umine: ['kanon', 11], tobiume: ['tobiumeNormal', 13], neenia: ['neenia', 11], seiten: ['seiten', 14], astarte: ['astarte', 10],
   star: ['starNormal', 16], lily: ['lily', 16], umimi: ['umimi', 16], shiranui: ['shiranui', 16], diceroll: ['diceroll', 16], kanata: ['kanata', 16] };
 function startEnding() {
   ENDING.t = 0; ENDING.credY = VH + 10; ENDING.phase = 'credits'; ENDING.thanksT = 0; ENDING.fast = false;
@@ -64,7 +64,7 @@ function drawPartyChar(id, x, by, face, f, camX, alpha) {
 function guestFrame(id, mode, t, thanks) {
   const blink = (t + id.length * 37) % 200 > 190;
   if (thanks) { // everyone happy for the finale
-    return { umine: (t >> 3) & 1 ? 6 : 8, owner: (t >> 4) & 1 ? 5 : 2, tobiume: 2 + ((t >> 3) & 1), star: (t >> 4) & 1 ? 2 : 3, shiranui: 2, diceroll: 3, kanata: (t >> 4) & 1 ? 3 : 2, umimi: 2 + ((t >> 3) & 1), lily: (t >> 4) & 1, seiten: (t >> 4) & 1 }[id] ?? ((t >> 4) & 1);
+    return { umine: (t >> 3) & 1 ? 6 : 8, tobiume: 2 + ((t >> 3) & 1), star: (t >> 4) & 1 ? 2 : 3, shiranui: 2, diceroll: 3, kanata: (t >> 4) & 1 ? 3 : 2, umimi: 2 + ((t >> 3) & 1), lily: (t >> 4) & 1, seiten: (t >> 4) & 1 }[id] ?? ((t >> 4) & 1);
   }
   if (mode === 'toast') return ((t >> 5) % 3) === 0 ? 5 : (t >> 4) & 1 ? 2 : 0;
   if (mode === 'smoke') return ((t >> 6) & 3) === 0 ? 0 : 2;
@@ -132,13 +132,6 @@ function renderEnding() {
       }
       y += h;
     }
-    sctx.restore();
-  } else if (ENDING.thanksT > 200) { // sequel teaser
-    const a = Math.min(1, (ENDING.thanksT - 200) / 60);
-    sctx.save(); sctx.globalAlpha = a;
-    drawHiText('…ミミックを操る、13人の仲間。', VW / 2, 110, 7.5, '#c8d0ff', '#05060f');
-    drawHiText('清掃員カナタは、そのひとり。', VW / 2, 122, 7.5, '#c8d0ff', '#05060f');
-    drawHiText('残りの12人は——まだ、どこかに。', VW / 2, 134, 7.5, '#c8d0ff', '#05060f');
     sctx.restore();
   }
 }

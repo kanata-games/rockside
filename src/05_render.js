@@ -164,6 +164,7 @@ function heroPose(p) {
 }
 function drawPlayer(camX) {
   const p = P; if (p.dead) return;
+  if (curArea.final && state === 'climax' && FINAL.climaxT >= CLIMAX_UMINE && FINAL.climaxT < CLIMAX_UMINE + 300) return; // drawn by drawUmineAwaken
   if (p.inv > 0 && p.inv < 9000 && p.hurt <= 0 && ((p.inv >> 2) & 1)) return; // mercy blink
   const shoot = p.shootT > 0 && p.hurt <= 0 ? 1 : 0;
   const white = p.hurt > 0 && (p.hurt & 2);

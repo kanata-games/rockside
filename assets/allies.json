@@ -196,39 +196,5 @@
         ]
       }
     }
-  },
-  "umine_owner": {
-    "image": "umine_owner.png",
-    "frameWidth": 32,
-    "frameHeight": 32,
-    "facing": "right",
-    "animations": {
-      "idle": {
-        "frames": [
-          0,
-          1
-        ]
-      },
-      "smile": {
-        "frames": [
-          2
-        ]
-      },
-      "cast": {
-        "frames": [
-          3
-        ]
-      },
-      "part": {
-        "frames": [
-          4
-        ]
-      },
-      "toast": {
-        "frames": [
-          5
-        ]
-      }
-    }
   }
 }

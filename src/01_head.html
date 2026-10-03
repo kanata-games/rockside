@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.11.0';
+const GAME_VERSION = '0.11.1';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -174,7 +174,7 @@ const CONFIG = {
     // FINAL: 暴走ミミック form 2 (the vacuum alone, berserk; Kanata's ghost floats nearby and throws objects now and then)
     // charge: shakes + red eye (telegraph), then lunges along the floor with a small hop (jump over) / bigsuck: huge mouth suction
     // (stronger pull, swallows shots) -> spit: debris arcs + swallowed shots / leap: shadow marker on Umine, jumps, lands with 2 floor waves
-    // climax at climaxHp: friends' cut-ins + the owner parts the sea (finishing blow)
+    // climax at climaxHp: friends' cut-ins + 海音 awakens and parts the sea (finishing blow)
     mimic: { hp: 40, iFrames: 18, contactDamage: 3, idleFrames: 34, idleFramesRage: 24, recover: 26, recoverRage: 18, comboChance: 0.2, comboChanceRage: 0.5,
       chargeWind: 34, chargeWindRage: 26, chargeSpeed: 3.6, chargeSpeedRage: 4.2, chargeDamage: 3,
       suckWarn: 30, suckFrames: 100, suckPull: 0.72, suckPullAir: 0.55, suckRange: 170, suckBite: 3,
@@ -254,15 +254,13 @@ const CONFIG = {
   bossScrollSpeed: 3,
 };
 
-// 海音の中の人 (the player behind Umine) - display name used in the finale / ending. Edit here only.
-const OWNER_NAME = { jp: '海音の中の人', en: "UMINE'S OWNER" };
 // Ending credits (scroll over the party). Edit freely: { title } big line, { head } section heading, { text } line, { gap } blank space (px).
 const CREDITS = [
   { title: 'ROCKSIDE – 海音の冒険' }, { gap: 20 },
   { head: 'CAST' },
   { text: '海音 UMINE' }, { text: '飛梅 TOBIUME' }, { text: 'ネーニア NENIA' }, { text: '青天 SEITEN' }, { text: 'アスターテ ASTARTHE' },
   { text: 'リリィ LILY' }, { text: 'ウミミ UMIMI' }, { text: 'スターさん STAR' }, { text: 'シラヌイ SHIRANUI' }, { text: 'ダイスロール DICEROLL' },
-  { text: '清掃員カナタ KANATA' }, { text: OWNER_NAME.jp + ' ' + OWNER_NAME.en }, { gap: 16 },
+  { text: '清掃員カナタ KANATA' }, { gap: 16 },
   { head: 'GAME' }, { text: 'Created by 清掃員カナタ' }, { gap: 10 },
   { head: 'ART' }, { text: 'Pixel art: ROCKSIDE art team' }, { gap: 10 },
   { head: 'CODE' }, { text: 'Programming: ROCKSIDE dev team' }, { gap: 10 },

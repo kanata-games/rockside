@@ -3,7 +3,7 @@
 //  FINAL AREA (centre cell, AREAS id 'final', ?area=9): 幽境の掃除館
 //   boss room: BOSS RUSH (the 8 dark friends as shadows, 60% HP, HP refill between)
 //   -> 清掃員カナタ form 1 (kanataBoss) -> 暴走ミミック form 2 (mimicRampage, Kanata's ghost assists)
-//   -> climax at form-2 HP <= climaxHp: the 8 friends' cut-ins + 海音の中の人 parts the sea (finishing blow)
+//   -> climax at form-2 HP <= climaxHp: the 8 friends' cut-ins + 海音 awakens and parts the sea (海割り, finishing blow)
 //   -> finale dialogue -> ending (or THE END placeholder)
 //  curArea.boss is switched on the fly (rush ids, 'kanata', 'mimic') so every boss code path keeps working.
 // =====================================================================
@@ -21,7 +21,6 @@ BOSS_AI.kanata = aiKanata; BOSS_AI.mimic = aiMimic;
 Object.assign(BULLET_SIZE, { 35: [10, 10], 36: [8, 8], 37: [7, 5], 38: [9, 9], 39: [10, 10] });
 const UMINE_SPEAKER = { name: '海音', color: '#7fd8ff', face: 'face_kanon' };
 const KANATA_SPEAKER = { name: '清掃員カナタ', color: '#b8d0ff', face: 'face_kanata' };
-const OWNER_SPEAKER = { name: OWNER_NAME.jp, color: '#9ae6ff', face: 'face_umine_owner' };
 
 function finalBossId() { return FINAL.phase === 'rush' ? RUSH_ORDER[FINAL.rushIdx] : FINAL.phase === 'mimic' ? 'mimic' : 'kanata'; }
 // called by startGame() when the final area is entered (debug params pick the starting phase)
@@ -360,7 +359,7 @@ function finalGhostUpdate(b, B) { // Kanata's ghost floats behind the mimic and 
   }
 }
 // ---------------------------------------------------------------------
-//  CLIMAX: friends' cut-ins, then the owner parts the sea
+//  CLIMAX: friends' cut-ins, then 海音 awakens (覚醒) and parts the sea herself (海割り)
 // ---------------------------------------------------------------------
 const CLIMAX_FRIENDS = [
   { id: 'tobiume', name: '飛梅', color: '#ff8cc0', face: 'face_tobiume', line: '海音ちゃん、いっくよー！ 飛梅ちゃんキック！' },
@@ -372,13 +371,12 @@ const CLIMAX_FRIENDS = [
   { id: 'shiranui', name: 'シラヌイ', color: '#ff8a7a', face: 'face_shiranui', line: '狐火の舞じゃ。とくと見よ！' },
   { id: 'diceroll', name: 'ダイスロール', color: '#ff6a7a', face: 'face_diceroll', line: '…運命のダイス。ほら、出目は最高だ。' },
 ];
-const CLIMAX_STEP = 40, CLIMAX_OWNER = CLIMAX_FRIENDS.length * CLIMAX_STEP, CLIMAX_SLAM = CLIMAX_OWNER + 250, CLIMAX_END = CLIMAX_OWNER + 330;
+const CLIMAX_STEP = 40, CLIMAX_UMINE = CLIMAX_FRIENDS.length * CLIMAX_STEP, CLIMAX_SLAM = CLIMAX_UMINE + 250, CLIMAX_END = CLIMAX_UMINE + 330;
 function startClimax() {
   for (const q of bullets) q.active = false; for (const s of shots) s.active = false;
   boss.suckOn = false; boss.hopY = 0; boss.state = 'climaxHold'; boss.t = 0; boss.flash = 0; boss.gMarks = null; P.inv = 9999; P.vx = 0; FINAL.line = null;
   if (boss.y + boss.h < FLOOR_Y) boss.y = FLOOR_Y - boss.h;
   FINAL.climaxT = 0; FINAL.flash = 0; FINAL.skippable = progress.seen && progress.seen.includes('climax');
-  FINAL.ownerX = Math.max(ROOM_L + 12, Math.min(ROOM_R - 12, P.x + P.w / 2 + (boss.x > P.x ? -22 : 22)));
   setState('climax'); sfx('warn');
 }
 function updateClimax() {
@@ -389,17 +387,21 @@ function updateClimax() {
   if (b.flash > 0) b.flash--;
   b.fi = (frame >> 4) & 1 ? 6 : 0;
   if (FINAL.skippable && inp.startPressed && t > 20 && t < CLIMAX_SLAM) { FINAL.climaxT = CLIMAX_SLAM; return; }
-  if (t < CLIMAX_OWNER) {
+  if (t < CLIMAX_UMINE) {
     const i = (t / CLIMAX_STEP) | 0, lt = t % CLIMAX_STEP;
     if (lt === 0) sfx('cp');
     if (lt === 22) { b.flash = 10; b.hp = Math.max(2, b.hp - 1); b.hpShown = b.hp; sfx('bhit'); shake(6, 2); climaxHitFx(i); }
     if (lt > 22) b.fi = 4;
   } else {
-    const o = t - CLIMAX_OWNER;
+    const o = t - CLIMAX_UMINE;
+    // 海音 awakens (覚醒) and gathers the sea's power, then parts the sea herself (海割り)
     if (o === 1) sfx('rescue');
+    if (o >= 60 && o < 150 && o % 10 === 0) sfx('cursor');
+    if (o >= 60 && o < 150 && o % 3 === 0) { const h = hash(t, 29), a = (h % 628) / 100, r = 26 + (h >> 10) % 10, sx = P.x + P.w / 2, sy = P.y + 8;
+      spawnPart(sx + Math.cos(a) * r, sy + Math.sin(a) * r, -Math.cos(a) * r / 16, -Math.sin(a) * r / 16, 16, 5, (h >> 4) & 1 ? '#c8f6ff' : '#5ac8ff'); }
     if (o === 150) { FINAL.flash = 12; sfx('clear'); shake(10, 2); }
     if (o >= 170 && o < 250 && o % 12 === 0) sfx('swoosh');
-    if (o >= 170 && o < 250) b.fi = 4;
+    if (o >= 172 && o < 250) b.fi = 4;
     if (t === CLIMAX_SLAM) { FINAL.flash = 20; shake(24, 4); sfx('boom'); b.hp = 0; b.hpShown = 0; }
     if (t >= CLIMAX_SLAM) b.fi = 5;
     if (t > CLIMAX_SLAM && t < CLIMAX_SLAM + 50 && t % 3 === 0) { const h = hash(t, 17); spawnPart(b.x + (h % 60) - 10, FLOOR_Y - 4 - ((h >> 8) % 40), ((h >> 4) & 7) * 0.3 - 1, -1.5 - ((h >> 7) & 3) * 0.4, 30, 5, (h >> 3) & 1 ? '#c8f0ff' : '#ffffff'); }
@@ -417,20 +419,20 @@ function climaxHitFx(i) {
 //  FINALE: everyone calm again, a short talk, then the ending
 // ---------------------------------------------------------------------
 const FINALE_LINES = [
-  [KANATA_SPEAKER, '…ふぁ。……負けちゃった。'],
+  [KANATA_SPEAKER, '……ふぁ。負けちゃった。でも、ミミック使いは私だけじゃないよ……あと12人いるから。……ま、今日はいっか。'],
   [KANATA_SPEAKER, 'この子（掃除機のミミック）、いつもおなかぺこぺこで…。みんなの元気、ちょっとずつ吸わせてたら、止まらなくなっちゃって。…ごめんね。'],
-  [OWNER_SPEAKER, 'もう大丈夫ですよ！ みなさん元に戻りましたし、カナタさんもミミックさんも無事で、本当によかったです！'],
+  [UMINE_SPEAKER, 'ううん、もう大丈夫！ みんな元に戻ったし、カナタさんもミミックさんも無事で…ほんとによかった！'],
   [UMINE_SPEAKER, 'カナタさんも、いっしょに遊ぼう！ みんなで、ね？'],
   [KANATA_SPEAKER, '…めんどくさいけど。…うん。たまには、いいかも。'],
-  [OWNER_SPEAKER, 'それじゃあ…みんなでパーティーしましょう！ ごちそうも、カラオケもありますよ♪'],
+  [UMINE_SPEAKER, 'それじゃあ…みんなでパーティーしよう！ ごちそうも、カラオケもあるよ♪'],
 ];
 function startFinale() {
   markCleared(curArea);
   FINAL.finaleI = 0; FINAL.finaleT = 0; FINAL.ghost.show = false; FINAL.body = null; boss.dark = false; boss.hp = 0; boss.hpShown = 0;
   boss.state = 'calm'; boss.fi = 0; boss.y = FLOOR_Y - boss.h; boss.hopY = 0;
-  // calm line-up: mimic, Kanata | Umine, the owner
+  // calm line-up: mimic, Kanata | Umine
   boss.x = ROOM_L + 62 - boss.w / 2; boss.face = 1; FINAL.kanataX = ROOM_L + 104;
-  P.x = ROOM_L + 146 - P.w / 2; P.vx = 0; P.face = -1; FINAL.ownerX = ROOM_L + 178;
+  P.x = ROOM_L + 146 - P.w / 2; P.vx = 0; P.face = -1;
   FINAL.flash = 14;
   for (let i = 0; i < 12; i++) spawnPart(FINAL.kanataX, FLOOR_Y - 16, DIR8X[i & 7] * 1.2, DIR8Y[i & 7] * 1.2, 30, 5, i & 1 ? '#c8e0ff' : '#ffffff');
   setState('finale');
@@ -620,7 +622,7 @@ function drawFinalWorld(camX) {
   if (curArea.boss === 'mimic' || state === 'climax') drawKanataGhost(camX);
 }
 function drawFriendSprite(id, x, y, f, face, scale) {
-  const map = { tobiume: ['tobiumeNormal', 13], neenia: ['neenia', 11], seiten: ['seiten', 14], astarte: ['astarte', 10], star: ['starNormal', 16], lily: ['lily', 16], shiranui: ['shiranui', 16], diceroll: ['diceroll', 16], umimi: ['umimi', 16], kanata: ['kanata', 16], owner: ['umineOwner', 16] };
+  const map = { tobiume: ['tobiumeNormal', 13], neenia: ['neenia', 11], seiten: ['seiten', 14], astarte: ['astarte', 10], star: ['starNormal', 16], lily: ['lily', 16], shiranui: ['shiranui', 16], diceroll: ['diceroll', 16], umimi: ['umimi', 16], kanata: ['kanata', 16] };
   const m = map[id]; if (!m) return; const S = SHEETS[m[0]]; if (!S) { g.fillStyle = '#ffffff'; g.fillRect(Math.round(x) - 5, Math.round(y) - 24, 10, 24); return; }
   const fr = S[Math.min(f, S.length - 1)], cx = face >= 0 ? m[1] : 32 - m[1];
   if (scale && scale !== 1) g.drawImage(face >= 0 ? fr.r : fr.l, Math.round(x - cx * scale), Math.round(y - 32 * scale), 32 * scale, 32 * scale);
@@ -628,7 +630,7 @@ function drawFriendSprite(id, x, y, f, face, scale) {
 }
 function drawClimaxWorld(camX) {
   const t = FINAL.climaxT, b = boss, bx = b.x + b.w / 2 - camX, by = b.y + b.h / 2;
-  if (t < CLIMAX_OWNER) {
+  if (t < CLIMAX_UMINE) {
     const i = (t / CLIMAX_STEP) | 0, lt = t % CLIMAX_STEP, F = CLIMAX_FRIENDS[i];
     const side = (i & 1) ? 1 : -1, fx = Math.max(10, Math.min(VW - 10, bx + side * 58)), fy = FLOOR_Y;
     const pop = Math.min(1, lt / 6), air = F.id === 'tobiume' || F.id === 'astarte' || F.id === 'shiranui' || F.id === 'star';
@@ -658,23 +660,33 @@ function drawClimaxWorld(camX) {
       if (F.id === 'diceroll' && typeof drCell === 'function') for (let a = 0; a < 3; a++) drCell(a * 2, bx - 16 + a * 16, -10 + k * (by + 6) - a * 6, 1, lt * 0.4 + a, false);
     }
   } else {
-    const o = t - CLIMAX_OWNER, ox = FINAL.ownerX - camX;
-    // the owner: floats down in a water sparkle, smiles, casts (swirl), sea-split pose
-    const oy = o < 30 ? FLOOR_Y - 60 + 60 * (1 - Math.pow(1 - o / 30, 2)) : FLOOR_Y;
-    const of = o < 30 ? 0 : o < 90 ? 2 : o < 150 ? 3 : o < 280 ? 4 : 5;
-    const oface = b.x + b.w / 2 > FINAL.ownerX ? 1 : -1;
-    if (o < 40) { g.globalAlpha = 0.3; g.fillStyle = '#9ae6ff'; g.fillRect(Math.round(ox) - 10, 0, 20, FLOOR_Y); g.globalAlpha = 1; }
-    drawFriendSprite('owner', ox, oy, of, oface, 1);
-    if (of === 3) { const hx = ox + oface * (25 - 16), hy = oy - 32 + 15; for (let a = 0; a < 6; a++) { const ang = frame * 0.25 + a * 1.05, r = 5 + (a & 1) * 2; g.fillStyle = a & 1 ? '#c8f6ff' : '#5ac8ff'; g.fillRect(Math.round(hx + Math.cos(ang) * r), Math.round(hy + Math.sin(ang) * r), 2, 2); } }
-    // purity gauge
-    if (o >= 60 && o < 175) {
-      const k = Math.min(1, (o - 60) / 90), gx = Math.round(ox) - 20, gy = Math.round(oy) - 44;
-      g.fillStyle = '#10142a'; g.fillRect(gx - 1, gy - 1, 42, 6); g.fillStyle = k >= 1 && (frame & 4) ? '#ffffff' : '#5ac8ff'; g.fillRect(gx, gy, Math.round(40 * k), 4);
-      g.fillStyle = '#ffd0f0'; g.fillRect(gx + Math.round(40 * k) - 1, gy, 1, 4);
-    }
-    // the sea parts: walls rise at both screen edges, then crash together on the mimic
-    if (o >= 160) drawSeaWalls(o, bx);
+    drawUmineAwaken(t - CLIMAX_UMINE, camX);
   }
+}
+// 海音 awakens (覚醒): spell sheet (umine_spell 48x48: 0 ready, 1-4 water gathers, 5 staff raised + magic circle),
+// glowing aura and a power gauge, then she parts the sea herself (海割り).
+function umineSpellFrame(o) { return o < 20 ? 0 : o < 60 ? 1 : o < 100 ? 2 : o < 125 ? 3 : o < 150 ? 4 : o < 300 ? 5 : 0; }
+function drawUmineAwaken(o, camX) {
+  const b = boss, bx = b.x + b.w / 2 - camX, ux = Math.round(P.x + P.w / 2 - camX), uy = Math.round(P.y + P.h);
+  if (o < 40) { g.globalAlpha = 0.3 * (1 - o / 40); g.fillStyle = '#9ae6ff'; g.fillRect(ux - 12, 0, 24, FLOOR_Y); g.globalAlpha = 1; }
+  // aura: pulsing glow + rising sparkles
+  const k = Math.min(1, o / 150), pulse = Math.sin(frame * 0.25) * 2;
+  if (o < 300) {
+    g.globalAlpha = 0.18 + 0.22 * k; g.fillStyle = '#5ac8ff'; g.beginPath(); g.ellipse(ux, uy - 16, 14 + k * 8 + pulse, 20 + k * 8 + pulse, 0, 0, 6.283); g.fill();
+    g.globalAlpha = 0.25 + 0.3 * k; g.fillStyle = '#c8f6ff'; g.beginPath(); g.ellipse(ux, uy - 16, 9 + k * 4, 15 + k * 4, 0, 0, 6.283); g.fill(); g.globalAlpha = 1;
+    for (let a = 0; a < 6; a++) { const h = hash(a, 77), yy = uy - ((frame * (1 + (h & 1)) + h) % 44), xx = ux - 14 + (h >> 4) % 28; g.fillStyle = a & 1 ? '#ffffff' : '#9ae6ff'; g.fillRect(xx, yy, 1, 2); }
+  }
+  // power gauge
+  if (o >= 60 && o < 175) {
+    const q = Math.min(1, (o - 60) / 90), gx = ux - 20, gy = uy - 54;
+    g.fillStyle = '#10142a'; g.fillRect(gx - 1, gy - 1, 42, 6); g.fillStyle = q >= 1 && (frame & 4) ? '#ffffff' : '#5ac8ff'; g.fillRect(gx, gy, Math.round(40 * q), 4);
+  }
+  // the sea parts: walls rise at both screen edges, then crash together on the mimic
+  if (o >= 160) drawSeaWalls(o, bx);
+  // her spell sprite, in front of the walls (the sea parts around her) (replaces the normal player sprite during the awakening)
+  const S = SHEETS.umineSpell, f = umineSpellFrame(o), face = bx >= ux ? 1 : -1;
+  if (S) { const fr = S[Math.min(f, S.length - 1)]; g.drawImage(face >= 0 ? fr.r : fr.l, ux - 24, uy - 46); }
+  else { const K = SHEETS.kanon && sheetFrame('kanon', 'shoot', 0); if (K) g.drawImage(pick(K, face, false), ux - (face >= 0 ? 11 : 21), uy - 32); }
 }
 function drawSeaWall(x, top, fi, flip) { // x = face (inner edge) in screen px; top = crest top
   const S = SHEETS.seaSplit; if (!S) { g.fillStyle = '#2a6ac8'; g.fillRect(flip ? x : x - 45, top, 45, VH - top); return; }
@@ -716,16 +728,14 @@ function drawFinaleWorld(camX) {
   const kf = speaking === KANATA_SPEAKER ? ((t >> 5) & 1 ? 2 : 0) : ((frame % 160) > 150 ? 1 : 0);
   const kface = (P.x + P.w / 2 > FINAL.kanataX) ? 1 : -1;
   g.globalAlpha = Math.min(1, t / 30); drawFriendSprite('kanata', kx, FLOOR_Y, FINAL.finaleI >= 4 && FINAL.finaleI < 5 ? 3 : kf, kface, 1); g.globalAlpha = 1;
-  const ox = FINAL.ownerX - camX, of = speaking === OWNER_SPEAKER ? 2 : (frame >> 5) & 1;
-  drawFriendSprite('owner', ox, FLOOR_Y, FINAL.finaleI >= 5 ? 5 : of, (FINAL.kanataX > FINAL.ownerX) ? 1 : -1, 1);
 }
 // pixel-level overlay before blit (rush label, flashes)
 function drawFinalOverlay() {
   if (FINAL.phase === 'rush' && (state === 'play' || state === 'bossIntro') && boss.triggered) drawTextShadow('BOSS RUSH ' + (FINAL.rushIdx + 1) + '/8', VW / 2, 38, 'c', 1, 'c');
   if (state === 'climax') {
-    const t = FINAL.climaxT, o = t - CLIMAX_OWNER;
+    const t = FINAL.climaxT, o = t - CLIMAX_UMINE;
     g.fillStyle = '#05060f'; g.fillRect(0, 0, VW, 10); g.fillRect(0, VH - 10, VW, 10); // letterbox
-    if (o >= 150 && o < 172 && (frame & 4)) drawTextShadow('PURITY LIMIT!', VW / 2, 72, 'y', 2, 'c');
+    if (o >= 150 && o < 172 && (frame & 4)) drawTextShadow('FULL POWER!', VW / 2, 72, 'y', 2, 'c');
     if (FINAL.skippable && t < CLIMAX_SLAM && (frame >> 5) & 1) drawText('TAP: SKIP', VW - 4, VH - 8, 'b', 1, 'r');
   }
   if (FINAL.flash > 0) { g.fillStyle = 'rgba(255,255,255,' + Math.min(0.9, FINAL.flash / 14) + ')'; g.fillRect(0, 0, VW, VH); }
@@ -735,11 +745,12 @@ function drawFinalOverlay() {
 function drawFinalHi() {
   if (state === 'climax') {
     const t = FINAL.climaxT;
-    if (t < CLIMAX_OWNER) { const i = (t / CLIMAX_STEP) | 0, lt = t % CLIMAX_STEP, F = CLIMAX_FRIENDS[i]; drawDialogue(F.name, F.color, F.line, Math.min(1, lt / 5), 14, F.face); }
+    if (t < CLIMAX_UMINE) { const i = (t / CLIMAX_STEP) | 0, lt = t % CLIMAX_STEP, F = CLIMAX_FRIENDS[i]; drawDialogue(F.name, F.color, F.line, Math.min(1, lt / 5), 14, F.face); }
     else {
-      const o = t - CLIMAX_OWNER;
-      if (o > 20 && o < 90) drawDialogue(OWNER_SPEAKER.name, OWNER_SPEAKER.color, 'みなさん、ありがとうございます！ …海音、あとはわたしに任せてくださいね！', Math.min(1, (o - 20) / 8), 14, OWNER_SPEAKER.face);
-      else if (o >= 90 && o < 175) drawDialogue(OWNER_SPEAKER.name, OWNER_SPEAKER.color, 'わたしの純粋な気持ち…もう、あふれちゃいます！ 海よ、割れてっ！', 1, 14, OWNER_SPEAKER.face);
+      const o = t - CLIMAX_UMINE;
+      if (o > 20 && o < 90) drawDialogue(UMINE_SPEAKER.name, UMINE_SPEAKER.color, 'みんな、ありがとう…！ あったかい力が、あふれてくる…！', Math.min(1, (o - 20) / 8), 14, UMINE_SPEAKER.face);
+      else if (o >= 90 && o < 175) drawDialogue(UMINE_SPEAKER.name, UMINE_SPEAKER.color, 'みんなの想い、ぜんぶ乗せて…！ 海よ、割れてっ！', 1, 14, UMINE_SPEAKER.face);
+      if (o >= 4 && o < 40) drawHiText('覚醒！', VW / 2, 40, 14, '#e8fbff', '#1a3a8a');
       if (o >= 172 && o < 250) drawHiText('海割り！', VW / 2, 40, 14, '#e8fbff', '#1a3a8a');
     }
     return;

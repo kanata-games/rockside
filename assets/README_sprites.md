@@ -18,8 +18,8 @@
 | mimic_rampage.png | 64×64 | 7 | 0 待機 / 1 飛びかかり / 2 大口で吸い込み（渦を含む）/ 3 がれきを吐く / 4 被弾（火花）/ 5 破壊 / 6 待機2（呼吸）|
 | kanata.png | 32×32 | 5 | 0 待機 / 1 まばたき / 2 だるそうに手を振る / 3 喜ぶ（ジャンプ）/ 4 マイクで歌う |
 | kanata_ghost.png | 32×32 | 3 | 0-1 浮遊 / 2 青い玉を投げる（玉はゲーム側）|
-| umine_owner.png | 32×32 | 6 | 0-1 待機 / 2 にっこり / 3 水魔法（水はゲーム側）/ 4 海を割る（両手を上げる）/ 5 ジョッキで乾杯 |
-| sea_split.png | 48×96 | 5 | 0 せり上がる / 1 巻く / 2 最大 / 3 最大（揺れ違い）/ 4 縦タイル用の胴体 |
+| umine_spell.png | 48×48 | 6 | 海音の覚醒（クライマックス）: 0 構え / 1-4 水が集まる / 5 杖を掲げる＋魔法陣 |
+| sea_split.png | 48×96 | 5 | 海割りの水の壁: 0 せり上がる / 1 巻く / 2-3 最大（交互）/ 4 縦タイル用の胴体 |
 
 kanon.json と tobiume_dark.json に同じ内容を機械可読な形で入れてあります。
 海音のショット系フレームには弾を描いていないので、弾はゲーム側で出してください（杖の先は枠の右端付近）。闇落ち飛梅の攻撃フレーム（4, 5）には手元の魔法の光だけ描き込んであります。飛ぶ弾はゲーム側で出してください。
@@ -36,7 +36,7 @@ kanon.json と tobiume_dark.json に同じ内容を機械可読な形で入れ�
 - フレーム情報は各 .json。体の中心 x（全フレーム共通、cxF 不要）: neenia_dark 20 / astarte_dark 22 / lily_dark 21（各 .json の "cx"）
 
 ## 顔アイコン（24×24、ステージセレクト用）
-kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia_dark_face.png, seiten_face.png, seiten_dark_face.png, astarte_face.png, astarte_dark_face.png, lily_face.png, lily_dark_face.png, disaster_dark_face.png, star_face.png, shiranui_face.png, shiranui_dark_face.png, diceroll_face.png, diceroll_dark_face.png, kanata_face.png, umine_owner_face.png（一覧: work/faces_preview.png。シラヌイの2つは work/shiranui_preview.png、ダイスロールの2つは work/diceroll_preview.png）
+kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia_dark_face.png, seiten_face.png, seiten_dark_face.png, astarte_face.png, astarte_dark_face.png, lily_face.png, lily_dark_face.png, disaster_dark_face.png, star_face.png, shiranui_face.png, shiranui_dark_face.png, diceroll_face.png, diceroll_dark_face.png, kanata_face.png（一覧: work/faces_preview.png。シラヌイの2つは work/shiranui_preview.png、ダイスロールの2つは work/diceroll_preview.png）
 
 ## リリィ（lily）メモ
 - lily.png の情報は allies.json の "lily"（idle: 0,1）。
@@ -139,18 +139,9 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - 生成: ボス: work/kanata_work/kanata_sheet_green_sharp.png（シートを緑背景に＋シャープ）→ work/body_sheet.py work/kanata_boss_spec.json → work/kanata_post.py（肌・ジト目・アウトライン）。ミミック: work/mimic_raw.jpg → body_sheet.py work/mimic_spec.json → work/mimic_post.py。通常／幽霊: work/kanata_small_raw.jpg → body_sheet.py work/kanata_small_spec.json / work/kanata_ghost_spec.json → work/kanata_small_post.py normal / ghost。弾: work/build_icons.py work/kanata_bullets_spec.json / work/kanata_wind_spec.json（風は口を消した work/kanata_work/kb_nomouth.png から）。顔: work/kanata_faces.py。プレビュー: work/make_kanata_preview.py
 - body_sheet.py に追加（既存の処理は変更なし）: フレームごとの "move"（原画の矩形の中身を切り取ってずらして貼る。吐き出しの掃除機の頭を体に寄せるのに使用）。sprite_lib.py に追加: skin_pale（とても白い肌の判定）。
 
-## 海音の中の人（umine_owner）仲間 32×32 × 6フレーム
-- 純粋で明るい旅好きの水の魔女。水色の長い髪・三日月の付いた青い魔女帽子（紫の帯、先が垂れて紫の宝石）・白いワンピース・星空柄のローブ。
-- umine_owner.png: 0-1 待機（1 は上半身を1px下げた呼吸）/ 2 にっこり / 3 水魔法（右手を前へ。水の渦は32pxに入らないので外した → spawn.water (25,15) から）/ 4 両手を上げて海を割る / 5 ジョッキで乾杯（spawn.mug (26,10)）
-- 全フレームで足元の中心が x=16（cx 16）、足元は下端 y=31。共通スケール 0.09（帽子の先〜靴 約30px、帽子は y=1 から）。大きな帽子は縮小するとつぶれるので、コードで描いた帽子（紺の円すい・紫の帯・金の三日月・広いつば・垂れた先の宝石）を各フレームに重ねた。目・口も手置き。32色。allies.json の "umine_owner"（idle 0,1 / smile 2 / cast 3 / part 4 / toast 5）。
-- 顔: umine_owner_face.png（参考画から。帽子のつば・水色の髪・紫の目）。
-
-## 海割りの水の壁（sea_split）48×96 × 5フレーム
-- 0 せり上がる / 1 波頭が巻く / 2 最大 / 3 最大（揺れ違い。2,3 を交互にループ）/ 4 縦タイル用の胴体（周期32px、3回分）。15色。
-- 絵は『左側の壁』（切り立った水の断面＝濃い紺のまっすぐな面が右向き）。右側の壁はゲーム側で左右反転する。断面の下端の角が (45,95)、下端は y=95 で平ら。
-- 0〜3 はそのままでは縦タイル不可（上にしぶき、下に泡）。もっと高い壁はフレーム4を縦に並べ、上に 2/3 の波頭を重ねる（左端の幅が少し違うので、つなぎ目は泡の白で隠すのを推奨）。情報は sea_split.json。
-- プレビュー: work/umine_owner_preview.png（4倍の全フレーム・顔・水の壁・2倍のゲーム内合成＝左の壁と反転した右の壁の間に海を割るポーズ）
-- 生成: work/umine_owner_raw.jpg → work/body_sheet.py work/umine_owner_spec.json → work/umine_owner_post.py（呼吸フレーム・帽子・目・口）。水の壁: work/sea_split.py。顔: work/umine_owner_face.py。プレビュー: work/make_umine_owner_preview.py
+## 海音の覚醒（umine_spell）48×48 × 6フレーム と 海割りの水の壁（sea_split）48×96 × 5フレーム
+- umine_spell.png: refs/umine_spell_sequence.png（3×2 の詠唱シーケンス）を 31/375 に縮小（アルファは2値化）。各フレームで足元の中心が x=24、足元 y≈46。杖は右向き（左向きは反転）。仮の自動縮小なので、ドット絵で描き直してもらえると助かります。
+- sea_split.png: 絵は『左側の壁』（断面が右向き）。右の壁は左右反転。もっと高い壁はフレーム4を縦に並べ、上に波頭を重ねる（つなぎ目は泡の白で隠す）。情報は sea_split.json。
 
 ## エンディングのパーティー（party_bg / party_props）
 - party_bg.png（256×240＝ゲーム画面）: 16:9 の生素材の高さ全体を 240 に（1/3）縮小し、ステージが中央に来るよう横を切り出し（生素材 x 476〜1244）。ステージの床（上面）は y≈157、手前の床は y≈175〜240。52色、ディザなし。
@@ -158,7 +149,7 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - 縮小は 3×3 ブロックの多数決（なめらかにしない）。色は「全体から40色＋彩度の高い部分（スポットライト・ちょうちん・旗）から18色」の共通パレット（茶色に飲まれて照明の色が消えるのを防ぐため）。
 - party_props.png（高さ32の1列のシート、各セルは下揃え）＋ party_props.json（name, x, y, w, h, bottomAnchor = セル下端の中央、contentBox）。並び: table_round 48×32 / table_long 64×24 / mic_stand 16×32 / roast_chicken・cake・sushi・pizza・fruit_bowl 24×24 / beer_mug・wine_glass・juice・bottle 16×16 / balloons 16×32 / plates 24×24 / speaker 24×32。40色。
 - 料理・飲み物をテーブルに置くときは、bottomAnchor を天板の高さ（table_round はセル上端から約10px、table_long は約6px）に合わせる。緑のびんは緑背景の抜きで消えるため、専用の抜き（明るい緑だけを背景とみなす）で切り出した。
-- プレビュー: work/party_preview.png（3倍の背景に32pxの仲間（カナタ・海音の中の人・ダイスロール・シラヌイ・スター・海音）と小物を配置、小物シート4倍、ワイド版2倍）
+- プレビュー: work/party_preview.png（3倍の背景に32pxの仲間（カナタ・ダイスロール・シラヌイ・スター・海音）と小物を配置、小物シート4倍、ワイド版2倍）
 - 生成: work/party_bg.py / work/party_props.py / work/make_party_preview.py
 
 ## 砲槍アイコン（alchemic_weapons.png フレーム6）
@@ -176,7 +167,7 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - 追加: disaster_dark / alchemic_weapons / transform_fx / disaster_bullets / star / star_weapon と各顔アイコン、プレビュー（work/fixes_preview.png ほか）。
 - 追加（2026-10-03 午後）: shiranui / shiranui_dark / shiranui_bullets / shiranui_bullets_pillar と顔アイコン2つ、allies.json に "shiranui"。alchemic_weapons に砲槍（フレーム6）を追加（バックアップ work/backup_20261003b/）。
 - 追加（2026-10-03 夕方）: diceroll / diceroll_dark / diceroll_bullets と顔アイコン2つ、allies.json に "diceroll"。
-- 追加（2026-10-03 夜・最終ステージ）: kanata_boss / mimic_rampage / kanata / kanata_ghost / kanata_bullets / kanata_bullets_wind / umine_owner / sea_split と顔アイコン kanata_face・umine_owner_face、allies.json に "kanata" と "umine_owner"。エンディング用に party_bg / party_bg_wide / party_props。
+- 追加（2026-10-03 夜・最終ステージ）: kanata_boss / mimic_rampage / kanata / kanata_ghost / kanata_bullets / kanata_bullets_wind と顔アイコン kanata_face、allies.json に "kanata"。エンディング用に party_bg / party_bg_wide / party_props。
 
 ## リポジトリ（kanata-games/rockside）での注意 – 2026-10-03
 - **lily_dark.png はリポジトリ版（ChatGPT が作り直したシート）を使い続けています。** 上の lily_dark の説明（フレーム5に音波を描き込み・cx=21）はローカル旧シートの修正版のもので、本番では採用していません。
