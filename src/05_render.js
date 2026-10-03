@@ -242,6 +242,7 @@ function drawBoss(camX) {
   let white = b.flash > 0 && (b.flash & 2);
   if ((b.state === 'crouch' && b.t < 10) || (b.state === 'warpOut' && b.t < 6)) white = white || (b.t & 2) !== 0; // telegraph flash
   if (b.state === 'rescue' && b.t < 70) white = (b.t & 4) !== 0;
+  if (curArea.boss === 'disaster' && b.state === 'disMorph') white = white || ((b.t >> 1) & 3) === 0; // morph flash
   const mx = Math.round(b.x + b.w / 2 - camX), by = Math.round(b.y + b.h + b.hopY); // hitbox bottom-centre
   const key = b.dark ? T.dark : T.normal, sh = SHEETS[key];
   if (b.alpha < 1) g.globalAlpha = b.alpha;
@@ -261,16 +262,18 @@ function drawBoss(camX) {
       g.drawImage(pick(fx, b.face, false), mx - (b.face >= 0 ? W.cx : W.fw - W.cx), by - W.fh);
     }
   } else { // procedural fallback (?sprites=0): the ally sprite, shadow-tinted while dark
-    const k = T.ally, f = b.pose === 'attack' ? 1 : 0;
+    const k = T.ally || 'A', f = b.pose === 'attack' ? 1 : 0;
     let spr = SPR.ally[k][f];
     if (b.dark) { SPR.allyDark = SPR.allyDark || {}; const ck = k + f; if (!SPR.allyDark[ck]) SPR.allyDark[ck] = sheetSprite(tintCanvas(spr.r, '#1a0828', 0.72)); spr = SPR.allyDark[ck]; }
     g.drawImage(pick(spr, b.face, white), mx - 16, by - 32);
   }
   g.globalAlpha = 1;
+  if (curArea.boss === 'disaster' && b.dark) drawDisasterWeaponLayer(b, mx, by);
 }
 // telegraphs drawn under the boss: aim line, arrow-rain columns, warp mark
 function drawBossMarks(camX) {
   const b = boss, blink = (frame >> 2) & 1;
+  if (curArea.boss === 'disaster') drawDisasterMarks(b, camX, blink);
   if (b.aimShow) { // Neenia's aim: dotted line to the predicted spot
     const dx = b.aimX - b.mx, dy = b.aimY - b.my, len = Math.hypot(dx, dy) || 1, n = Math.min(40, Math.floor(len / 6));
     g.fillStyle = blink ? '#ff5a8a' : '#ffb0c8';
@@ -408,6 +411,7 @@ function drawArrows(camX) {
 }
 function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
+  if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);
   else if (b.kind === 2) g.drawImage(SPR.heart.r, x - 1, y - 1);
   else if (b.kind === 3) g.drawImage(SPR.star.r, x - 1, y - 1);
@@ -435,6 +439,7 @@ function drawBullet(b, camX) {
       const px = dir > 0 ? x + 2 + bow : x + 9 - bow - th;
       g.fillStyle = (frame & 2) ? '#ff2a4a' : '#d01040'; g.fillRect(px, y + dy, th, 1);
       g.fillStyle = '#ffe0e6'; if (th > 2) g.fillRect(dir > 0 ? px + th - 1 : px, y + dy, 1, 1); }
+  } else if (b.kind === 21 || b.kind === 22 || b.kind === 23) { drawDisasterBullet(b, x, y);
   } else if (b.kind === 18) { // descending star, warm gold distinguishes it from orbiting orbs
     g.fillStyle = 'rgba(255,224,160,0.24)'; g.fillRect(x - 2, y - 3, 14, 16);
     g.fillStyle = (frame & 2) ? '#ffe0a0' : '#fff6c0';
@@ -729,7 +734,7 @@ function renderAreaIntro() {
   let img;
   if (fr) img = fr[(frame >> 4) & 1].r;
   else if (a.boss === 'tobiume') img = SPR.tobi.dark.idle[(frame >> 3) & 1].r;
-  else { const k = BT.ally; SPR.allyDark = SPR.allyDark || {}; if (!SPR.allyDark[k + 0]) SPR.allyDark[k + 0] = sheetSprite(tintCanvas(SPR.ally[k][0].r, '#1a0828', 0.72)); img = SPR.allyDark[k + 0].r; }
+  else { const k = BT.ally || 'A'; SPR.allyDark = SPR.allyDark || {}; if (!SPR.allyDark[k + 0]) SPR.allyDark[k + 0] = sheetSprite(tintCanvas(SPR.ally[k][0].r, '#1a0828', 0.72)); img = SPR.allyDark[k + 0].r; }
   const ty = bandY + bandH - 2 - size * 2 + 6, y = t < 26 ? Math.round(-size * 2 + (ty + size * 2) * (1 - Math.pow(1 - t / 26, 2))) : ty;
   g.save(); g.beginPath(); g.rect(0, 0, VW, bandY + bandH - 2); g.clip();
   g.drawImage(img, 14, y, size * 2, size * 2); g.restore();
@@ -798,6 +803,7 @@ function render() {
     else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
     else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
     else if (support.kind === 'lily') drawHiText('リリィ＆ウミミ・スターライトレイン！', VW / 2, 67, 8, '#fff1cf', '#6e285e');
+    else if (support.kind === 'star') { if (support.t < 80) drawHiText('スターさん・錬金モーフスラッシュ！', VW / 2, 67, 8, '#e0f8ff', '#1d3e6e'); }
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
   }
   // ---- high-res overlays: speech bubbles / dialogue / Japanese lines ----

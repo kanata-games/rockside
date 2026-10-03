@@ -29,6 +29,8 @@ const THEMES = {
     far: { style: 'city', cols: ['#2e1e48', '#3e2a5c'], lights: '#c89a5a' }, near: { style: 'city', cols: ['#160e26', '#241838'], lights: '#ffd46a' }, tiles: TILESETS.city },
   lily: { sky: ['#120b2e', '#4d2d67', '#b65f91'], stars: 120, starsH: 150, moon: { x: 196, y: 45, r: 20, cols: ['#fff4dd', '#ffd8ef', '#d89bd2'] },
     far: { style: 'ruins', cols: ['#5d376f', '#86598f'] }, near: { style: 'city', cols: ['#241834', '#3a2548'], lights: '#ffd6ef' }, tiles: TILESETS.shrine },
+  disaster: { sky: ['#160719', '#4a102c', '#a22b45'], stars: 70, moon: { x: 188, y: 54, r: 32, cols: ['#ff3a58', '#ff8495', '#c5264b'] },
+    far: { style: 'ruins', cols: ['#36102d', '#581b3f'] }, near: { style: 'ruins', cols: ['#1a0c22', '#300d30'] }, tiles: TILESETS.shrine, castle: true },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
     far: { style: 'ruins', cols: ['#2a2460', '#3a347a'] }, near: { style: 'ruins', cols: ['#151238', '#221e50'] }, tiles: TILESETS.shrine },
 };
@@ -112,6 +114,27 @@ function buildBackground(th) {
   }
   drawLayer(farCv.getContext('2d'), th.far, 132, 44, 1);
   drawLayer(nearCv.getContext('2d'), th.near, 168, 40, 2);
+  if (th.castle) { drawCrimsonCastle(farCv.getContext('2d'), false); drawCrimsonCastle(nearCv.getContext('2d'), true); }
+}
+// DISASTER CASTLE parallax towers (scenery only, no collision): drawn into the far/near background layers.
+function drawCrimsonCastle(cg, foreground) {
+  const ink = foreground ? '#170b1e' : '#371026', rim = foreground ? '#4a1937' : '#712441', glow = foreground ? '#a72c54' : '#df4263';
+  const y0 = foreground ? 158 : 121;
+  cg.save();
+  for (let x = -14, n = 0; x < 530; x += 74, n++) {
+    const ht = (n % 3 === 1 ? 65 : n % 3 === 2 ? 41 : 52), top = y0 - ht;
+    cg.fillStyle = ink; cg.fillRect(x + 10, top, 32, ht + 40); cg.fillRect(x + 5, top + 13, 42, 5);
+    for (let k = 0; k < 12; k++) cg.fillRect(x + 10 + k, top - 12 + k, 32 - k * 2, 1);   // stepped pointed roof
+    cg.fillStyle = rim; cg.fillRect(x + 12, top + 3, 1, ht - 3); cg.fillRect(x + 39, top + 3, 1, ht - 3);
+    for (let wy = top + 20; wy < y0 - 8; wy += 18) {
+      cg.fillStyle = glow; cg.fillRect(x + 20, wy, 4, 7); cg.fillRect(x + 28, wy, 4, 7);
+      cg.fillStyle = ink; cg.fillRect(x + 21, wy, 1, 6);
+    }
+    cg.fillStyle = ink; cg.fillRect(x + 43, y0 - 9, 31, 22);
+    for (let b = 0; b < 5; b++) cg.fillRect(x + 43 + b * 7, y0 - 14, 4, 5);
+    cg.fillStyle = rim; cg.fillRect(x + 43, y0 - 9, 31, 1);
+  }
+  cg.restore();
 }
 buildBackground(THEMES.sunset);
 

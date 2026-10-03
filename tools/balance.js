@@ -4,7 +4,7 @@ const { chromium } = require('playwright'); const path = require('path');
 const BOT = require('./bossbot.js');
 const SERVE = require('./serve.js');
 (async () => {
-  const areas = process.argv[2] ? process.argv[2].split(',').map(Number) : [1, 2, 3, 4, 6], runs = +(process.argv[3] || 3);
+  const areas = process.argv[2] ? process.argv[2].split(',').map(Number) : [1, 2, 3, 4, 5, 6], runs = +(process.argv[3] || 3);
   const srv = await SERVE.start(path.resolve(__dirname, '..')); const FILE = srv.url + 'index.html';
   const b = await chromium.launch();
   for (const n of areas) {

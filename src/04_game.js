@@ -42,6 +42,10 @@ const BOSS_TYPES = {
   seiten: { hud: 'SEITEN', speaker: '青天', speakerColor: '#ff8098', line: 'うみねちゃん…ごめんね、ありがとう！', face: 'face_seiten',
     clearEn: 'SEITEN RESCUED', clearJp: '青天を闇から救い出した！', dark: 'seitenDark', normal: 'seiten', ally: 'S', w: 16, h: 30,
     aura: ['#300a18', '#8a1a3a'], sparkle: '#ffb0c0', dust: '#9a9ab4' },
+  // 魔王ディザスター -> スターさん (Star, he/him). No in-stage ally letter; fallback art reuses 'A'.
+  disaster: { hud: 'DISASTER', speaker: 'スターさん', speakerColor: '#71d9ff', line: '……海音、ありがとな。錬金剣に光が戻ったぜ！', face: 'face_star',
+    clearEn: 'STAR RESCUED', clearJp: 'スターさんを闇から救い出した！', dark: 'disasterDark', normal: 'starNormal', ally: 'A', fly: true, w: 21, h: 35,
+    aura: ['#5a1a8a', '#a51c54'], sparkle: '#72eaff', dust: '#8a6aa8' },
   lily: { hud: 'LILY', speaker: 'リリィ', speakerColor: '#ffd2ef', line: '海音ちゃん！助けてくれてありがとうっ♪', face: 'face_lily',
     clearEn: 'LILY RESCUED', clearJp: 'リリィを闇から救い出した！', dark: 'lilyDark', normal: 'lily', w: 16, h: 34,
     aura: ['#31102f', '#8b2d6a'], sparkle: '#ffd2ef', dust: '#c9b9e8' },
@@ -311,6 +315,7 @@ function bossReset() {
   resetBossUmimi();
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
+  b.weapon = 'sword'; b.nextWeapon = ''; b.comboLeft = 0; b.chainB = null; b.chainReach = 0; b.recT = 0;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
@@ -345,9 +350,9 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time.
-const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ' };
-const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -356,8 +361,8 @@ function refreshSupportButton() {
   helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
   const lilyReady = id !== 'lily' || (stageUmimi.given && stageUmimi.active && !stageUmimi.down && stageUmimi.hp > 0);
-  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE' }[id] || 'HELP');
-  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef' }[id] || '#ffa8cf');
+  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -367,7 +372,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -588,14 +593,15 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
   return null;
 }
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10], 19: [6, 6], 20: [5, 8],
-  13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
+  13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9],
+  21: [12, 4], 22: [8, 8], 23: [7, 7] }; // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
 function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
@@ -727,6 +733,12 @@ function tobiumeRescuePose(b) {
 // the rescued friend's little "back to herself" moment (normal 32x32 sheet: 2 frames each)
 function friendRescuePose(b, type) {
   const t = b.t - 150, cx = b.x + b.w / 2;
+  if (type === 'disaster') {      // Star (star.png): raises his cyan sword (6) -> bows "thanks" (4) -> happy (3) / waves (5)
+    b.pose = 'pose'; b.poseF = t < 60 ? 6 : t < 104 ? 4 : ((t - 104) >> 5) & 1 ? 5 : 3;
+    if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx + b.face * 10, b.y + 10, DIR8X[i] * 1.2, DIR8Y[i] * 1.2, 24, 0, i & 1 ? '#72eaff' : '#ffffff'); }
+    if (t > 8 && t % 6 === 0) { const h = hash(t, 13); spawnPart(cx + b.face * (8 + (h % 8)), b.y + 4 + ((h >> 8) % 20), 0, -0.5, 22, 4, (h >> 4) & 1 ? '#72eaff' : '#e8fbff'); }
+    return;
+  }
   if (type === 'neenia') {        // lowers her bow: a harmless silver arrow shot into the sky, then idle
     b.poseF = (t >= 20 && t < 44) ? 1 : 0; b.pose = 'pose';
     if (t === 20) { sfx('arrow'); for (let k = 0; k < 10; k++) spawnPart(cx + b.face * 10, b.y + 6 - k * 3, 0, -3.2, 26, 0, k & 1 ? '#e8f0ff' : '#9fd8ff'); }
@@ -1554,7 +1566,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 }
 
-const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily };
+const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster };
 
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
@@ -1570,6 +1582,7 @@ function castSupport() {
   support.y = support.kind === 'tobiume' ? -42 : FLOOR_Y - 32;
   if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
   if (support.kind === 'lily') { support.x = P.x + P.w / 2; support.y = FLOOR_Y - 32; support.face = P.face; }
+  if (support.kind === 'star') { support.x = P.x + P.w / 2 - P.face * 16; support.y = P.y; }
   if (support.kind === 'astarte') {
     if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
     support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
@@ -1580,6 +1593,7 @@ function updateSupport() {
   if (!support.active) return;
   support.t++;
   const t = support.t;
+  if (support.kind === 'star') { updateStarSupport(t); return; }
   if (support.kind === 'lily') {
     // Idol support: spotlight entrance, then a friendly Starlight Rain over the whole viewport.
     if (t === 28 || t === 44 || t === 60 || t === 76) {
@@ -1672,6 +1686,7 @@ function updateSupport() {
 function drawSupport(camX) {
   if (!support.active) return;
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
+  if (support.kind === 'star') { drawStarSupport(t, x, y, camX); return; }
   if (support.kind === 'lily') {
     const pulse = 0.16 + 0.08 * Math.sin(frame * 0.14);
     g.save();
@@ -1883,22 +1898,23 @@ function updateBullets() {
       b.x = b.baseX + Math.sin(b.t * b.swayRate + b.swayPhase) * b.swayAmp;
     } // Lily confetti: visible sprite and hitbox sway together
     if (b.life > 0 && --b.life === 0) { b.active = false; continue; }
+    if (b.ret && !b.returned && (b.t >= b.ret || b.x < ROOM_L + 4 || b.x + b.w > ROOM_R - 4)) { b.returned = true; b.vx = -b.vx; } // Disaster's returning scythe
     if (b.kind >= 13 && b.kind <= 15 && neeniaArrowUpdate(b)) continue;
     if (b.x < cam.x - 16 || b.x > cam.x + VW + 16 || b.y < -16 || b.y > VH + 16) { b.active = false; continue; }
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
-    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
+    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
     if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && overlap(b, stageUmimiBox())) {
+        b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && overlap(b, stageUmimiBox())) {
       if (hurtStageUmimi(b.dmg || 1, b.x + b.w / 2)) {
         b.active = false; continue;
       }
     }
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
-        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20) && overlap(b, stageUmimiBox())) {
+        (b.kind === 4 || b.kind === 8 || b.kind === 9 || b.kind === 12 || b.kind === 16 || b.kind === 20 || b.kind === 22) && overlap(b, stageUmimiBox())) {
       hurtStageUmimi(b.dmg || 1, b.x + b.w / 2);
     }
-    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16) b.active = false; }
+    if (!P.dead && P.inv <= 0 && overlap(b, P)) { hurtPlayer(b.dmg, b.kind === 12 ? boss.x + boss.w / 2 : b.x + b.w / 2 - b.vx * 4); if (b.kind !== 12 && b.kind !== 16 && b.kind !== 22) b.active = false; }
   }
 }
 // v5 Neenia arrows: lob (13) breaks on the floor, ricochet (14) bounces, snare (15) plants a thorn patch (16).

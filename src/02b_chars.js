@@ -129,7 +129,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], swim: [2, 2], enter: [4, 1], platform: [5, 2], heal: [7, 2], exit: [9, 1] } },
   // v4 DARK friend bosses, 48x48 x8 (layout from the .json, embedded). cx = body centre in the right-facing
   // frame; cxF overrides per frame (Astarte's attack frames are drawn further right). muz = projectile origin.
-  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
+  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 45, muzY: 22,   // 2026-10-03 redraw: body x=20, arrow tip (45,22)
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
@@ -138,11 +138,24 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], windup: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // Frame 6's red song wave isolated from Lily's body. Drawn on top of attack frame 5.
   lilySongWave: { file: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABXElEQVR4nO3Wv0rDQBwH8EtFERRNLqNIGtHLm1RfQF/AxdXBVUj6FNlMT8cUX8DB1aGggtKKIk7i4iIOtfB1ynGtCWK0+SO/z5Ij3CW/3939cmGMEEJ+q8kM5B3b+MtA8to1nbJDmK7AcnOvEEmzaMz+eEZPzPXUMaXUwBs+jLT7e0srKsiwtV3/bdNedlQSlVoBxhgLrKYKqMOFaktrQ7XdxtzYmMj2viRRWALJy5Pr4etj6jbS+8/vH2Q+p3D9oxht08HLeQ+SC0S2h3BzB5ILjJ5uEfshBlEXo4crSC7wft3D8O4SkgtILjC8v0E/6iKyPfja1ipMUpTJDHZsD6rNBQLLRWC5iP1Q9RvI07EaiLQxpUk7lLJq4FhrJwlMP8IctlbXUgPTvzxZX6HKmpzt2iUwqZIJ6Cfvv1bZ4tU9n11UP0hSF7X/lW7NLNQ7AUIIIYQQQgghhHzvEx2NkYPhZI2wAAAAAElFTkSuQmCC', fw: 48, fh: 48, frames: 1, cx: 15 },
-  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
+  // 魔王ディザスター 48x48 x14 (assets/disaster_dark.json): body x=23, floating feet y~45. One frame per weapon form;
+  // 4 = transform (before any form). Muzzle points per form: DISASTER_WEAPONS in 04b_disaster.js.
+  disasterDark: { file: 'assets/disaster_dark.png', fw: 48, fh: 48, frames: 14, cx: 23,
+    map: { idle: [0, 2], glide: [2, 2], transform: [4, 1], sword: [5, 1], spear: [6, 1], axe: [7, 1], scythe: [8, 1], bow: [9, 1],
+      whip: [10, 1], lance: [11, 1], hurt: [12, 1], defeat: [13, 1] } },
+  // スターさん (rescued, he/him) 32x32 x7: 0-1 idle, 2 joy jump, 3 happy, 4 thanks, 5 wave, 6 sword raise
+  starNormal: { file: 'assets/star.png', fw: 32, fh: 32, frames: 7, cx: 16,
+    map: { idle: [0, 2], joy: [2, 1], happy: [3, 1], thanks: [4, 1], wave: [5, 1], sword: [6, 1] } },
+  // Disaster fight FX sheets (assets/alchemic_weapons.json, assets/disaster_bullets.json)
+  alchemicWeapons: { file: 'assets/alchemic_weapons.png', fw: 32, fh: 32, frames: 6, cx: 16 },  // sword spear axe scythe bow whip (tip up-right)
+  transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
+  starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
+  disasterBullets: { file: 'assets/disaster_bullets.png', fw: 24, fh: 24, frames: 6, cx: 12 },  // sword wave, spear bolt, ground burst, arrow, scythe wave, orb
+  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 22, muzX: 44, muzY: 30,   // 2026-10-03 redraw: body x=22 on every frame (no cxF)
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -219,7 +232,9 @@ function loadSheets() {
   if (typeof EMBEDDED_META !== 'undefined') for (const k in EMBEDDED_META) if (SHEET_DEFS[k]) applySheetMeta(SHEET_DEFS[k], EMBEDDED_META[k]);
   const emb = (typeof EMBEDDED_SHEETS !== 'undefined' && QS.get('sprites') !== 'folder') ? EMBEDDED_SHEETS : null;
   const useFolder = !emb || Object.keys(emb).length === 0;
-  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi']);
+  // sheets never embedded by build.py --embed: always loaded from assets/ (Lily, Umimi, Disaster / Star)
+  const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
+    'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();

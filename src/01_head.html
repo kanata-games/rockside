@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.6.1';
+const GAME_VERSION = '0.7.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -152,6 +152,21 @@ const CONFIG = {
     // DARK リリィ: idol-princess boss. Song waves, stars, heart hop, plus Umimi moon support.
     lily: { hp: 34, iFrames: 12, contactDamage: 3, noteDamage: 2, starDamage: 2, heartDamage: 2,
       idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healTriggerHP: 10, healAmount: 5, rescueLineFrames: 240 },
+    // 魔王ディザスター (Demon Lord Disaster = dark-fallen スターさん, he/him; floats). Alchemy-sword (錬金剣) boss:
+    // every attack starts with a purple MORPH flash + the next weapon's icon above his head, then that weapon's own telegraph.
+    // sword: low crescent wave (enraged: then a HIGH one - stay on the ground) / spear: aim line, locks, thrown spear (enraged: 2)
+    // axe: leap, marked slam, 2 floor waves (enraged: slams twice)
+    // scythe: low crescent that flies back (jump twice) / bow: backstep, 2-way spread (safe gap) or 3-way when enraged
+    // whip (whip-sword): floor reach line, then a low segmented lash (jump it or stay out of reach)
+    // lance (cannon-spear): charge glow + short aim line, an aimed orb that bursts into 2 ground shocks (enraged: 3 orbs). Combos: sometimes a 2nd form right after (enraged: almost always), faster morphs.
+    disaster: { hp: 38, iFrames: 12, contactDamage: 3, floatGap: 2, idleFrames: 36, idleFramesRage: 24, morphFrames: 26, morphFramesRage: 20,
+      waveDamage: 3, waveSpeed: 2.7, waveSpeedRage: 3.1, swordWind: 14, swordWindRage: 10, swordGap: 32,
+      spearAim: 36, spearAimRage: 28, spearLock: 12, spearSpeed: 4.8, spearDamage: 3,
+      axeRise: 28, axeHang: 18, axeHangRage: 12, axeDrop: 6, axeWaveSpeed: 2.3, axeWaveSpeedRage: 2.8, axeDamage: 3,
+      scytheWind: 16, scytheReturn: 60, bowStep: 14, bowWind: 20, bowSpeed: 3.5, arrowDamage: 2,
+      whipWarn: 30, whipWarnRage: 22, whipReach: 104, whipReachRage: 124, whipDamage: 2,
+      lanceCharge: 36, lanceChargeRage: 28, lanceLock: 12, lanceSpeed: 3.0, orbDamage: 3, orbShockSpeed: 1.8, orbShockDamage: 2,
+      recover: 26, recoverRage: 18, comboChance: 0.25, comboChanceRage: 0.9, rescueLineFrames: 240 },
     // DARK アスターテ (floats): a) glide + crescent slash wave (low = jump it; enraged adds a high one)
     // b) vanish -> warning mark behind the player -> reappear + slash  c) rotating star orbs, then released
     astarte: { hp: 40, iFrames: 12, contactDamage: 3, crescentDamage: 3, slashDamage: 3, orbDamage: 2,   // v5: 28 -> 40 HP
@@ -807,6 +822,65 @@ const STAGE_STAR_SHRINE = [
 //  slot: 0 1 2 / 3 [4] 5 / 6 7 8 - slot 4 (centre) is the final area,
 //  unlocked only after all 8 outer areas are cleared.
 // =====================================================================
+// AREA 5: 災厄の紅月城 DISASTER CASTLE (7 screens). Platforms sit on rows 10-11 (reachable) - never rows 8-9 above
+// a take-off point, so no pit jump hits its head on a girder.
+const STAGE_DISASTER = [
+[ // 0 - castle approach under the red moon
+"................","................","................","................","................","................",
+"................","................","................","................",
+"..........===...",
+"................",
+"..P.....W.......",
+"################","################"],
+[ // 1 - first gap, a bat over it
+"................","................","................","................","................","................",
+"................",
+"..........F.....",
+"................","................",
+"...........===..",
+"................",
+".....W..........",
+"######...#######","######...#######"],
+[ // 2 - broken bridge: hop onto the low floating girder (row 11) to cross the wide gap
+"................","................","................","................","................","................",
+"................","................",
+"............F...",
+"................",
+"................",
+".....====.......",
+"................",
+"####.......#####","####.......#####"],
+[ // 3 - courtyard
+"................","................","................","................","................","................",
+"................","................","................","................",
+".......===......",
+"................",
+"....W....H......",
+"################","################"],
+[ // 4 - gauntlet: two short gaps, walkers, a bat
+"................","................","................","................","................",
+".....F..........",
+"................","................","................","................","................",
+"................",
+"...W....W.......",
+"#####..####..###","#####..####..###"],
+[ // 5 - last hall before the throne room: checkpoint (Astarthe / lantern)
+"................","................","................","................","................","................",
+"................",
+"...........F....",
+"................","................",
+"...===..........",
+"................",
+"..A......H......",
+"################","################"],
+[ // 6 - throne room (boss)
+"................","................","................","................","................","................",
+"................","................","................","................",
+"D...............",
+"D...............",
+"D..........B....",
+"################","################"]
+];
 const STAGE_LILY = [
 [ // 0 - Moonlight Palace entrance: gentle opening.
 "................",
@@ -938,7 +1012,13 @@ const AREAS = [
     portrait: { sheet: 'astarte', frame: 0, x: 3, y: 2, size: 20, shadow: true },
     portraitRescued: { sheet: 'astarte', frame: 0, x: 3, y: 2, size: 20 },
     map: STAGE_STAR_SHRINE, theme: 'shrine' },
-  { id: 'friend5', no: 5, slot: 1, reserved: true }, { id: 'lily', no: 6, slot: 3, name: '月光の歌劇城', en: 'MOONLIGHT PALACE', enShort: 'MOON PALACE', friend: 'lily', boss: 'lily',
+  { id: 'disaster', no: 5, slot: 1, name: '災厄の紅月城', en: 'DISASTER CASTLE', enShort: 'CRIMSON KEEP', friend: 'star', boss: 'disaster',
+    bossName: '魔王ディザスター', bossAlias: '災厄の魔王', bossEn: 'DEMON LORD DISASTER',
+    face: 'face_disaster_dark', faceRescued: 'face_star',
+    portrait: { sheet: 'disasterDark', frame: 0, x: 15, y: 7, size: 21 },
+    portraitRescued: { sheet: 'starNormal', frame: 0, x: 9, y: 8, size: 17 },
+    map: STAGE_DISASTER, theme: 'disaster' },
+  { id: 'lily', no: 6, slot: 3, name: '月光の歌劇城', en: 'MOONLIGHT PALACE', enShort: 'MOON PALACE', friend: 'lily', boss: 'lily',
     bossName: 'DARK リリィ', bossAlias: '月影のアイドルプリンセス', bossEn: 'DARK LILY',
     face: 'face_lily_dark', faceRescued: 'face_lily',
     portrait: { sheet: 'lilyDark', frame: 0, x: 12, y: 5, size: 22 },

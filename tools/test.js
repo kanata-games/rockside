@@ -271,7 +271,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const tryKey = async (slot) => { await page.evaluate(s => { /* move by keys */ }, slot);
     while ((await cur()) !== slot) { await page.keyboard.press('ArrowRight'); await sleep(40); }
     await page.keyboard.press('Enter'); await sleep(120); return G(page, () => ({ st: ROCKSIDE.state, msg: ROCKSIDE.selMsg })); };
-  let r7 = await tryKey(1);
+  let r7 = await tryKey(5);
   ok('??? reserved cell: message, stays on select', r7.st === 'select' && r7.msg && /COMING SOON/.test(r7.msg.en), r7);
   await sleep(200); await page.screenshot({ path: path.join(SHOTS, 'v3_select_msg.png') });
   await page.keyboard.press('Enter'); await sleep(80);
@@ -341,7 +341,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   // v5: HP bar scales with max HP: one pip per HP, never wider than the cap, never overlapping the player bar
   { const pg = await browser.newPage(); await pg.goto(FILE); await sleep(200);
     const bars = await pg.evaluate(() => { const C = ROCKSIDE.CONFIG, G = ROCKSIDE._test.barGeom, me = G(C.playerMaxHP), out = {};
-      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
+      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp], ['lily', C.bosses.lily.hp], ['disaster', C.bosses.disaster.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
       return out; });
     await pg.close();
     ok('boss HP bars scale to max HP (<=124px, 1 pip per HP, no overlap with UMINE bar)', Object.values(bars).every(b => b.w <= 124 && b.w === b.hp * b.step + 3 && b.pip >= 2 && b.gap > 8) && bars.astarte.hp === 40, bars); }
@@ -349,6 +349,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const V4 = [{ no: 2, id: 'neenia', slot: 2, hud: 'NENIA', screens: 9, minEn: 8, allies: 'L', pats: ['aim', 'rain', 'backstep', 'rico', 'lob', 'snare'], shot: 'v4_neenia_boss.png', stage: 'v4_stage2.png' },
               { no: 3, id: 'seiten', slot: 6, hud: 'SEITEN', screens: 9, minEn: 8, allies: 'L', pats: ['pounce', 'song', 'multi'], shot: 'v4_seiten_boss.png', stage: 'v4_stage3.png' },
               { no: 4, id: 'astarte', slot: 8, hud: 'ASTARTHE', screens: 9, minEn: 8, allies: 'L', pats: ['slash', 'warp', 'orbs'], shot: 'v4_astarte_boss.png', stage: 'v4_stage4.png' },
+              { no: 5, id: 'disaster', friend: 'star', slot: 1, hud: 'DISASTER', screens: 7, minEn: 8, allies: 'L', pats: ['sword', 'spear', 'axe', 'scythe', 'bow', 'whip', 'lance'], shot: 'v7_disaster_boss_test.png', stage: 'v7_disaster_stage_test.png' },
               { no: 6, id: 'lily', slot: 3, hud: 'LILY', screens: 6, minEn: 4, allies: 'L', pats: ['rain', 'song', 'notes', 'hearts', 'moon', 'line'], shot: 'v6_lily_boss.png', stage: 'v6_stage_lily.png' }];
   const ONLY = process.env.AREAS ? process.env.AREAS.split(',') : null; // e.g. AREAS=lily node tools/test.js (still runs everything else)
   for (const A of V4) {
@@ -391,6 +392,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
         return a === 'neenia' ? (b.rainN > 0 && b.warn < 40) || (act(6) && ROCKSIDE.bullets.filter(q => q.active && q.kind === 6).length >= 2)
           : a === 'seiten' ? (b.state === 'sing' && b.t > 24 && act(8)) || (b.state === 'leap' && b.t > 10)
           : a === 'astarte' ? (b.state === 'orbs' && b.t > 70) || (b.state === 'warpWarn' && b.warn < 24) || act(9)
+          : a === 'disaster' ? (['disSpear', 'disChain', 'disAxe', 'disMorph'].includes(b.state) && b.t > 10) || act(9) || act(21) || act(22)
           : ROCKSIDE.bullets.filter(q => q.active).length >= 3; })(), bx: ROCKSIDE.boss.x, px: ROCKSIDE.P.x }), A.id);
       const pre = A.id === 'seiten' ? A.pats.slice(0, 2) : A.pats;
       if (pre.every(p => s.seen.includes(p))) await G(page, () => { window.__botCfg.fire = true; });
@@ -414,24 +416,24 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
     ok(`${A.id}: ${A.shot} captured`, shot);
     ok(`${A.id}: defeat -> returns to normal + thank-you line`, !!rescueShot && !rescueShot.dark, rescueShot);
     ok(`${A.id}: rescue -> STAGE CLEAR`, await waitState(page, 'clear', 8000));
-    ok(`${A.id}: clear saved (area cleared + ${A.id} rescued)`, await G(page, a => { const d = JSON.parse(localStorage.getItem(ROCKSIDE.PROGRESS_KEY) || '{}'); return d.cleared.includes(a) && d.rescued.includes(a); }, A.id));
+    ok(`${A.id}: clear saved (area cleared + ${A.friend || A.id} rescued)`, await G(page, a => { const d = JSON.parse(localStorage.getItem(ROCKSIDE.PROGRESS_KEY) || '{}'); return d.cleared.includes(a[0]) && d.rescued.includes(a[1]); }, [A.id, A.friend || A.id]));
     await sleep(1400); await page.keyboard.press('Enter');
     ok(`${A.id}: clear -> select, cursor on its cell`, await waitState(page, 'select', 3000) && (await G(page, () => ROCKSIDE.selCursor)) === A.slot);
     const face = await G(page, a => ROCKSIDE._test.portraitFace(ROCKSIDE.AREAS.find(x => x.id === a)), A.id);
-    ok(`${A.id}: select shows her normal face + CLEAR`, face === 'face_' + A.id && (await G(page, a => ROCKSIDE._test.isCleared(a), A.id)), face);
+    ok(`${A.id}: select shows the rescued (normal) face + CLEAR`, face === 'face_' + (A.friend || A.id) && (await G(page, a => ROCKSIDE._test.isCleared(a), A.id)), face);
     await ctx.close();
   }
   // 8c. select with faces: dark faces for uncleared bosses (fresh), normal faces once cleared (all 4)
   ({ ctx, page } = await newPage(browser, 390, 844));
   await page.keyboard.press('Enter'); await waitState(page, 'select');
-  const PLAYABLE = await G(page, () => ROCKSIDE.AREAS.filter(a => a.map).map(a => a.friend));
+  const PLAYABLE = await G(page, () => ROCKSIDE.AREAS.filter(a => a.map).map(a => [a.id, a.face, a.faceRescued]));
   const faces0 = await G(page, () => ROCKSIDE.AREAS.filter(a => a.map).map(a => ROCKSIDE._test.portraitFace(a)));
-  ok('select: dark face icons for uncleared bosses', faces0.join() === PLAYABLE.map(f => 'face_' + f + '_dark').join() && (await G(page, () => ['face_neenia_dark', 'face_tobiume', 'neeniaDark', 'seitenDark', 'astarteDark'].every(k => ROCKSIDE.SHEETS_LOADED.includes(k)))), faces0);
+  ok('select: dark face icons for uncleared bosses', faces0.join() === PLAYABLE.map(a => a[1]).join() && (await G(page, () => ['face_neenia_dark', 'face_tobiume', 'neeniaDark', 'seitenDark', 'astarteDark'].every(k => ROCKSIDE.SHEETS_LOADED.includes(k)))), faces0);
   await sleep(300); await page.screenshot({ path: path.join(SHOTS, 'v4_select.png') });
   await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['sunset', 'neenia'], rescued: ['tobiume', 'neenia'] })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
   await page.reload(); await sleep(500); await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(300);
   const faces1 = await G(page, () => ROCKSIDE.AREAS.filter(a => a.map).map(a => ROCKSIDE._test.portraitFace(a)));
-  ok('select: normal faces once cleared/rescued (2/8)', faces1.join() === PLAYABLE.map(f => 'face_' + f + (f === 'tobiume' || f === 'neenia' ? '' : '_dark')).join() && (await G(page, () => ROCKSIDE.clearedCount())) === 2, faces1);
+  ok('select: normal faces once cleared/rescued (2/8)', faces1.join() === PLAYABLE.map(a => a[0] === 'sunset' || a[0] === 'neenia' ? a[2] : a[1]).join() && (await G(page, () => ROCKSIDE.clearedCount())) === 2, faces1);
   await page.screenshot({ path: path.join(SHOTS, 'v4_select_cleared.png') });
   // 8d. helpers in the new stages follow the rescue rule; never in their own stage
   const helpers = await G(page, () => { const T = ROCKSIDE._test, A = id => ROCKSIDE.AREAS.find(a => a.id === id), out = {};
@@ -457,7 +459,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(400);
   let loaded = await G(page, () => ROCKSIDE.SHEETS_LOADED.slice().sort());
   const newMiss = assetMisses.slice(missBefore);
-  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star/.test(u)), { loaded, misses: newMiss.length });
+  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx/.test(u)), { loaded, misses: newMiss.length });
   await page.screenshot({ path: path.join(SHOTS, 'v2_standalone_title.png') });
   await ctx.close();
   // 6b. default build + a dummy assets/ folder: the folder sheets are used
@@ -529,6 +531,16 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const mp0 = await G(page, () => ROCKSIDE.magic.mp);
   await page.keyboard.press('KeyC'); await sleep(80);
   ok('ORB (C) spends MP and creates a water-orb foothold', await G(page, m => ROCKSIDE.magic.orb && ROCKSIDE.magic.mp === m - ROCKSIDE.CONFIG.magicOrbCost, mp0));
+  await ctx.close();
+  // スターさん support (MORPH): sword slash + spear thrust damage enemies ahead
+  ({ ctx, page } = await newPage(browser, 390, 844));
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['disaster'], rescued: ['star'], support: 'star' })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.goto(FILE + '?area=1&god=1'); await waitState(page, 'play', 4000);
+  ok('Star support equipped: HELP shows MORPH', await waitFor(page, () => document.getElementById('bSupport').textContent === 'MORPH', 2000));
+  const sw = await G(page, () => { const R = ROCKSIDE, e = R.enemies.find(q => q.alive); R.teleport(e.x - 60, e.y + e.h - R.P.h); R.P.face = 1; return R.enemies.indexOf(e); });
+  await sleep(200); const ehp = await G(page, i => ROCKSIDE.enemies[i].hp, sw);
+  await page.keyboard.press('KeyB'); await sleep(1400);
+  ok('MORPH slash/thrust damages the enemy ahead and ends', await G(page, ([i, h]) => { const e = ROCKSIDE.enemies[i]; return (!e.alive || e.hp < h) && ROCKSIDE.support.used && !ROCKSIDE.support.active; }, [sw, ehp]));
   await ctx.close();
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));
