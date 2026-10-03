@@ -77,6 +77,7 @@ src/              ← ★ソースはここ。index.html はこれを連結し�
   04c_shiranui.js   エリア7 DARK シラヌイ（狐火のボス）とシラヌイのサポート技
   04d_diceroll.js   エリア8 DARK ダイスロール（サイコロのボス）とダイスロールのサポート技
   04e_final.js      最終エリア: ボスラッシュ・清掃員カナタ（2形態）・クライマックス（海割り）・フィナーレ
+  04f_ending.js     エンディング（パーティー・カラオケ・クレジット）
   05_render.js      描画・UI・ステージセレクト・window.ROCKSIDE（テスト用フック）
 assets/           ← スプライトシート PNG + フレーム定義 JSON（Pages ではここから読み込み）
 tools/
@@ -103,7 +104,7 @@ python3 tools/build.py --embed --out /tmp/rockside.html   # 旧来の1ファイ�
 
 `index.html` は `assets/` が隣にある前提です（GitHub Pages ではそのまま動きます）。ローカルでは `file://` ではなく `node tools/serve.js` で開いてください。
 
-デバッグ用 URL パラメータ: `?area=N`（エリア番号 no で直接開始）, `&boss=1`（ボス部屋前から）, `&god=1`, `&hitbox=1`, `&hard=1`, `?unlockall=1`, `?sprites=0`（手描き無し）, `?supporttest=1&supportfriend=lily`。最終エリア: `?area=9`（`&boss=1` と組み合わせ）`&rush=N`（ボスラッシュを N 番目 0-7 から）, `&kanata=1`（カナタから）, `&mimic=1`（第2形態から）, `&climax=1`（第2形態がすぐクライマックス手前）。`node tools/balance.js 9k,9m 8`（カナタ / ミミックの難易度）。
+デバッグ用 URL パラメータ: `?area=N`（エリア番号 no で直接開始）, `&boss=1`（ボス部屋前から）, `&god=1`, `&hitbox=1`, `&hard=1`, `?unlockall=1`, `?sprites=0`（手描き無し）, `?supporttest=1&supportfriend=lily`。最終エリア: `?area=9`（`&boss=1` と組み合わせ）`&rush=N`（ボスラッシュを N 番目 0-7 から）, `&kanata=1`（カナタから）, `&mimic=1`（第2形態から）, `&climax=1`（第2形態がすぐクライマックス手前）, `?ending=1`（エンディングへ）。`node tools/balance.js 9k,9m 8`（カナタ / ミミックの難易度）。
 
 ---
 
@@ -167,6 +168,8 @@ HP 40。HPが半分以下（またはHARD）で変形が速くなり、2つの�
 3. **暴走ミミック**（HP 40、第2形態。カナタは倒れて体が消え、幽霊のカナタが近くを漂って時々物を投げる。投げる前に投げポーズ）: 突進（ぶるぶる＋「!」の予告→床を突進＝ジャンプで越える）/ 大口吸い込み（もっと強い。水弾も吸う）→がれきを吐く（床の印に落ちる＋吸った水弾が返る）/ 飛びかかり（床の印が海音を追ってから固定→着地で左右に衝撃波）。形態の間で HP 全回復、第2形態でやられたら第2形態から再開。
 4. **クライマックス**: ミミックの HP が 10 になると、救出した8人が1人ずつ登場して技を当て（飛梅キック・矢の雨・歌・月影の一閃・錬金スラッシュ・スターライトレイン・狐火・ダイス）、最後に **海音の中の人** の純粋さが限界を超えて **海割り**（左右に水の壁がせり上がり、ミミックを押しつぶす）。約11秒。2回目からはタップでスキップ。
 5. **フィナーレ**: 元に戻ったカナタ（掃除機のミミックはおなかぺこぺこで、みんなの元気を吸わせすぎた）と海音の中の人・海音の会話 → エンディング。クリアはセーブされ、タイトルに CLEAR マーク。
+6. **エンディング**（`?ending=1` で直接）: パーティー会場（`party_bg_wide` をゆっくり横スクロール＋`party_props` のテーブル・料理・風船・スピーカー）。ステージでは青天→リリィ→カナタ（マイクで歌う）→青天＆リリィのデュエットの順にカラオケ。ほかのみんなはテーブルで（海音の中の人はジョッキで乾杯、ダイスロールは端で一服）。上半分にクレジットが流れる（タップで早送り）→ みんなで THANK YOU FOR PLAYING! → 続編の予告（ミミックを操る13人…残りの12人）→ タップでタイトルへ。
+   クレジットの中身は `src/01_head.html` の **`CREDITS`**（1つのリスト）、配置は `src/04f_ending.js` の `PARTY_LAYOUT` / `PARTY_GUESTS` / `PARTY_SINGERS` / `KARAOKE_TURNS`。
 セリフは `src/04e_final.js`（`finalSay` / `CLIMAX_FRIENDS` / `FINALE_LINES`）、調整値は `src/01_head.html` の `CONFIG.bosses.kanata` / `CONFIG.bosses.mimic`。
 絵素材: `kanata_boss` 64x64×9、`mimic_rampage` 64x64×7、`kanata_ghost` / `kanata` / `umine_owner` 32x32、`kanata_bullets` 24x24×8＋`kanata_bullets_wind` 48x24×3、`sea_split` 48x96×5、顔 `kanata_face` / `umine_owner_face`。
 

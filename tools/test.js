@@ -710,7 +710,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await waitFor(page, () => ROCKSIDE.ending.thanksT > 160, 6000); await page.keyboard.press('Enter');
   ok('tap after THANK YOU -> title', await waitState(page, 'title', 3000));
   await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['final'], rescued: [], seen: ['climax', 'ending'] })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
-  await page.reload(); await sleep(500);
+  await page.goto(FILE); await sleep(500); // plain URL (a reload would keep ?ending=1)
   ok('title knows the game is cleared (clear mark)', await G(page, () => ROCKSIDE.state === 'title' && ROCKSIDE._test.isCleared('final')));
   await ctx.close();
   // hard mode: title toggle halves HP
