@@ -674,7 +674,9 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
     await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
     await waitFor(page, () => ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.state === 'play', 40000);
     await G(page, () => { window.__rocksideBot = null; ROCKSIDE.P.inv = 0; ROCKSIDE.P.y = 400; });
-    const back = await waitFor(page, () => ROCKSIDE.state === 'play' && !ROCKSIDE.P.dead && ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.P.x < ROCKSIDE.roomX, 20000);
+    await waitState(page, 'gameover', 8000); await sleep(700); await page.keyboard.press('Enter');
+    let back = await waitFor(page, () => ROCKSIDE.state === 'play' && !ROCKSIDE.P.dead && ROCKSIDE.final.phase === 'kanata' && ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.P.x < ROCKSIDE.roomX, 8000);
+    if (back) { await page.keyboard.down('ArrowRight'); back = await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight'); back = back && await waitState(page, 'play', 20000) && (await G(page, () => ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.boss.hp === 40)); }
     ok('death in the Kanata fight keeps the checkpoint (phase stays kanata, no 闇海音 replay)', back, await G(page, () => ({ f: ROCKSIDE.final, st: ROCKSIDE.state })));
     await ctx.close();
     // form 1: patterns + suction swallows a shot that comes back
