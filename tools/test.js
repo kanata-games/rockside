@@ -271,8 +271,8 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const tryKey = async (slot) => { await page.evaluate(s => { /* move by keys */ }, slot);
     while ((await cur()) !== slot) { await page.keyboard.press('ArrowRight'); await sleep(40); }
     await page.keyboard.press('Enter'); await sleep(120); return G(page, () => ({ st: ROCKSIDE.state, msg: ROCKSIDE.selMsg })); };
-  let r7 = await tryKey(7);
-  ok('??? reserved cell: message, stays on select', r7.st === 'select' && r7.msg && /COMING SOON/.test(r7.msg.en), r7);
+  let r7 = await tryKey(4);
+  ok('centre (final) cell locked: CLEAR ALL 8 AREAS message, stays on select', r7.st === 'select' && r7.msg && r7.msg.en === 'CLEAR ALL 8 AREAS', r7);
   await sleep(200); await page.screenshot({ path: path.join(SHOTS, 'v3_select_msg.png') });
   await page.keyboard.press('Enter'); await sleep(80);
   r7 = await tryKey(2);
@@ -280,16 +280,17 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await waitFor(page, () => ROCKSIDE.stateT >= 112, 4000); await page.screenshot({ path: path.join(SHOTS, 'v4_intro_neenia.png') });
   ok('intro -> 月影の森 starts', await waitState(page, 'ready', 5000) && (await G(page, () => ROCKSIDE.curArea)) === 'neenia');
   await page.reload(); await sleep(500); await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(200);
-  r7 = await tryKey(4);
-  ok('centre (final) locked until all 8 cleared', r7.st === 'select' && r7.msg && r7.msg.en === 'CLEAR ALL 8 AREAS' && !(await G(page, () => ROCKSIDE.finalUnlocked())), r7);
-  await page.keyboard.press('Enter'); await sleep(80);
+  r7 = await tryKey(7);
+  ok('DARK ダイスロール cell (v9: last ??? cell, now playable) -> her boss intro', r7.st === 'areaIntro' && !r7.msg && !(await G(page, () => ROCKSIDE.finalUnlocked())), r7);
+  ok('v9: no reserved cells left (8 outer areas all have a stage)', await G(page, () => ROCKSIDE.AREAS.filter(a => !a.final).length === 8 && ROCKSIDE.AREAS.filter(a => !a.final).every(a => a.map)));
+  await page.reload(); await sleep(500); await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(200);
   // touch: d-pad RIGHT moves the cursor, direct taps choose a cell
   const c0 = await cur(); const bR = await center(page, 'bR');
   await touches(cdp, 'touchStart', [{ x: bR.x, y: bR.y }]); await touches(cdp, 'touchEnd', []); await sleep(80);
   ok('touch d-pad moves the cursor', (await cur()) === (c0 + 1) % 9, { from: c0, to: await cur() });
-  { const c = await cellCenter(page, 7); await touches(cdp, 'touchStart', [c]); await touches(cdp, 'touchEnd', []); await sleep(100); }
+  { const c = await cellCenter(page, 4); await touches(cdp, 'touchStart', [c]); await touches(cdp, 'touchEnd', []); await sleep(100); }
   r7 = await G(page, () => ({ c: ROCKSIDE.selCursor, msg: ROCKSIDE.selMsg, st: ROCKSIDE.state }));
-  ok('tap on a ??? cell: cursor + COMING SOON', r7.c === 7 && r7.st === 'select' && r7.msg && /COMING SOON/.test(r7.msg.en), r7);
+  ok('tap on the locked centre: cursor + CLEAR ALL 8 AREAS', r7.c === 4 && r7.st === 'select' && r7.msg && r7.msg.en === 'CLEAR ALL 8 AREAS', r7);
   await touches(cdp, 'touchStart', [{ x: 195, y: 180 }]); await touches(cdp, 'touchEnd', []); await sleep(80); // closes the message
   { const c = await cellCenter(page, 0); await touches(cdp, 'touchStart', [c]); await touches(cdp, 'touchEnd', []); }
   ok('tap on area 1 -> boss intro flash', await waitState(page, 'areaIntro', 2000));
@@ -313,6 +314,13 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await page.evaluate(([k, ROCKSIDE_OUTER_IDS]) => localStorage.setItem(k, JSON.stringify({ cleared: ROCKSIDE_OUTER_IDS, rescued: [] })), [await G(page, () => ROCKSIDE.PROGRESS_KEY), ROCKSIDE_OUTER_IDS]);
   await page.reload(); await sleep(600);
   ok('centre unlocks after all 8 are cleared', await G(page, () => ROCKSIDE.finalUnlocked() && ROCKSIDE.clearedCount() === 8));
+  // v9: every outer cell is a real stage now; with all 8 cleared the centre opens but the final stage is not built -> COMING SOON
+  await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(200);
+  r7 = await tryKey(4);
+  ok('all 8 cleared: centre unlocked, Enter -> COMING SOON (final stage not built), stays on select', r7.st === 'select' && r7.msg && r7.msg.en === 'COMING SOON' && (await G(page, () => ROCKSIDE.finalUnlocked() && ROCKSIDE.AREAS.filter(a => !a.final).every(a => ROCKSIDE._test.isCleared(a.id)))), r7);
+  await sleep(250); await page.screenshot({ path: path.join(SHOTS, 'v9_select_allclear_test.png') });
+  await page.keyboard.press('Enter'); await sleep(80);
+  await page.reload(); await sleep(600);
   await page.keyboard.press('Delete'); await sleep(60); await page.keyboard.press('Delete'); await sleep(60);
   ok('Delete x2 on title erases progress', await G(page, () => ROCKSIDE.clearedCount() === 0 && !ROCKSIDE.finalUnlocked()));
   await ctx.close();
@@ -341,7 +349,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   // v5: HP bar scales with max HP: one pip per HP, never wider than the cap, never overlapping the player bar
   { const pg = await browser.newPage(); await pg.goto(FILE); await sleep(200);
     const bars = await pg.evaluate(() => { const C = ROCKSIDE.CONFIG, G = ROCKSIDE._test.barGeom, me = G(C.playerMaxHP), out = {};
-      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp], ['lily', C.bosses.lily.hp], ['disaster', C.bosses.disaster.hp], ['shiranui', C.bosses.shiranui.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
+      for (const [k, hp] of [['tobiume', C.boss.hp], ['neenia', C.bosses.neenia.hp], ['seiten', C.bosses.seiten.hp], ['astarte', C.bosses.astarte.hp], ['lily', C.bosses.lily.hp], ['disaster', C.bosses.disaster.hp], ['shiranui', C.bosses.shiranui.hp], ['diceroll', C.bosses.diceroll.hp]]) { const g = G(hp); out[k] = { hp, w: g.w, step: g.step, pip: g.pip, gap: (256 - 8 - g.w - 2) - (8 + me.w + 2) }; }
       return out; });
     await pg.close();
     ok('boss HP bars scale to max HP (<=124px, 1 pip per HP, no overlap with UMINE bar)', Object.values(bars).every(b => b.w <= 124 && b.w === b.hp * b.step + 3 && b.pip >= 2 && b.gap > 8) && bars.astarte.hp === 40, bars); }
@@ -351,7 +359,8 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
               { no: 4, id: 'astarte', slot: 8, hud: 'ASTARTHE', screens: 9, minEn: 8, allies: 'L', pats: ['slash', 'warp', 'orbs'], shot: 'v4_astarte_boss.png', stage: 'v4_stage4.png' },
               { no: 5, id: 'disaster', friend: 'star', slot: 1, hud: 'DISASTER', screens: 7, minEn: 8, allies: 'L', pats: ['sword', 'spear', 'axe', 'scythe', 'bow', 'whip', 'lance'], shot: 'v7_disaster_boss_test.png', stage: 'v7_disaster_stage_test.png' },
               { no: 6, id: 'lily', slot: 3, hud: 'LILY', screens: 6, minEn: 4, allies: 'L', pats: ['rain', 'song', 'notes', 'hearts', 'moon', 'line'], shot: 'v6_lily_boss.png', stage: 'v6_stage_lily.png' },
-              { no: 7, id: 'shiranui', slot: 5, hud: 'SHIRANUI', screens: 9, minEn: 8, allies: 'L', pats: ['volley', 'wisp', 'crescent', 'fan', 'pillar', 'illusion'], shot: 'v8_shiranui_boss_test.png', stage: 'v8_shiranui_stage_test.png' }];
+              { no: 7, id: 'shiranui', slot: 5, hud: 'SHIRANUI', screens: 9, minEn: 8, allies: 'L', pats: ['volley', 'wisp', 'crescent', 'fan', 'pillar', 'illusion'], shot: 'v8_shiranui_boss_test.png', stage: 'v8_shiranui_stage_test.png' },
+              { no: 8, id: 'diceroll', slot: 7, hud: 'DICEROLL', screens: 9, minEn: 8, allies: 'L', pats: ['fate', 'dice', 'cards', 'boomerang', 'chips', 'roulette'], shot: 'v9_diceroll_boss_test.png', stage: 'v9_casino_stage_test.png' }];
   const ONLY = process.env.AREAS ? process.env.AREAS.split(',') : null; // e.g. AREAS=lily node tools/test.js (still runs everything else)
   for (const A of V4) {
     if (ONLY && !ONLY.includes(A.id)) continue;
@@ -395,6 +404,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
           : a === 'astarte' ? (b.state === 'orbs' && b.t > 70) || (b.state === 'warpWarn' && b.warn < 24) || act(9)
           : a === 'disaster' ? (['disSpear', 'disChain', 'disAxe', 'disMorph'].includes(b.state) && b.t > 10) || act(9) || act(21) || act(22)
           : a === 'shiranui' ? act(24) || act(25) || act(27) || act(28) || act(9)
+          : a === 'diceroll' ? act(29) || act(30) || act(31) || act(32) || act(33) || (b.state === 'drFate' && b.fateN > 0)
           : ROCKSIDE.bullets.filter(q => q.active).length >= 3; })(), bx: ROCKSIDE.boss.x, px: ROCKSIDE.P.x }), A.id);
       const pre = A.id === 'seiten' ? A.pats.slice(0, 2) : A.pats;
       if (pre.every(p => s.seen.includes(p))) await G(page, () => { window.__botCfg.fire = true; });
@@ -439,15 +449,15 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await page.screenshot({ path: path.join(SHOTS, 'v4_select_cleared.png') });
   // 8d. helpers in the new stages follow the rescue rule; never in their own stage
   const helpers = await G(page, () => { const T = ROCKSIDE._test, A = id => ROCKSIDE.AREAS.find(a => a.id === id), out = {};
-    const pr = ROCKSIDE.progress.rescued; pr.length = 0; pr.push('tobiume', 'neenia', 'seiten', 'astarte', 'shiranui');
-    for (const id of ['neenia', 'seiten', 'astarte', 'shiranui', 'disaster']) { T.loadArea(A(id)); out[id] = ROCKSIDE.allies.map(a => a.type).sort().join(''); }
+    const pr = ROCKSIDE.progress.rescued; pr.length = 0; pr.push('tobiume', 'neenia', 'seiten', 'astarte', 'shiranui', 'diceroll');
+    for (const id of ['neenia', 'seiten', 'astarte', 'shiranui', 'disaster', 'diceroll']) { T.loadArea(A(id)); out[id] = ROCKSIDE.allies.map(a => a.type).sort().join(''); }
     pr.length = 0; pr.push('neenia'); T.loadArea(A('seiten')); out.seitenWithN = ROCKSIDE.allies.map(a => a.type).sort().join('');
     pr.length = 0; T.loadArea(A('sunset')); out.sunset = ROCKSIDE.allies.length;
     pr.push('tobiume', 'neenia', 'seiten', 'astarte', 'lily'); T.loadArea(A('lily')); out.lily = ROCKSIDE.allies.map(a => a.type).sort().join('');
     ROCKSIDE.progress.support = 'lily'; T.loadArea(A('neenia')); out.neeniaLilySup = ROCKSIDE.allies.map(a => a.type).sort().join('');
     T.loadArea(A('lily')); out.lilyLilySup = ROCKSIDE.allies.map(a => a.type).sort().join('');
     ROCKSIDE.progress.support = null; pr.length = 0; return out; });
-  ok('helpers: all rescued -> each stage has the others (never herself; Shiranui K joins Night City / Star Shrine / Disaster Castle), area 1 guests kept; Lily joins only as equipped support, never in her own stage', helpers.neenia === 'AS' && helpers.seiten === 'AKN' && helpers.astarte === 'KLNS' && helpers.shiranui === 'ANS' && helpers.disaster === 'AK' && helpers.seitenWithN === 'LN' && helpers.sunset === 4 && helpers.lily === 'AS' && helpers.neeniaLilySup === 'AIS' && helpers.lilyLilySup === 'AS', helpers);
+  ok('helpers: all rescued -> each stage has the others (never herself; Shiranui K joins Night City / Star Shrine / Disaster Castle / Casino, DiceRoll R joins Moon Forest / Foxfire Shrine / Lily stage), area 1 guests kept; Lily joins only as equipped support, never in her own stage', helpers.neenia === 'ARS' && helpers.seiten === 'AKN' && helpers.astarte === 'KLNS' && helpers.shiranui === 'ANRS' && helpers.disaster === 'AK' && helpers.diceroll === 'AKS' && helpers.seitenWithN === 'LN' && helpers.sunset === 4 && helpers.lily === 'AS' && helpers.neeniaLilySup === 'AIS' && helpers.lilyLilySup === 'AS', helpers);
   await ctx.close();
 
   // ---------------- 6. sprite sheets: --embed standalone build, ?sprites=folder, ?sprites=0 ----------------
@@ -461,7 +471,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(400);
   let loaded = await G(page, () => ROCKSIDE.SHEETS_LOADED.slice().sort());
   const newMiss = assetMisses.slice(missBefore);
-  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui/.test(u)), { loaded, misses: newMiss.length });
+  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui|diceroll/.test(u)), { loaded, misses: newMiss.length });
   await page.screenshot({ path: path.join(SHOTS, 'v2_standalone_title.png') });
   await ctx.close();
   // 6b. default build + a dummy assets/ folder: the folder sheets are used
@@ -559,6 +569,24 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   const kInfo = await G(page, () => { const R = ROCKSIDE, k = R.allies.find(a => a.type === 'K'); if (!k) return null; R.teleport(k.x - 20, k.y - R.P.h); return { x: k.x }; });
   await sleep(2500);
   ok('Shiranui helper (K) appears in Night City after her rescue and fires foxfire', !!kInfo && (await G(page, () => ROCKSIDE.allies.find(a => a.type === 'K').said)), kInfo);
+  await ctx.close();
+  // ダイスロール support (ROLL): die face N shown, N homing cards damage the enemy ahead
+  ({ ctx, page } = await newPage(browser, 390, 844));
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['diceroll'], rescued: ['diceroll'], support: 'diceroll' })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.goto(FILE + '?area=1&god=1'); await waitState(page, 'play', 4000);
+  ok('DiceRoll support equipped: HELP shows ROLL', await waitFor(page, () => document.getElementById('bSupport').textContent === 'ROLL', 2000));
+  const sr = await G(page, () => { const R = ROCKSIDE, e = R.enemies.find(q => q.alive); R.teleport(e.x - 70, e.y + e.h - R.P.h); R.P.face = 1; return R.enemies.indexOf(e); });
+  await sleep(200); const rhp = await G(page, i => ROCKSIDE.enemies[i].hp, sr);
+  await page.keyboard.press('KeyB'); await sleep(300);
+  const rollN = await G(page, () => ROCKSIDE.support.kind === 'diceroll' ? ROCKSIDE.support.n : 0);
+  await sleep(2700);
+  ok('ROLL: die shows a face 1-6, cards home in, damage the enemy and the move ends', rollN >= 1 && rollN <= 6 && await G(page, ([i, h]) => { const e = ROCKSIDE.enemies[i]; return (!e.alive || e.hp < h) && ROCKSIDE.support.used && !ROCKSIDE.support.active; }, [sr, rhp]), { rollN });
+  // ダイスロール helper (R) in Moon Forest once rescued: lobs dice
+  await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['diceroll'], rescued: ['diceroll'], support: null })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+  await page.goto(FILE + '?area=2&god=1'); await waitState(page, 'play', 4000);
+  const rInfo = await G(page, () => { const R = ROCKSIDE, k = R.allies.find(a => a.type === 'R'); if (!k) return null; R.teleport(k.x - 20, k.y - R.P.h); return { x: k.x }; });
+  await sleep(2500);
+  ok('DiceRoll helper (R) appears in Moon Forest after her rescue and greets Umine', !!rInfo && (await G(page, () => ROCKSIDE.allies.find(a => a.type === 'R').said)), rInfo);
   await ctx.close();
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));

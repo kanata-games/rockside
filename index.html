@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.8.0';
+const GAME_VERSION = '0.9.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -152,6 +152,22 @@ const CONFIG = {
     // DARK リリィ: idol-princess boss. Song waves, stars, heart hop, plus Umimi moon support.
     lily: { hp: 34, iFrames: 12, contactDamage: 3, noteDamage: 2, starDamage: 2, heartDamage: 2,
       idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healTriggerHP: 10, healAmount: 5, rescueLineFrames: 240 },
+    // DARK ダイスロール (dice-headed monster; the girl inside is ダイスロール, she/her). Ground walker. Dice / cards / chips / roulette:
+    // fate: tosses a big die; the face shown (1-6, drawn large above her head + label) picks the follow-up and its count:
+    //       1-2 roulette (1 or 2 balls), 3-4 card fan (face+2 cards), 5-6 chip rain (face-1 columns)
+    // dice: 2 dice (enraged 3) bounce once and roll along the floor (jump) / cards: aimed card fan with gaps (dotted preview)
+    // boomerang: spinning cards out and back, low then high (enraged +1) / chips: marked columns, then chip stacks drop
+    // roulette: the ball circles her hand, then bounces around the room for a while
+    // enraged (<= 50%): flaming die (bounces, leaves embers on landing) + once: ALL IN (chips -> card fan -> dice, announced)
+    diceroll: { hp: 40, iFrames: 12, contactDamage: 3, walkSpeed: 0.9, walkSpeedRage: 1.15, idleFrames: 30, idleFramesRage: 22, recover: 24, recoverRage: 16,
+      comboChance: 0.15, comboChanceRage: 0.5,
+      fateRoll: 26, fateShow: 26, fateShowRage: 20,
+      diceWind: 18, diceWindRage: 13, diceCount: 2, diceCountRage: 3, diceGap: 22, diceSpeed: 2.0, diceSpeedRage: 2.4, diceDamage: 3,
+      cardWind: 22, cardWindRage: 16, cardCount: 5, cardCountRage: 6, cardSpread: 0.24, cardSpeed: 2.6, cardDamage: 2,
+      boomWind: 18, boomWindRage: 14, boomSpeed: 3.4, boomDecel: 0.08, boomGap: 22, boomDamage: 2,
+      chipWarn: 44, chipWarnRage: 34, chipCols: 4, chipColsRage: 5, chipSpeed: 3.2, chipDamage: 2,
+      rouletteWind: 26, rouletteSpeed: 2.4, rouletteLife: 200, rouletteBounces: 7, rouletteDamage: 2,
+      flameWind: 22, flameBounces: 3, flameDamage: 3, emberDamage: 2, allinAnnounce: 46, rescueLineFrames: 260 },
     // DARK シラヌイ (fox girl, floats). Every attack starts from a readable pose: fan raised (wind-up glow at the fan tip)
     // volley: aimed foxfires that home a little at first (enraged 5) / wisp: purple will-o-wisps orbit her, then drift at Umine one by one
     // crescent: flame crescent along the floor (jump; enraged a 2nd faster one) / fan: spinning fan boomerang, out low (jump), back high (enraged: back low too)
@@ -200,6 +216,7 @@ const CONFIG = {
     neeniaRange: 170,       // player within this horizontal distance -> support fire
     neeniaTargetRange: 230, // enemies within this distance of her get shot
     neeniaInterval: 60, arrowSpeed: 4.2, arrowDamage: 1,
+    dieRange: 160, dieTargetRange: 220, dieInterval: 80, dieDamage: 2,   // ダイスロール helper (R): lobbed die
     foxRange: 160, foxTargetRange: 220, foxInterval: 72, foxSpeed: 2.4, foxDamage: 2,   // シラヌイ helper (K): slow homing foxfire
     seitenRange: 44, seitenHealEvery: 6,   // +1 HP every N frames while near
   },
@@ -218,7 +235,7 @@ const CONFIG = {
 // ---------------------------------------------------------------------
 //  URL debug params: ?boss=1 (start at checkpoint before boss room),
 //  ?god=1 (no damage), ?hitbox=1 (draw hitboxes), ?sprites=0 (procedural art), ?sprites=folder (load assets/*.png instead of embedded)
-//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂, 5 災厄の紅月城, 6 月光の歌劇城, 7 狐火の社; combine with boss=1 / god=1)
+//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂, 5 災厄の紅月城, 6 月光の歌劇城, 7 狐火の社, 8 宵闇のカジノ; combine with boss=1 / god=1)
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
@@ -477,7 +494,7 @@ const STAGE_MOON_FOREST = [
 ".........====...",
 "................",
 "................",
-"...W.......H....",
+".R.W.......H....",
 "################",
 "################"],
 [ // 6 checkpoint (Astarte / lantern)
@@ -895,6 +912,153 @@ const STAGE_DISASTER = [
 "D..........B....",
 "################","################"]
 ];
+// 宵闇のカジノ MIDNIGHT CASINO (area 8, cell 7): neon signs, slot machines, card tables and chip stacks. 8 screens + boss room.
+const STAGE_CASINO = [
+[ // 0 - neon entrance, a chip-stack ledge
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".........===....",
+"................",
+"................",
+"..P.....W.......",
+"################",
+"################"],
+[ // 1 - slot-machine row: hop over the cabinets, a bat above
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......F........",
+"................",
+"................",
+"................",
+"................",
+".....##.....##..",
+"..W..##.....##..",
+"################",
+"################"],
+[ // 2 - card-table bridge over the pit
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"............F...",
+"................",
+"................",
+".....====.......",
+".............H..",
+"####.......#####",
+"####.......#####"],
+[ // 3 - chip-stack steps, Shiranui helper spot
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".........===....",
+"................",
+"....===.........",
+"................",
+"..K........W....",
+"################",
+"################"],
+[ // 4 - roulette pits: two short gaps
+"................",
+"................",
+"................",
+"................",
+"................",
+"......F.........",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"..W......W......",
+"####..#####..###",
+"####..#####..###"],
+[ // 5 - lounge: Seiten's rest spot
+"................",
+"................",
+"................",
+"................",
+"...........F....",
+"................",
+"................",
+"................",
+"................",
+".......====.....",
+"................",
+"................",
+".....S..........",
+"################",
+"################"],
+[ // 6 - high-roller stairs + gap
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......##.......",
+".....####.......",
+"..W..####....H..",
+"###########..###",
+"###########..###"],
+[ // 7 - VIP doors: checkpoint (Astarthe / lantern)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......===......",
+"................",
+"................",
+"...A.......H....",
+"################",
+"################"],
+[ // 8 - high-stakes hall (boss)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"D...............",
+"D...............",
+"D..........B....",
+"################",
+"################"]
+];
 // 狐火の社 FOXFIRE SHRINE (area 7, cell 5): night shrine of red torii and fox lanterns. 8 screens + boss room.
 const STAGE_SHIRANUI = [
 [ // 0 - torii gate at the foot of the shrine steps
@@ -926,7 +1090,7 @@ const STAGE_SHIRANUI = [
 "................",
 "................",
 "...........###..",
-"....W...######..",
+".R..W...######..",
 "################",
 "################"],
 [ // 2 - broken shrine bridge: hop onto the low girder (row 11) over the gap
@@ -1124,7 +1288,7 @@ const STAGE_LILY = [
 "................",
 "................",
 "................",
-"..........A.....",
+"....R.....A.....",
 "################",
 "################"
 ],
@@ -1190,11 +1354,17 @@ const AREAS = [
     face: 'face_shiranui_dark', faceRescued: 'face_shiranui',
     portrait: { sheet: 'shiranuiDark', frame: 0, x: 14, y: 4, size: 21 },
     portraitRescued: { sheet: 'shiranui', frame: 0, x: 6, y: 2, size: 20 },
-    map: STAGE_SHIRANUI, theme: 'foxfire' }, { id: 'friend8', no: 8, slot: 7, reserved: true },
+    map: STAGE_SHIRANUI, theme: 'foxfire' },
+  { id: 'diceroll', no: 8, slot: 7, name: '宵闇のカジノ', en: 'MIDNIGHT CASINO', enShort: 'NIGHT CASINO', friend: 'diceroll', boss: 'diceroll',
+    bossName: 'DARK ダイスロール', bossAlias: '運命の賽', bossEn: 'DARK DICEROLL',
+    face: 'face_diceroll_dark', faceRescued: 'face_diceroll',
+    portrait: { sheet: 'dicerollDark', frame: 0, x: 14, y: 6, size: 20 },
+    portraitRescued: { sheet: 'diceroll', frame: 0, x: 6, y: 2, size: 20 },
+    map: STAGE_CASINO, theme: 'casino' },
   { id: 'final', slot: 4, final: true, name: '最終エリア', en: 'FINAL AREA' }, // no stage yet -> "coming soon" even when unlocked
 ];
 // in-stage ally type (map letter) -> friend id
-const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten', K: 'shiranui' };
+const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten', K: 'shiranui', R: 'diceroll' };
 
 // =====================================================================
 //  Globals / setup
@@ -1226,7 +1396,7 @@ function loadMap(screens) {
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
     else if (ch === 'W' || ch === 'H' || ch === 'F') spawns.push({ type: ch, c: c, r: r });
-    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'K') allySpawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'K' || ch === 'R') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
   ROOM_X = ROOM_COL * TS;
@@ -1426,7 +1596,7 @@ const OUT = [16, 14, 40];
 
 // ---- sprite sheets embedded at build time (tools/build.py) ----
 const EMBEDDED_SHEETS = {};
-const EMBEDDED_META = {"tobiumeNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"fly":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"kick":{"frames":[7,8,9,10]},"special_dive_kick":{"frames":[11,12,13,14]}}},"neeniaDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"walk":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"seitenDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"leap":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"astarteDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"disasterDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"transform":{"frames":[4]},"sword":{"frames":[5]},"spear":{"frames":[6]},"axe":{"frames":[7]},"scythe":{"frames":[8]},"bow":{"frames":[9]},"whip":{"frames":[10]},"lance":{"frames":[11]},"hurt":{"frames":[12]},"defeat":{"frames":[13]}}},"starNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"joy":{"frames":[2]},"happy":{"frames":[3]},"thanks":{"frames":[4]},"wave":{"frames":[5]},"sword":{"frames":[6]}}},"shiranui":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"happy":{"frames":[2]},"thanks":{"frames":[3]},"wave":{"frames":[4]},"foxfire":{"frames":[5]}}},"shiranuiDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2]},"vanish":{"frames":[3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}}};
+const EMBEDDED_META = {"tobiumeNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"fly":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"kick":{"frames":[7,8,9,10]},"special_dive_kick":{"frames":[11,12,13,14]}}},"neeniaDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"walk":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"seitenDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"leap":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"astarteDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"disasterDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2,3]},"transform":{"frames":[4]},"sword":{"frames":[5]},"spear":{"frames":[6]},"axe":{"frames":[7]},"scythe":{"frames":[8]},"bow":{"frames":[9]},"whip":{"frames":[10]},"lance":{"frames":[11]},"hurt":{"frames":[12]},"defeat":{"frames":[13]}}},"starNormal":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"joy":{"frames":[2]},"happy":{"frames":[3]},"thanks":{"frames":[4]},"wave":{"frames":[5]},"sword":{"frames":[6]}}},"shiranui":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"happy":{"frames":[2]},"thanks":{"frames":[3]},"wave":{"frames":[4]},"foxfire":{"frames":[5]}}},"shiranuiDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"glide":{"frames":[2]},"vanish":{"frames":[3]},"attack":{"frames":[4,5]},"hurt":{"frames":[6]},"defeat":{"frames":[7]}}},"diceroll":{"frameWidth":32,"frameHeight":32,"animations":{"idle":{"frames":[0,1]},"smoke":{"frames":[2]},"thanks":{"frames":[3]},"toss":{"frames":[4]},"card":{"frames":[5]}}},"dicerollDark":{"frameWidth":48,"frameHeight":48,"animations":{"idle":{"frames":[0,1]},"walk":{"frames":[2,3]},"windup":{"frames":[4]},"throwDice":{"frames":[5]},"flickCards":{"frames":[6]},"hurt":{"frames":[7]},"defeat":{"frames":[8]}}}};
 
 // =====================================================================
 //  CHARACTERS (part 2): boss 闇落ち飛梅 + allies, procedural placeholders.
@@ -1532,12 +1702,25 @@ function artShiranui(R, f) {
   if (f) { R('#101010', 20, 9, 5, 3); R(red, 21, 10, 3, 1); R(skin, 19, 13, 2, 2); }   // open fan
   else { R('#101010', 19, 13, 2, 4); R(skin, 19, 12, 2, 2); }
 }
+// ダイスロール (the girl): white long hair, red eyes, small crown, harlequin jacket (fallback art for ?sprites=0)
+function artDiceroll(R, f) {
+  const hair = '#f0eef4', hairD = '#c8c4d4', blk = '#1a1620', wht = '#f4f4f8', skin = '#fff0ea', gold = '#f0c040';
+  R(hair, 8, 6, 12, 21); R(hairD, 8, 20, 3, 7);                                     // long white hair
+  R(gold, 12, 2, 7, 2); R(gold, 12, 1, 1, 1); R(gold, 15, 1, 1, 1); R(gold, 18, 1, 1, 1); R('#d02030', 15, 2, 1, 1); // crown
+  for (let y = 12; y < 20; y++) for (let x = 12; x < 21; x++) R(((x + y) & 1) ? blk : wht, x, y, 1, 1);      // harlequin jacket
+  R(blk, 12, 20, 9, 6); R('#d02030', 15, 12, 2, 2);                                 // skirt + ribbon
+  R(skin, 14, 26, 2, 2); R(skin, 17, 26, 2, 2); R(blk, 13, 28, 3, 4); R(blk, 17, 28, 3, 4);
+  R(skin, 14, 6, 6, 6); R(hair, 13, 5, 8, 2); R(hair, 13, 7, 2, 5); R('#e02030', 16, 9, 1, 1); R('#e02030', 18, 9, 1, 1);
+  if (f) { R(skin, 20, 12, 2, 2); R(wht, 22, 12, 3, 1); R('#ff8040', 25, 12, 1, 1); }  // cigarette
+  else { R(skin, 19, 18, 2, 2); }
+}
 const ALLY_W = 32, ALLY_H = 32;
 const ALLY_INFO = {
   A: { name: 'アスターテ', color: '#5a6ad8', art: artAstarte },
   N: { name: 'ネーニア', color: '#4a60b0', art: artNeenia },
   S: { name: '青天', color: '#c0203a', art: artSeiten },
   K: { name: 'シラヌイ', color: '#d0303a', art: artShiranui },
+  R: { name: 'ダイスロール', color: '#c8203a', art: artDiceroll },
 };
 (function buildChars() {
   for (const pal of ['dark', 'normal']) for (const p of TOBI_POSES) {
@@ -1599,6 +1782,15 @@ const SHEET_DEFS = {
   shiranuiDark: { file: 'assets/shiranui_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, muzX: 38, muzY: 24,
     map: { idle: [0, 2], glide: [2, 1], vanish: [3, 1], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   shiranuiBullets: { file: 'assets/shiranui_bullets.png', fw: 24, fh: 24, frames: 5, cx: 12 },       // foxfire a/b, wisp, flame crescent, fan (face right)
+  // ダイスロール (girl) NORMAL 32x32 x6: 0-1 idle, 2 cigarette, 3 lazy wave (thanks), 4 toss die up, 5 card
+  diceroll: { file: 'assets/diceroll.png', fw: 32, fh: 32, frames: 6, cx: 16,
+    map: { idle: [0, 2], smoke: [2, 1], thanks: [3, 1], toss: [4, 1], card: [5, 1] } },
+  // DARK ダイスロール 48x48 x9 (ground walker, feet y=47): 0-1 idle, 2-3 walk, 4 wind-up (hand 10,21), 5 throw (die 39,23),
+  // 6 fling cards (36,23), 7 hit, 8 defeat (dice head cracks)
+  dicerollDark: { file: 'assets/diceroll_dark.png', fw: 48, fh: 48, frames: 9, cx: 24, muzX: 39, muzY: 23,
+    map: { idle: [0, 2], walk: [2, 2], windup: [4, 1], throwDice: [5, 1], flickCards: [6, 1], hurt: [7, 1], defeat: [8, 1] } },
+  // dice 1-6 (0-5), rolling die (6-9), card back/edge/front (10-12), chips red/black (13-14), roulette ball (15), flaming die (16)
+  dicerollBullets: { file: 'assets/diceroll_bullets.png', fw: 24, fh: 24, frames: 17, cx: 12 },
   shiranuiPillar:  { file: 'assets/shiranui_bullets_pillar.png', fw: 24, fh: 48, frames: 2, cx: 12 }, // fire pillar, floor line y=45
   transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
   starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
@@ -1607,7 +1799,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark', 'diceroll', 'diceroll_dark'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -1687,7 +1879,8 @@ function loadSheets() {
   // sheets never embedded by build.py --embed: always loaded from assets/ (Lily, Umimi, Disaster / Star)
   const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
     'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets',
-    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark']);
+    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark',
+    'diceroll', 'dicerollDark', 'dicerollBullets', 'face_diceroll', 'face_diceroll_dark']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();
@@ -1805,6 +1998,11 @@ const TILESETS = {
 TILESETS.foxfire = { rock: ['#4a4250', '#3a3240', '#625a6a', '#2c2632', '#221c28'], top: ['#3e6a4a', '#86c08a', '#2c4e38'],
   girder: ['#7a1a1a', '#c8382c', '#f07a50', '#5a1010'], cave: ['#1a1020', '#24162a'],
   metal: ['#1e0e14', '#2a141c', '#16080e', '#3a1a22', '#6a2a30', '#7e3438', '#c86a5a', '#f4b090'] };
+// 宵闇のカジノ: red carpet, green felt edges with gold trim, chip-stack / card-table girders; the boss hall is bright
+// green felt so the black harlequin suit stays readable
+TILESETS.casino = { rock: ['#7a1a2a', '#5a1020', '#9a2a3a', '#3a0a14', '#2a0610'], top: ['#1e7a4a', '#f0c850', '#145a36'],
+  girder: ['#2a1a10', '#d03030', '#f4f0e8', '#101010'], cave: ['#2a1030', '#381440'], chips: true,
+  metal: ['#1e6a46', '#237a50', '#185a3c', '#6a1424', '#a02a3a', '#b83848', '#f0c850', '#fff0a0'] };
 const THEMES = {
   sunset: { sky: ['#181238', '#55306e', '#e8845c'], stars: 40, sun: { x: 190, y: 120, r: 20, cols: ['#ffcf7a', '#ffe9b0'] },
     far: { style: 'hills', cols: ['#6a4a82', '#7d5a95'] }, near: { style: 'hills', cols: ['#3c2c56', '#4b3868'] }, tiles: TILESETS.sunset },
@@ -1816,6 +2014,8 @@ const THEMES = {
     far: { style: 'ruins', cols: ['#5d376f', '#86598f'] }, near: { style: 'city', cols: ['#241834', '#3a2548'], lights: '#ffd6ef' }, tiles: TILESETS.shrine },
   disaster: { sky: ['#160719', '#4a102c', '#a22b45'], stars: 70, moon: { x: 188, y: 54, r: 32, cols: ['#ff3a58', '#ff8495', '#c5264b'] },
     far: { style: 'ruins', cols: ['#36102d', '#581b3f'] }, near: { style: 'ruins', cols: ['#1a0c22', '#300d30'] }, tiles: TILESETS.shrine, castle: true },
+  casino: { sky: ['#1c0a34', '#561a6e', '#d84a7a'], stars: 30,
+    far: { style: 'city', cols: ['#3e1a58', '#62307a'], lights: '#ffd060' }, near: { style: 'city', cols: ['#26123a', '#40205a'], lights: '#ff7ad8' }, tiles: TILESETS.casino, casino: true },
   foxfire: { sky: ['#07061a', '#1e1240', '#5a2448'], stars: 90, moon: { x: 196, y: 52, r: 20, cols: ['#fff2d8', '#fffaf0', '#e8d0b0'] },
     far: { style: 'trees', cols: ['#1c1434', '#2a1e48'] }, near: { style: 'trees', cols: ['#0e0a1c', '#1c1230'] }, tiles: TILESETS.foxfire, foxShrine: true },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
@@ -1902,7 +2102,38 @@ function buildBackground(th) {
   drawLayer(farCv.getContext('2d'), th.far, 132, 44, 1);
   drawLayer(nearCv.getContext('2d'), th.near, 168, 40, 2);
   if (th.castle) { drawCrimsonCastle(farCv.getContext('2d'), false); drawCrimsonCastle(nearCv.getContext('2d'), true); }
+  if (th.casino) { drawCasino(farCv.getContext('2d'), false); drawCasino(nearCv.getContext('2d'), true); }
   if (th.foxShrine) { drawFoxShrine(farCv.getContext('2d'), false); drawFoxShrine(nearCv.getContext('2d'), true); }
+}
+// MIDNIGHT CASINO parallax: neon suit signs + roulette wheel (far), slot machines with lit reels and marquee bulbs (near)
+function drawCasino(cg, near) {
+  const F = (x, y, w, h, c) => { cg.fillStyle = c; cg.fillRect(x, y, w, h); };
+  const SUIT = { s: ['..#..', '.###.', '#####', '#####', '..#..'], h: ['##.##', '#####', '#####', '.###.', '..#..'],
+    d: ['..#..', '.###.', '#####', '.###.', '..#..'], c: ['.#.#.', '#####', '#####', '..#..', '.###.'] };
+  const suit = (x, y, k, s, col) => { const P = SUIT[k]; for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (P[r][c] === '#') F(x + c * s, y + r * s, s, s, col); };
+  if (!near) {
+    for (const ox of [60, 316]) { // roulette wheel on the far wall
+      const cx = ox + 30, cy = 70, R = 24;
+      for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) { const d = Math.hypot(x, y); if (d > R) continue;
+        const a = Math.atan2(y, x), seg = Math.floor((a + Math.PI) / (Math.PI * 2) * 18);
+        F(cx + x, cy + y, 1, 1, d > R - 2 ? '#c8a040' : d > R - 9 ? (seg % 9 === 0 ? '#1e8a4a' : seg & 1 ? '#c02030' : '#1a1418') : d > 5 ? '#6a3a1a' : '#f0c850'); }
+    }
+    for (let i = 0; i < 4; i++) { // neon suit signs
+      const x = 150 + i * 28 + (i > 1 ? 256 - 112 : 0), col = ['#ff5ad0', '#ff4a4a', '#5af0ff', '#ffe060'][i];
+      F(x - 3, 44, 22, 22, '#20102c'); F(x - 3, 44, 22, 1, col); F(x - 3, 65, 22, 1, col); F(x - 3, 44, 1, 22, col); F(x + 18, 44, 1, 22, col);
+      suit(x + 1, 48, 'shdc'[i], 3, col);
+    }
+    return;
+  }
+  for (let x = 20; x < 512; x += 96) { // slot machines
+    const y = 116, ink = '#2a1238';
+    F(x, y, 34, 52, ink); F(x + 2, y - 8, 30, 10, '#5a1a6a'); F(x, y + 52, 34, 4, '#1a0a24');
+    for (let k = 0; k < 7; k++) F(x + 3 + k * 4, y - 6, 2, 2, ((k + (x >> 5)) & 1) ? '#ffe060' : '#ff7ad8'); // marquee bulbs
+    F(x + 4, y + 8, 26, 14, '#f4f0e8');
+    for (let k = 0; k < 3; k++) { F(x + 5 + k * 8, y + 9, 7, 12, k === 1 ? '#fffaf0' : '#e8e0d8'); F(x + 7 + k * 8, y + 12, 3, 6, '#d02030'); F(x + 6 + k * 8, y + 12, 5, 1, '#d02030'); } // 7 7 7
+    F(x + 6, y + 26, 22, 3, '#ffd060'); F(x + 4, y + 34, 26, 10, '#3a1a48'); F(x + 35, y + 10, 2, 14, '#b0b0c0'); F(x + 34, y + 8, 4, 4, '#ff3040'); // lever
+  }
+  for (let i = 0; i < 16; i++) { const h = hash(i, 71), x = h % 512, y = 30 + ((h >> 9) % 70); F(x, y, 1, 1, ['#ffe060', '#ff7ad8', '#5af0ff'][(h >> 20) % 3]); } // sparkles
 }
 // FOXFIRE SHRINE parallax: rows of vermilion torii, stone lanterns with warm light, a shrine roof, drifting foxfire dots
 function drawFoxShrine(cg, near) {
@@ -1994,6 +2225,16 @@ function buildLevel() {
             F(TP[0], x, y, 16, 4); F(TP[1], x, y, 16, 1);
             for (let k = 0; k < 4; k++) { const hh = hash(c * 5 + k, r * 3 + 1); F(TP[2], x + (hh & 15), y + 4, 2, 1 + ((hh >> 5) & 1)); }
           }
+        }
+      } else if (t === T_GIRDER && TT.chips) { // casino: card tables (green felt, wood rim) or chip stacks, chosen per platform run
+        let c0 = c; while (c0 > 0 && tileAt(c0 - 1, r) === T_GIRDER) c0--;
+        if (hash(c0, r) & 1) {
+          F('#5a3418', x, y, 16, 16); F('#1e7a4a', x, y, 16, 6); F('#2a9a5e', x, y, 16, 1); F('#f0c850', x, y + 6, 16, 1); F('#3a2010', x, y + 7, 16, 9);
+          if (c === c0 || tileAt(c + 1, r) !== T_GIRDER) F('#2a1408', x + (c === c0 ? 2 : 11), y + 7, 3, 9);
+        } else {
+          const cols = ['#d03030', '#1a1a1a', '#1e8a4a', '#2a5ad0'];
+          for (let k = 0; k < 4; k++) { const cc = cols[(k + c + r) % 4]; F(cc, x + 1, y + k * 4, 14, 4); F('#f4f0e8', x + 3 + ((c + k) & 1) * 6, y + k * 4 + 1, 3, 2); F('#000000', x + 1, y + k * 4 + 3, 14, 1); }
+          F('#f0c850', x + 1, y, 14, 1);
         }
       } else if (t === T_GIRDER) {
         F(GD[0], x, y, 16, 16); F(GD[1], x, y, 16, 14); F(GD[2], x, y, 16, 2);
@@ -2286,6 +2527,10 @@ const BOSS_TYPES = {
   shiranui: { hud: 'SHIRANUI', speaker: 'シラヌイ', speakerColor: '#ff8a7a', line: 'ふふ…わらわとしたことが、闇に飲まれておったのじゃな。礼を言うぞ、海音よ。', face: 'face_shiranui',
     clearEn: 'SHIRANUI RESCUED', clearJp: 'シラヌイを闇から救い出した！', dark: 'shiranuiDark', normal: 'shiranui', ally: 'K', fly: true, w: 16, h: 34,
     aura: ['#3a0a1a', '#b0203a'], sparkle: '#ffb070', dust: '#a06a6a' },
+  // DARK ダイスロール -> ダイスロール (she/her; a downer, calm girl who likes her cigarettes). In-stage helper letter R (lobbed die).
+  diceroll: { hud: 'DICEROLL', speaker: 'ダイスロール', speakerColor: '#ff6a7a', line: '…はぁ。負けた負けた。…助かったよ、海音。一服したら手、貸してやる。', face: 'face_diceroll',
+    clearEn: 'DICEROLL RESCUED', clearJp: 'ダイスロールを闇から救い出した！', dark: 'dicerollDark', normal: 'diceroll', ally: 'R', w: 18, h: 36,
+    aura: ['#2a0a14', '#c01a30'], sparkle: '#ffe080', dust: '#8a8a9a' },
   lily: { hud: 'LILY', speaker: 'リリィ', speakerColor: '#ffd2ef', line: '海音ちゃん！助けてくれてありがとうっ♪', face: 'face_lily',
     clearEn: 'LILY RESCUED', clearJp: 'リリィを闇から救い出した！', dark: 'lilyDark', normal: 'lily', w: 16, h: 34,
     aura: ['#31102f', '#8b2d6a'], sparkle: '#ffd2ef', dust: '#c9b9e8' },
@@ -2430,6 +2675,7 @@ const ALLY_LINES = {
   A0: 'この先、道が分かれている…上を行って。',
   A1: 'ここは覚えておく。倒れても、ここから。',
   N: '援護するわ。落ち着いて進んで。',
+  R: '…ん。面倒だけど、手伝ってやるよ。',
   K: 'ふふ、迷うでないぞ。わらわの狐火が道を照らしてやろう。',
   S: '青天が歌ってあげる！がんばって！',
   I: '海音ちゃん、ウミミを連れていって！きっと力になるよ♪',
@@ -2558,6 +2804,7 @@ function bossReset() {
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.weapon = 'sword'; b.nextWeapon = ''; b.comboLeft = 0; b.chainB = null; b.chainReach = 0; b.recT = 0;
   b.clones = []; b.fanB = null; b.pillars = []; b.blink = false; b.wisps = [];
+  b.fateN = 0; b.fateShow = 0; b.chipCols = []; b.allin = false; b.allinStep = 0; b.balls = 0;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
@@ -2592,9 +2839,9 @@ function eraseProgress() { progress.cleared.length = 0; progress.rescued.length 
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time.
-const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star', 'shiranui'];
-const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん', shiranui: 'シラヌイ' };
-const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR', shiranui: 'SHIRANUI' };
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte', 'lily', 'star', 'shiranui', 'diceroll'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ', lily: 'リリィ', star: 'スターさん', shiranui: 'シラヌイ', diceroll: 'ダイスロール' };
+const SUPPORT_TAGS = { tobiume: 'TOBIUME', neenia: 'NENIA', seiten: 'SEITEN', astarte: 'ASTARTHE', lily: 'LILY', star: 'STAR', shiranui: 'SHIRANUI', diceroll: 'DICEROLL' };
 const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
 function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
 function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
@@ -2603,8 +2850,8 @@ function refreshSupportButton() {
   helpBtn.style.display = ok ? 'flex' : 'none';
   const id = equippedSupport();
   const lilyReady = id !== 'lily' || (stageUmimi.given && stageUmimi.active && !stageUmimi.down && stageUmimi.hp > 0);
-  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH', shiranui: 'FOX' }[id] || 'HELP');
-  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff', shiranui: '#ff8a7a' }[id] || '#ffa8cf');
+  helpBtn.textContent = id === 'lily' && !lilyReady ? (stageUmimi.down ? 'DOWN' : 'WAIT') : support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH', lily: 'LIVE', star: 'MORPH', shiranui: 'FOX', diceroll: 'ROLL' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff', lily: '#ffd2ef', star: '#71d9ff', shiranui: '#ff8a7a', diceroll: '#ffd860' }[id] || '#ffa8cf');
   helpBtn.classList.toggle('used', support.used);
 }
 function cycleSupport() {
@@ -2614,7 +2861,7 @@ function cycleSupport() {
   progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
   saveProgress(); sfx('cursor');
   const name = SUPPORT_NAMES[progress.support];
-  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!', shiranui: 'SHIRANUI: FOXFIRE DANCE!' })[progress.support] || 'SUPPORT: NONE');
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTHE: MOON CLEAVE!', lily: 'LILY & UMIMI: STARLIGHT RAIN!', star: 'STAR: ALCHEMY MORPH SLASH!', shiranui: 'SHIRANUI: FOXFIRE DANCE!', diceroll: 'DICEROLL: LUCKY ROLL!' })[progress.support] || 'SUPPORT: NONE');
 }
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
@@ -2844,7 +3091,8 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10], 19: [6, 6], 20: [5, 8],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9],
   21: [12, 4], 22: [8, 8], 23: [7, 7],  // Disaster: 21 spear bolt, 22 whip-sword lash (width set every frame), 23 cannon orb
-  24: [8, 8], 25: [8, 8], 27: [14, 14], 28: [12, 38] }; // Shiranui: 24 foxfire, 25 wisp, 27 spinning fan, 28 fire pillar (crescent = kind 9)
+  24: [8, 8], 25: [8, 8], 27: [14, 14], 28: [12, 38],
+  29: [12, 12], 30: [8, 12], 31: [12, 12], 32: [7, 7], 33: [12, 12], 34: [6, 8] }; // DiceRoll: 29 die, 30 card, 31 chip, 32 roulette ball, 33 flaming die, 34 ember // Shiranui: 24 foxfire, 25 wisp, 27 spinning fan, 28 fire pillar (crescent = kind 9)
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
 function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
 function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
@@ -2976,6 +3224,11 @@ function tobiumeRescuePose(b) {
 // the rescued friend's little "back to herself" moment (normal 32x32 sheet: 2 frames each)
 function friendRescuePose(b, type) {
   const t = b.t - 150, cx = b.x + b.w / 2;
+  if (type === 'diceroll') {      // DiceRoll (diceroll.png): stands (0) -> a smoke break (2) -> lazy wave "thanks" (3) / idle
+    b.pose = 'pose'; b.poseF = t < 30 ? 0 : t < 100 ? 2 : ((t - 100) >> 5) & 1 ? 0 : 3;
+    if (t >= 30 && t < 100 && t % 14 === 0) spawnPart(cx + b.face * 7, b.y + b.h - 22, b.face * 0.15, -0.35, 40, 5, (t >> 4) & 1 ? '#d8d8e0' : '#b0b0bc'); // a thin wisp of smoke
+    return;
+  }
   if (type === 'shiranui') {      // Shiranui (shiranui.png): bows "thanks" (3) -> happy (2) -> waves her open fan (4) / idle
     b.pose = 'pose'; b.poseF = t < 56 ? 3 : t < 104 ? 2 : ((t - 104) >> 5) & 1 ? 0 : 4;
     if (t === 8) { sfx('cp'); for (let i = 0; i < 8; i++) spawnPart(cx, b.y + 12, DIR8X[i] * 1.1, DIR8Y[i] * 1.1, 26, 0, i & 1 ? '#ffd080' : '#ffffff'); }
@@ -3815,7 +4068,7 @@ function aiLily(b, B, pcx, pcy) {
   }
 }
 
-const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster, shiranui: aiShiranui };
+const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte, lily: aiLily, disaster: aiDisaster, shiranui: aiShiranui, diceroll: aiDiceroll };
 
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
@@ -3833,6 +4086,7 @@ function castSupport() {
   if (support.kind === 'lily') { support.x = P.x + P.w / 2; support.y = FLOOR_Y - 32; support.face = P.face; }
   if (support.kind === 'star') { support.x = P.x + P.w / 2 - P.face * 16; support.y = P.y; }
   if (support.kind === 'shiranui') { support.x = P.x + P.w / 2 - P.face * 20; support.y = P.y; support.fx = []; }
+  if (support.kind === 'diceroll') { support.x = P.x + P.w / 2 - P.face * 20; support.y = P.y; support.fx = []; support.n = 1 + ((Math.random() * 6) | 0); }
   if (support.kind === 'astarte') {
     if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
     support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
@@ -3845,6 +4099,7 @@ function updateSupport() {
   const t = support.t;
   if (support.kind === 'star') { updateStarSupport(t); return; }
   if (support.kind === 'shiranui') { updateShiranuiSupport(t); return; }
+  if (support.kind === 'diceroll') { updateDicerollSupport(t); return; }
   if (support.kind === 'lily') {
     // Idol support: spotlight entrance, then a friendly Starlight Rain over the whole viewport.
     if (t === 28 || t === 44 || t === 60 || t === 76) {
@@ -3939,6 +4194,7 @@ function drawSupport(camX) {
   const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
   if (support.kind === 'star') { drawStarSupport(t, x, y, camX); return; }
   if (support.kind === 'shiranui') { drawShiranuiSupport(t, x, y, camX); return; }
+  if (support.kind === 'diceroll') { drawDicerollSupport(t, x, y, camX); return; }
   if (support.kind === 'lily') {
     const pulse = 0.16 + 0.08 * Math.sin(frame * 0.14);
     g.save();
@@ -4065,9 +4321,28 @@ function updateAllies() {
             const ax = a.x + (best.x + best.w / 2 < a.x ? -12 : 12), ay = a.y - 18, tx = best.x + best.w / 2 - ax, ty = best.y + best.h / 2 - ay, len = Math.hypot(tx, ty) || 1;
             for (let k = 0; k < arrows.length; k++) {
               const r = arrows[k]; if (r.active) continue;
-              r.active = true; r.fox = null; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
+              r.active = true; r.fox = null; r.die = 0; r.x = ax - 2; r.y = ay - 2; r.vx = tx / len * A.arrowSpeed; r.vy = ty / len * A.arrowSpeed; r.life = 90; break;
             }
             a.face = tx < 0 ? -1 : 1; a.act = 18; stats.arrows++; sfx('arrow');
+          }
+        }
+      }
+    } else if (a.type === 'R') { // ダイスロール: lobs a die at an enemy near Umine
+      if (adx < A.dieRange) {
+        if (!a.said) { a.said = true; say(a); }
+        if (a.t % A.dieInterval === 0) {
+          let best = null, bd = A.dieTargetRange;
+          for (let j = 0; j < enemies.length; j++) {
+            const e = enemies[j]; if (!e.alive || !e.active) continue;
+            const d = Math.hypot(e.x + e.w / 2 - a.x, e.y + e.h / 2 - (a.y - 16)); if (d < bd) { bd = d; best = e; }
+          }
+          if (best) {
+            const T = 36, sx = a.x, sy = a.y - 24, tx = best.x + best.w / 2, ty = best.y + best.h / 2;
+            for (let k = 0; k < arrows.length; k++) {
+              const r = arrows[k]; if (r.active) continue;
+              r.active = true; r.fox = null; r.die = 1 + ((Math.random() * 6) | 0); r.x = sx - 2; r.y = sy - 2; r.vx = (tx - sx) / T; r.vy = (ty - sy) / T - 0.5 * 0.18 * T; r.life = 120; break;
+            }
+            a.face = tx < a.x ? -1 : 1; a.act = 18; sfx('arrow');
           }
         }
       }
@@ -4084,7 +4359,7 @@ function updateAllies() {
             const f = best.x + best.w / 2 < a.x ? -1 : 1;
             for (let k = 0; k < arrows.length; k++) {
               const r = arrows[k]; if (r.active) continue;
-              r.active = true; r.fox = best; r.x = a.x + f * 8 - 2; r.y = a.y - 20; r.vx = f * A.foxSpeed; r.vy = -0.6; r.life = 150; break;
+              r.active = true; r.die = 0; r.fox = best; r.x = a.x + f * 8 - 2; r.y = a.y - 20; r.vx = f * A.foxSpeed; r.vy = -0.6; r.life = 150; break;
             }
             a.face = f; a.act = 18; sfx('arrow');
           }
@@ -4108,12 +4383,13 @@ function updateArrows() {
     if (r.fox) { // シラヌイ's foxfire steers toward its target
       const e = r.fox; if (e.alive) { const tx = e.x + e.w / 2 - r.x - 2, ty = e.y + e.h / 2 - r.y - 2, l = Math.hypot(tx, ty) || 1; r.vx += (tx / l * CONFIG.allies.foxSpeed - r.vx) * 0.12; r.vy += (ty / l * CONFIG.allies.foxSpeed - r.vy) * 0.12; }
     }
+    if (r.die) r.vy += 0.18;   // ダイスロール's lobbed die
     r.x += r.vx; r.y += r.vy;
     if (--r.life <= 0 || r.x < cam.x - 24 || r.x > cam.x + VW + 24 || r.y > VH || r.y < -24) { r.active = false; continue; }
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j]; if (!e.alive || !e.active) continue;
       if (hitsEnemy(r, e)) {
-        r.active = false; e.hp -= r.fox ? CONFIG.allies.foxDamage : CONFIG.allies.arrowDamage; e.flash = 6;
+        r.active = false; e.hp -= r.fox ? CONFIG.allies.foxDamage : r.die ? CONFIG.allies.dieDamage : CONFIG.allies.arrowDamage; e.flash = 6;
         spawnPart(r.x + 2, r.y + 2, 0, 0, 6, 3, '#e8e8ff');
         if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; } else sfx('ehit');
         break;
@@ -4177,7 +4453,7 @@ function updateBullets() {
     if (b.kind >= 13 && b.kind <= 15 && neeniaArrowUpdate(b)) continue;
     if (b.x < cam.x - 16 || b.x > cam.x + VW + 16 || b.y < -16 || b.y > VH + 16) { b.active = false; continue; }
     if ((b.kind === 4 || b.kind === 8 || b.kind === 9) && (b.x < ROOM_L - 4 || b.x + b.w > ROOM_R + 4)) { b.active = false; continue; } // waves hit the wall
-    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && b.kind !== 25 && b.kind !== 27 && b.kind !== 28 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
+    if (!b.orbit && b.kind !== 12 && b.kind !== 8 && b.kind !== 9 && b.kind !== 22 && b.kind !== 25 && b.kind !== 27 && b.kind !== 28 && b.kind !== 32 && b.kind !== 33 && solid(Math.floor((b.x + b.w / 2) / TS), Math.floor((b.y + b.h / 2) / TS))) { if (b.kind === 23) disasterOrbBurst(b); b.active = false; spawnPart(b.x + b.w / 2, b.y + b.h / 2, 0, 0, 5, 3, '#ffffff'); continue; }
     if (b.kind === 16 && b.t < 6) continue; // thorns sprouting: harmless for a few frames
     if (stageUmimi.active && stageUmimi.given && !stageUmimi.down && stageUmimi.inv <= 0 && !(support.active && support.kind === 'lily') &&
         b.kind !== 4 && b.kind !== 8 && b.kind !== 9 && b.kind !== 12 && b.kind !== 16 && b.kind !== 20 && b.kind !== 22 && b.kind !== 27 && b.kind !== 28 && overlap(b, stageUmimiBox())) {
@@ -4953,6 +5229,361 @@ function drawShiranuiSupport(t, x, y, camX) {
 }
 
 // =====================================================================
+//  AREA 8  宵闇のカジノ MIDNIGHT CASINO - boss DARK ダイスロール (DiceRoll: a downer girl with white hair and a small
+//  crown, trapped inside a crowned dice-headed harlequin). Ground walker. Every attack starts from the wind-up pose
+//  (sprite frame 4, hand raised) with its own telegraph:
+//    fate       tosses a big die over her head; the face (1-6, drawn 2x with a label) decides the follow-up:
+//               1-2 ROULETTE with N balls / 3-4 CARDS fan of N+2 / 5-6 CHIPS rain on N-1 columns
+//    dice       2 dice (enraged 3) hop once, then roll along the floor (jump them)
+//    cards      aimed card fan; dotted preview lines just before the flick
+//    boomerang  spinning cards fly out and come back: low (jump), high (stand), [enraged: low again]
+//    chips      marked columns (Umine's + others, a free lane is always next to her), then chip stacks drop
+//    roulette   the ball circles her hand, then bounces around the room (limited bounces)
+//    flame      (enraged) flaming die bounces toward Umine, each bounce leaves 2 embers rolling on the floor
+//    allin      once, below half HP: "ALL IN!" announcement, then chips -> cards -> dice back to back
+//  Tuning: CONFIG.bosses.diceroll. Art: assets/diceroll_dark.png (+ .json), diceroll_bullets.png (24x24 cells).
+// =====================================================================
+const DICEROLL_PATS = ['fate', 'dice', 'cards', 'boomerang', 'chips', 'roulette'];
+const DR_STATE = { fate: 'drFate', dice: 'drDice', cards: 'drCards', boomerang: 'drBoom', chips: 'drChips', roulette: 'drRoulette', flame: 'drFlame' };
+// sprite hand points (48x48 frame, cx 24, feet y 47)
+function drHand(b, px, py) { return { x: b.x + b.w / 2 + b.face * (px - 24), y: b.y + b.h - 48 + py }; }
+function drThrowPt(b) { return drHand(b, 39, 23); }
+function drCardPt(b) { return drHand(b, 36, 23); }
+function drWindPt(b) { return drHand(b, 10, 21); }
+function dicerollPick(b) {
+  const pool = bossRage() ? DICEROLL_PATS.concat(['flame']) : DICEROLL_PATS;
+  const unseen = pool.filter(k => !b.seen.includes(k) && k !== b.last);
+  return unseen.length && Math.random() < 0.6 ? pickPattern([unseen[(Math.random() * unseen.length) | 0]]) : pickPattern(pool);
+}
+function dicerollStart(b, pat) { bossFacePlayer(); sfx('warn'); bossSet(DR_STATE[pat]); }
+function dicerollRecover(b, B, short) { b.recT = short ? 12 : (bossRage() ? B.recoverRage : B.recover); bossSet('drRecover'); }
+function drSpawn(x, y, vx, vy, kind, dmg, spr) { const q = spawnBullet(x - (BULLET_SIZE[kind] || [8, 8])[0] / 2, y - (BULLET_SIZE[kind] || [8, 8])[1] / 2, vx, vy, kind, dmg); if (q) q.sspr = spr; return q; }
+
+// ---- per-bullet hooks (run before movement: they pre-correct position so x+=vx lands exactly) ----
+function drFloorBounce(q, vyOut) { q.y = FLOOR_Y - q.h - vyOut; q.vy = vyOut; }
+function drDieHook(q) { // kind 29: hops once, then rolls along the floor
+  if (!q.roll) {
+    q.vy += 0.22;
+    if (q.y + q.h + q.vy >= FLOOR_Y) {
+      if (q.bnc < 1) { q.bnc++; drFloorBounce(q, -1.6); sfx('tick'); }
+      else { q.roll = true; drFloorBounce(q, 0); q.vy = 0; spawnPart(q.x + q.w / 2, FLOOR_Y - 1, -q.vx * 0.3, -0.3, 8, 1, '#ffffff'); }
+    }
+  } else { q.y = FLOOR_Y - q.h; q.vy = 0; }
+  return false;
+}
+function drBoomHook(q) { // kind 30 boomerang card: decelerates, comes back at the same height, caught by her
+  const B = CONFIG.bosses.diceroll;
+  if (!q.back) { q.vx -= q.f * B.boomDecel; if (Math.sign(q.vx) !== q.f) { q.back = true; sfx('swoosh'); } }
+  else {
+    q.vx = -q.f * Math.min(B.boomSpeed, Math.abs(q.vx) + B.boomDecel);
+    const bc = boss.x + boss.w / 2;
+    if ((q.x + q.w / 2 - bc) * q.f <= 0 || q.t > 240 || boss.state === 'rescue') { q.active = false; return true; }
+  }
+  return false;
+}
+function drBallHook(q) { // kind 32 roulette ball: bounces off walls / floor / ceiling, limited bounces
+  const B = CONFIG.bosses.diceroll;
+  if (!q.rel) { // circling her raised hand until she throws
+    if (boss.state !== 'drRoulette' || boss.t >= q.relT) {
+      q.rel = true; const a = q.ang0; q.vx = Math.cos(a) * B.rouletteSpeed * boss.face; q.vy = Math.sin(a) * B.rouletteSpeed; sfx('bshoot');
+    } else {
+      const h = drWindPt(boss), a = q.t * 0.35 + q.ph;
+      q.x = h.x + Math.cos(a) * 9 - q.w / 2; q.y = h.y + Math.sin(a) * 6 - q.h / 2; q.vx = 0; q.vy = 0; return false;
+    }
+  }
+  let hit = false;
+  if (q.x + q.vx < ROOM_L + 1 || q.x + q.w + q.vx > ROOM_R - 1) { q.vx = -q.vx; hit = true; }
+  if (q.y + q.h + q.vy >= FLOOR_Y) { drFloorBounce(q, -Math.abs(q.vy)); hit = true; }
+  else if (q.y + q.vy < 22) { q.vy = Math.abs(q.vy); hit = true; }
+  if (hit) { q.bnc++; sfx('tink'); spawnPart(q.x + q.w / 2, q.y + q.h / 2, 0, 0, 6, 1, '#ffffff'); }
+  if (q.bnc > B.rouletteBounces || q.t > B.rouletteLife || boss.state === 'rescue') { popAt(q.x + q.w / 2, q.y + q.h / 2, '#ffffff'); q.active = false; return true; }
+  return false;
+}
+function drFlameHook(q) { // kind 33 flaming die: bounces toward Umine, embers on every bounce
+  const B = CONFIG.bosses.diceroll;
+  q.vy += 0.16;
+  if (q.x + q.vx < ROOM_L + 1 || q.x + q.w + q.vx > ROOM_R - 1) q.vx = -q.vx;
+  if (q.t % 3 === 0) spawnPart(q.x + q.w / 2, q.y + q.h / 2, -q.vx * 0.2, -0.4, 12, 1, (q.t & 4) ? '#ffb040' : '#ff4a2a');
+  if (q.y + q.h + q.vy >= FLOOR_Y) {
+    q.bnc++; sfx('boomS'); shake(4, 1);
+    for (const s of [-1, 1]) { const e = drSpawn(q.x + q.w / 2, FLOOR_Y - 4, s * 1.3, 0, 34, B.emberDamage, 0); if (e) { e.life = 54; e.y = FLOOR_Y - e.h; } }
+    if (q.bnc >= B.flameBounces || boss.state === 'rescue') { popAt(q.x + q.w / 2, FLOOR_Y - 6, '#ff8a3a'); q.active = false; return true; }
+    drFloorBounce(q, -3.4 * Math.pow(0.8, q.bnc));
+  }
+  return false;
+}
+
+// ---- AI ----
+function aiDiceroll(b, B, pcx, pcy) {
+  bossFall(b);
+  const rage = bossRage(), cx = b.x + b.w / 2, dx = pcx - cx, dist = Math.abs(dx);
+  b.x = Math.max(ROOM_L + 4, Math.min(ROOM_R - b.w - 4, b.x));
+  if (!b.allin && b.hp <= B.hp / 2 && (b.state === 'hover' || b.state === 'drRecover')) { // one-time desperation combo
+    b.allin = true; b.allinStep = 0; bossSeen('allin'); bossFacePlayer(); sfx('warn'); shake(8, 2); bossSet('drAllin'); return;
+  }
+  if (b.state === 'hover') { // walk: keep ~90 px from Umine
+    bossFacePlayer(); b.fateN = 0; b.fateCount = 0;
+    const ideal = 90, sp = rage ? B.walkSpeedRage : B.walkSpeed; let moving = false;
+    if (dist > ideal + 14) { b.x += Math.sign(dx) * sp; moving = true; }
+    else if (dist < ideal - 24 && dist > 2) { const nx = b.x - Math.sign(dx) * sp; if (nx > ROOM_L + 6 && nx + b.w < ROOM_R - 6) { b.x = nx; moving = true; } }
+    b.pose = moving ? 'walk' : 'idle'; b.poseF = -1;
+    if (b.t >= (rage ? B.idleFramesRage : B.idleFrames)) { b.comboLeft = Math.random() < (rage ? B.comboChanceRage : B.comboChance) ? 1 : 0; dicerollStart(b, dicerollPick(b)); }
+    return;
+  }
+  if (b.state === 'drAllin') { // "ALL IN!" then chips -> cards -> dice
+    b.pose = 'windup'; b.poseF = 0;
+    if (b.t % 6 === 0) spawnPart(cx + (hash(b.t, 3) % 40) - 20, b.y - 4, 0, -0.6, 18, 1, (b.t & 8) ? '#ffd84a' : '#ff4a5a');
+    if (b.t >= B.allinAnnounce) { b.allinStep = 1; b.fateCount = rage ? 5 : 4; dicerollStart(b, 'chips'); }
+    return;
+  }
+  if (b.state === 'drFate') { // big die over her head decides the next attack
+    const show = rage ? B.fateShowRage : B.fateShow;
+    if (b.t < 12) { b.pose = 'windup'; b.poseF = 0; bossFacePlayer(); }
+    else if (b.t < 12 + B.fateRoll) { b.pose = 'throwDice'; b.poseF = 0; if (b.t === 12) sfx('swoosh'); if (b.t % 5 === 0) sfx('tick'); }
+    else { b.pose = 'idle'; b.poseF = 0; }
+    if (b.t === 12 + B.fateRoll) {
+      let n = 1 + ((Math.random() * 6) | 0); if (n === b.fateLast) n = 1 + ((n + ((Math.random() * 5) | 0)) % 6); b.fateLast = n;
+      b.fateN = n; sfx('cp'); shake(3, 1); popAt(cx, b.y - 22, '#ffffff');
+    }
+    if (b.t >= 12 + B.fateRoll + show) {
+      const n = b.fateN;
+      if (n <= 2) { b.fateCount = n; bossSet('drRoulette'); }
+      else if (n <= 4) { b.fateCount = n + 2; bossSet('drCards'); }
+      else { b.fateCount = n - 1; bossSet('drChips'); }
+      bossFacePlayer(); b.fateN = 0; b.fateShown = n;
+    }
+    return;
+  }
+  if (b.state === 'drDice') { // dice hop once, then roll along the floor
+    const wind = rage ? B.diceWindRage : B.diceWind, n = b.allinStep === 3 ? 3 : (rage ? B.diceCountRage : B.diceCount);
+    const k = b.t - wind;
+    if (k < 0) { b.pose = 'windup'; b.poseF = 0; bossFacePlayer(); }
+    else { const i = Math.floor(k / B.diceGap), kk = k % B.diceGap; b.pose = i < n && kk < 10 ? 'throwDice' : 'idle'; b.poseF = 0; }
+    if (k >= 0 && k % B.diceGap === 0 && k / B.diceGap < n) {
+      const tp = drThrowPt(b), sp = (rage ? B.diceSpeedRage : B.diceSpeed) * (1 + (k / B.diceGap) * 0.12);
+      const q = drSpawn(tp.x, tp.y, b.face * sp, -2.4, 29, B.diceDamage, 0);
+      if (q) { q.hook = drDieHook; q.face = (Math.random() * 6) | 0; } sfx('bshoot');
+    }
+    if (k >= n * B.diceGap + 6) dicerollRecover(b, B, b.allinStep > 0);
+    return;
+  }
+  if (b.state === 'drCards') { // aimed card fan with preview lines
+    const wind = b.fateCount ? 14 : (rage ? B.cardWindRage : B.cardWind), n = b.fateCount || (rage ? B.cardCountRage : B.cardCount);
+    if (b.t < wind) { b.pose = 'windup'; b.poseF = 0; }
+    else { b.pose = 'flickCards'; b.poseF = 0; }
+    if (b.t < wind - 10) bossFacePlayer();
+    if (b.t === Math.max(0, wind - 10)) { const tp = drCardPt(b); b.cardAng = Math.atan2(pcy - tp.y, pcx - tp.x); b.cardN = n; }
+    if (b.t === wind) {
+      const tp = drCardPt(b);
+      for (let i = 0; i < n; i++) {
+        const a = b.cardAng + (i - (n - 1) / 2) * B.cardSpread;
+        drSpawn(tp.x, tp.y, Math.cos(a) * B.cardSpeed, Math.sin(a) * B.cardSpeed, 30, B.cardDamage, 0);
+      }
+      sfx('swoosh');
+    }
+    if (b.t >= wind + 22) { b.fateCount = 0; if (b.allinStep === 2) { b.allinStep = 3; dicerollStart(b, 'dice'); } else dicerollRecover(b, B, false); }
+    return;
+  }
+  if (b.state === 'drBoom') { // boomerang cards: low (jump) / high (stand) / [enraged: low again]
+    const wind = rage ? B.boomWindRage : B.boomWind, n = b.pr ? 3 : 2, k = b.t - wind;
+    if (k < 0) { b.pose = 'windup'; b.poseF = 0; bossFacePlayer(); }
+    else { b.pose = (k % B.boomGap) < 10 && k / B.boomGap < n ? 'flickCards' : 'idle'; b.poseF = 0; }
+    if (k >= 0 && k % B.boomGap === 0 && k / B.boomGap < n) {
+      const i = k / B.boomGap, high = i === 1, y = high ? FLOOR_Y - 40 : FLOOR_Y - 9;
+      const q = drSpawn(cx + b.face * 12, y, b.face * B.boomSpeed, 0, 30, B.boomDamage, 1);
+      if (q) { q.hook = drBoomHook; q.f = b.face; q.back = false; q.boom = true; }
+      sfx('swoosh');
+    }
+    if (k >= n * B.boomGap + 50 && !bullets.some(q => q.active && q.boom)) dicerollRecover(b, B, false);
+    if (k > n * B.boomGap + 200) dicerollRecover(b, B, false);
+    return;
+  }
+  if (b.state === 'drChips') { // marked columns, then chip stacks fall there
+    const warn = b.allinStep === 1 ? 36 : (rage ? B.chipWarnRage : B.chipWarn), n = b.fateCount || (rage ? B.chipColsRage : B.chipCols);
+    b.pose = b.t < warn ? 'windup' : 'flickCards'; b.poseF = 0;
+    if (b.t === 1) {
+      const lanes = 8, lw = (ROOM_R - ROOM_L) / lanes, pl = Math.max(0, Math.min(lanes - 1, Math.floor((pcx - ROOM_L) / lw)));
+      const nb = [pl - 1, pl + 1].filter(v => v >= 0 && v < lanes), safe = nb[(Math.random() * nb.length) | 0];
+      const cand = []; for (let i = 0; i < lanes; i++) if (i !== pl && i !== safe) cand.push(i);
+      for (let i = cand.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = cand[i]; cand[i] = cand[j]; cand[j] = t; }
+      const cols = [pl].concat(cand.slice(0, Math.min(n, 6) - 1));
+      b.chipCols = cols.map(c => ROOM_L + (c + 0.5) * lw); sfx('warn');
+    }
+    const k = b.t - warn;
+    if (k >= 0 && k % 7 === 0 && k / 7 < 3) {
+      for (const x of b.chipCols) { const q = drSpawn(x, -4, 0, B.chipSpeed, 31, B.chipDamage, (k / 7 + (x | 0)) & 1); if (q) q.chip = true; }
+      if (k === 0) sfx('bshoot');
+    }
+    if (k >= 3 * 7 + 34) { b.chipCols = []; b.fateCount = 0; if (b.allinStep === 1) { b.allinStep = 2; b.fateCount = 6; dicerollStart(b, 'cards'); } else dicerollRecover(b, B, false); }
+    return;
+  }
+  if (b.state === 'drRoulette') { // ball(s) circle her hand, then bounce around the room
+    const wind = b.fateCount ? 18 : B.rouletteWind, n = b.fateCount || (rage ? 2 : 1);
+    b.pose = b.t < wind ? 'windup' : (b.t < wind + 10 ? 'throwDice' : 'idle'); b.poseF = 0;
+    if (b.t < wind - 6) bossFacePlayer();
+    if (b.t === 1) for (let i = 0; i < n; i++) {
+      const q = drSpawn(cx, b.y, 0, 0, 32, B.rouletteDamage, 0);
+      if (q) { q.hook = drBallHook; q.rel = false; q.relT = wind + i * 8; q.ph = i * Math.PI; q.ang0 = i ? -1.05 : -0.45; q.ball = true; }
+    }
+    if (b.t >= wind + n * 8 + 30) { b.fateCount = 0; dicerollRecover(b, B, false); b.recT += 20; }
+    return;
+  }
+  if (b.state === 'drFlame') { // enraged: flaming die bounces toward Umine
+    const wind = B.flameWind;
+    b.pose = b.t < wind ? 'windup' : (b.t < wind + 12 ? 'throwDice' : 'idle'); b.poseF = 0;
+    if (b.t < wind - 4) bossFacePlayer();
+    if (b.t === wind) {
+      const tp = drThrowPt(b), T = 46, vx = Math.max(-2.6, Math.min(2.6, (pcx - tp.x) / T));
+      const q = drSpawn(tp.x, tp.y, vx || b.face * 1.2, -3.6, 33, B.flameDamage, 0); if (q) q.hook = drFlameHook; sfx('boomS');
+    }
+    if (b.t >= wind + 40) dicerollRecover(b, B, false);
+    return;
+  }
+  if (b.state === 'drRecover') {
+    b.pose = 'idle'; b.poseF = -1;
+    if (b.t >= b.recT) {
+      if (b.comboLeft > 0) { b.comboLeft--; dicerollStart(b, dicerollPick(b)); }
+      else bossSet('hover');
+    }
+    return;
+  }
+  bossSet('hover');
+}
+
+// ---- drawing ----
+const DICEROLL_RED = {};
+function dicerollRedFrame(sh, fi, face) {
+  if (!DICEROLL_RED[fi]) { const c = tintCanvas(sh[fi].r, '#ff2a40', 0.65); DICEROLL_RED[fi] = { r: c, l: flipCanvas(c) }; }
+  return face >= 0 ? DICEROLL_RED[fi].r : DICEROLL_RED[fi].l;
+}
+// one 24x24 cell of diceroll_bullets centred at (x,y) (cell hit centre cxo,12), integer position, optional rotation/scale
+function drCell(idx, x, y, scale, rot, flip, cxo) {
+  const S = SHEETS.dicerollBullets; cxo = cxo || 12;
+  g.save(); g.translate(Math.round(x), Math.round(y)); if (rot) g.rotate(rot); if (scale && scale !== 1) g.scale(scale, scale);
+  if (S && S[idx]) g.drawImage(flip ? S[idx].l : S[idx].r, flip ? -(24 - cxo) : -cxo, -12);
+  else { g.fillStyle = idx === 13 ? '#e03040' : idx === 14 ? '#202020' : idx >= 10 && idx <= 12 ? '#f0e8d8' : '#ffffff'; g.fillRect(-6, -6, 12, 12); }
+  g.restore();
+}
+// die face (0-5) - used by the helper's lobbed die and the support move
+function drawDie(x, y, faceIdx, scale, rot) { drCell(Math.max(0, Math.min(5, faceIdx | 0)), x, y, scale || 1, rot ? Math.round(rot / (Math.PI / 2)) * (Math.PI / 2) : 0); }
+function drFateLabel(n) { return n <= 2 ? 'ROULETTE X' + n : n <= 4 ? 'CARDS X' + (n + 2) : 'CHIPS X' + (n - 1); }
+function drawDicerollOverlay(b, mx, by, camX) {
+  const B = CONFIG.bosses.diceroll, headY = by - 66;
+  if (b.state === 'drFate') {
+    if (b.t >= 12 && b.t < 12 + B.fateRoll) { // tumbling up from her hand
+      const p = (b.t - 12) / B.fateRoll, e = 1 - (1 - p) * (1 - p), hx = mx + b.face * 15, hy = by - 25;
+      drCell(6 + ((b.t >> 2) & 3), hx + (mx - hx) * e, hy + (headY - hy) * e, 2, 0);
+    } else if (b.fateN) { // the shown face, 2x, with what it means
+      const k = b.t - 12 - B.fateRoll;
+      if (k < 4) { g.fillStyle = '#ffffff'; g.fillRect(mx - 16, headY - 16, 32, 32); }
+      drCell(b.fateN - 1, mx, headY, 2, 0);
+      if ((k >> 2) & 1 || k > 12) drawTextShadow(drFateLabel(b.fateN), mx, headY - 24, b.fateN <= 2 ? 'w' : b.fateN <= 4 ? 'y' : 'r', 1, 'c');
+    }
+  }
+  if (b.state === 'drAllin') {
+    const s = 2 + ((b.t >> 3) & 1) * 0; if ((b.t >> 2) & 1 || b.t > 24) drawTextShadow('ALL IN!', mx, by - 70, (b.t >> 3) & 1 ? 'r' : 'y', s, 'c');
+    for (let i = 0; i < 3; i++) drCell(13 + (i & 1), mx - 14 + i * 14, by - 52 + Math.round(Math.sin((b.t + i * 9) * 0.2) * 3), 1, 0);
+  }
+  const w = drWindPt(b), wx = w.x - camX;
+  if (b.pose === 'windup') { // what's in the raised hand
+    if (b.state === 'drDice' || b.state === 'drFate') drCell(6 + ((frame >> 3) & 3), wx, w.y - 4, 1, 0);
+    else if (b.state === 'drCards' || b.state === 'drBoom') drCell(12, wx, w.y - 4, 1, 0);
+    else if (b.state === 'drChips') drCell(13, wx, w.y - 4, 1, 0);
+    else if (b.state === 'drFlame') { drCell(16, wx, w.y - 4, 1, 0); if (frame & 2) spawnPart(w.x, w.y - 8, 0, -0.5, 10, 1, '#ffb040'); }
+  }
+  if (b.state === 'drChips' && b.t > 1 && b.fateCount && b.t < 30 && ((b.t >> 2) & 1)) drawTextShadow('CHIPS X' + b.chipCols.length, mx, by - 62, 'r', 1, 'c');
+  if (b.state === 'rescue' && b.t >= 60 && b.t < 70) { // dice head cracks
+    for (let i = 0; i < 4; i++) { const h = hash(b.t + i * 5, 9); g.fillStyle = (i & 1) ? '#ffffff' : '#d8d8e0'; g.fillRect(mx - 8 + (h % 16), by - 44 - ((h >> 4) % 10) - (b.t - 60), 2, 2); }
+  }
+}
+function drawDicerollMarks(b, camX, blink) {
+  const B = CONFIG.bosses.diceroll;
+  if (b.state === 'drChips' && b.chipCols && b.chipCols.length) {
+    const warn = b.allinStep === 1 ? 36 : (bossRage() ? B.chipWarnRage : B.chipWarn);
+    if (b.t < warn) for (const px of b.chipCols) {
+      const x = Math.round(px - camX);
+      g.save(); g.globalAlpha = blink ? 0.34 : 0.2; g.fillStyle = '#ff2a3a'; g.fillRect(x - 8, 20, 16, FLOOR_Y - 20); g.restore();
+      g.fillStyle = blink ? '#ff3a4a' : '#ffd84a'; g.fillRect(x - 8, FLOOR_Y - 2, 16, 2);
+      drCell(13, x, 30, 1, 0);
+    }
+  }
+  if (b.state === 'drCards' && b.cardN) { // dotted preview of the fan
+    const wind = b.fateCount ? 14 : (bossRage() ? B.cardWindRage : B.cardWind);
+    if (b.t >= wind - 10 && b.t < wind) {
+      const tp = drCardPt(b), n = b.cardN;
+      g.fillStyle = blink ? '#ffffff' : '#ffd84a';
+      for (let i = 0; i < n; i++) { const a = b.cardAng + (i - (n - 1) / 2) * B.cardSpread; for (let d = 14; d < 90; d += 8) g.fillRect(Math.round(tp.x - camX + Math.cos(a) * d), Math.round(tp.y + Math.sin(a) * d), 2, 2); }
+    }
+  }
+  if (b.state === 'drBoom' && b.pose === 'windup') { // height hints: low then high
+    const x = Math.round(b.x + b.w / 2 - camX + b.face * 20);
+    g.fillStyle = blink ? '#ffd84a' : '#ffffff'; g.fillRect(x, FLOOR_Y - 10, 6, 2); g.fillRect(x, FLOOR_Y - 41, 6, 2);
+  }
+}
+function drawDicerollBullet(q, camX) {
+  const cx = q.x + q.w / 2 - camX, cy = q.y + q.h / 2;
+  if (q.kind === 29) { // die: tumbling face in the air, rolling loop on the floor
+    if (q.roll) drCell(6 + (((q.t >> 2) & 3) ^ (q.vx < 0 ? 0 : 0)), cx, cy, 1, 0, q.vx < 0);
+    else drCell(q.face, cx, cy, 1, ((q.t >> 3) & 3) * Math.PI / 2);
+    return;
+  }
+  if (q.kind === 30) { const seq = [10, 11, 12, 11]; drCell(seq[(q.t >> 2) & 3], cx, cy, 1, 0); return; }
+  if (q.kind === 31) { drCell(13 + (q.sspr & 1), cx, cy, 1, 0); return; }
+  if (q.kind === 32) { // roulette ball (cell hit centre 15,12; trail behind it)
+    if (!q.rel) { drCell(15, cx, cy, 1, 0, false, 15); return; }
+    drCell(15, cx, cy, 1, Math.atan2(q.vy, q.vx), false, 15); return;
+  }
+  if (q.kind === 33) { drCell(16, cx, cy, 1, 0, q.vx < 0, 13); return; }
+  if (q.kind === 34) { // ember (code-drawn flicker)
+    const x = Math.round(cx), y = Math.round(q.y), f = (q.t >> 2) & 1;
+    g.fillStyle = '#ff4a2a'; g.fillRect(x - 3, y + 2, 6, 6); g.fillStyle = '#ffb040'; g.fillRect(x - 2, y + 3 - f, 4, 4); g.fillStyle = '#fff0b0'; g.fillRect(x - 1, y + 5 - f, 2, 2);
+  }
+}
+
+// ---- rescued ダイスロール as support: LUCKY ROLL (HELP button "ROLL") ----
+//  t14 she tosses a die (frame 4) -> t40 face N shows -> t52+ flicks N homing cards (frame 5).
+//  vs a boss: total damage by face [2,3,4,4,5,6] (avg 4): every card 1, the first card carries the bonus.
+//  vs enemies: 2 per card.
+const DR_ROLL_DMG = [2, 3, 4, 4, 5, 6];
+function updateDicerollSupport(t) {
+  support.x += (P.x + P.w / 2 - P.face * 20 - support.x) * 0.25; support.y += (P.y - support.y) * 0.25;
+  if (t < 14) support.face = P.face;
+  const f = support.face, fxs = support.fx || (support.fx = []), n = support.n || 4;
+  if (t === 14) sfx('swoosh');
+  if (t === 40) { sfx('cp'); popAt(support.x, support.y - 26, '#ffffff'); }
+  if (t >= 52 && (t - 52) % 5 === 0 && (t - 52) / 5 < n) {
+    const i = (t - 52) / 5;
+    fxs.push({ x: support.x + f * 6, y: support.y + 4, vx: f * 2.6, vy: -1.6 + i * 0.5, t: 0, alive: true, first: i === 0 }); sfx('swoosh');
+  }
+  for (const q of fxs) {
+    if (!q.alive) continue;
+    q.t++;
+    const tg = shiranuiSupportTarget(q);
+    if (tg && q.t > 5) { const tx = tg.x - q.x, ty = tg.y - q.y, l = Math.hypot(tx, ty) || 1; q.vx += (tx / l * 4 - q.vx) * 0.2; q.vy += (ty / l * 4 - q.vy) * 0.2; }
+    q.x += q.vx; q.y += q.vy;
+    if (tg && Math.abs(tg.x - q.x) < 9 && Math.abs(tg.y - q.y) < 12) {
+      q.alive = false; popAt(q.x, q.y, '#ffd860');
+      if (tg.boss) { boss.inv = 0; damageBoss(null, 1 + (q.first ? DR_ROLL_DMG[n - 1] - n : 0)); }
+      else { tg.e.hp -= 2; tg.e.flash = 10; if (tg.e.hp <= 0) killEnemy(tg.e); else sfx('ehit'); }
+    }
+    if (q.t > 110 || q.x < cam.x - 20 || q.x > cam.x + VW + 20 || q.y < -20 || q.y > VH) q.alive = false;
+  }
+  if ((t > 52 + n * 5 && !fxs.some(q => q.alive)) || t > 200) support.active = false;
+}
+function drawDicerollSupport(t, x, y, camX) {
+  const fr = SHEETS.diceroll, d = SHEET_DEFS.diceroll, f = support.face, n = support.n || 4;
+  const fi = t < 14 ? (t >> 3) & 1 : t < 52 ? (t < 30 ? 4 : 0) : 5;
+  if (t < 12) g.globalAlpha = t / 12;
+  if (fr) g.drawImage(pick(fr[Math.min(fi, fr.length - 1)], f, false), x - (f > 0 ? d.cx : d.fw - d.cx), y - 12);
+  else g.drawImage(pick(SPR.ally.R[fi === 5 ? 1 : 0], f, false), x - 16, y - 12);
+  g.globalAlpha = 1;
+  if (t >= 14 && t < 40) { const p = (t - 14) / 26; drCell(6 + ((t >> 2) & 3), x, y - 6 - p * 22, 1, 0); }
+  else if (t >= 40 && t < 80) { drCell(n - 1, x, y - 28, 1.5, 0); if (t < 70) drawTextShadow(n + '!', x + 14, y - 40, 'y', 1, 'c'); }
+  const seq = [10, 11, 12, 11];
+  for (const q of (support.fx || [])) if (q.alive) drCell(seq[(q.t >> 2) & 3], q.x - camX, q.y, 1, 0);
+}
+
+// =====================================================================
 //  Rendering
 // =====================================================================
 // "海音" (Umine) as a 32x16 1-bit bitmap (generated by tools/gen_kanji.js
@@ -5209,7 +5840,8 @@ function drawBoss(camX) {
       fi = Math.min(fi, sh.length - 1);
     }
     const cx = D.cxF ? D.cxF[fi] : D.cx;
-    if (curArea.boss === 'shiranui' && b.dark) { if (D.map && b.flash > 7 && b.state !== 'shIllusion') fi = D.map.hurt[0]; drawShiranuiBody(b, sh, D, fi, mx, by, camX); }
+    if (curArea.boss === 'diceroll' && b.dark && b.flash > 0 && (b.flash & 2) && b.state !== 'rescue') { if (D.map && b.flash > 7) fi = D.map.hurt[0]; g.drawImage(dicerollRedFrame(sh, fi, b.face), Math.round(mx - (b.face >= 0 ? cx : D.fw - cx)), by - D.fh); }
+    else if (curArea.boss === 'shiranui' && b.dark) { if (D.map && b.flash > 7 && b.state !== 'shIllusion') fi = D.map.hurt[0]; drawShiranuiBody(b, sh, D, fi, mx, by, camX); }
     else g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
     if (curArea.boss === 'lily' && b.dark && lilySongFxActive(b) && SHEETS.lilySongWave) {
       const W = SHEET_DEFS.lilySongWave, fx = SHEETS.lilySongWave[0];
@@ -5223,12 +5855,14 @@ function drawBoss(camX) {
   }
   g.globalAlpha = 1;
   if (curArea.boss === 'disaster' && b.dark) drawDisasterWeaponLayer(b, mx, by);
+  if (curArea.boss === 'diceroll' && b.dark) drawDicerollOverlay(b, mx, by, camX);
 }
 // telegraphs drawn under the boss: aim line, arrow-rain columns, warp mark
 function drawBossMarks(camX) {
   const b = boss, blink = (frame >> 2) & 1;
   if (curArea.boss === 'disaster') drawDisasterMarks(b, camX, blink);
   if (curArea.boss === 'shiranui') drawShiranuiMarks(b, camX, blink);
+  if (curArea.boss === 'diceroll') drawDicerollMarks(b, camX, blink);
   if (b.aimShow) { // Neenia's aim: dotted line to the predicted spot
     const dx = b.aimX - b.mx, dy = b.aimY - b.my, len = Math.hypot(dx, dy) || 1, n = Math.min(40, Math.floor(len / 6));
     g.fillStyle = blink ? '#ff5a8a' : '#ffb0c8';
@@ -5344,6 +5978,7 @@ function drawAstarte(a, camX) {
 }
 function drawNeenia(a, camX) { drawAllySprite(a, 'N', 'neenia', a.act > 0 ? 1 : 0, camX); }
 function drawShiranuiAlly(a, camX) { drawAllySprite(a, 'K', 'shiranui', a.act > 0 ? 5 : (a.t >> 5) & 1, camX); }
+function drawDicerollAlly(a, camX) { drawAllySprite(a, 'R', 'diceroll', a.act > 0 ? 4 : ((a.t % 260) < 70 ? 2 : (a.t >> 5) & 1), camX); }
 function drawSeiten(a, camX) { drawAllySprite(a, 'S', 'seiten', a.act > 0 ? (a.t >> 4) & 1 : (SHEETS.seiten ? (a.t >> 5) & 1 : 0), camX); }
 function drawLilyAlly(a, camX) {
   const sh = SHEETS.lily, sp = sh ? sh[(a.t >> 5) & 1] : null;
@@ -5352,23 +5987,25 @@ function drawLilyAlly(a, camX) {
 function drawAllies(camX) {
   for (let i = 0; i < allies.length; i++) {
     const a = allies[i]; if (a.x - camX < -24 || a.x - camX > VW + 24) continue;
-    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else if (a.type === 'K') drawShiranuiAlly(a, camX); else drawSeiten(a, camX);
+    if (a.type === 'L') drawLantern(a, camX); else if (a.type === 'A') drawAstarte(a, camX); else if (a.type === 'N') drawNeenia(a, camX); else if (a.type === 'I') drawLilyAlly(a, camX); else if (a.type === 'K') drawShiranuiAlly(a, camX); else if (a.type === 'R') drawDicerollAlly(a, camX); else drawSeiten(a, camX);
   }
 }
 function drawArrows(camX) {
   g.fillStyle = '#eef0ff';
   for (let i = 0; i < arrows.length; i++) {
     const r = arrows[i]; if (!r.active) continue;
+    if (r.die) { drawDie(r.x + 2 - camX, r.y + 2, r.die - 1, 0.7, frame * 0.3); g.fillStyle = '#eef0ff'; continue; }
     if (r.fox) { drawFoxfire(r.x + 2 - camX, r.y + 2, r.vx, r.vy, (frame >> 2) & 1, 0.75); g.fillStyle = '#eef0ff'; continue; }
     const sp = Math.hypot(r.vx, r.vy) || 1, ux = r.vx / sp, uy = r.vy / sp, x = r.x + 2 - camX, y = r.y + 2;
     for (let k = 0; k < 6; k++) g.fillRect(Math.round(x - ux * k), Math.round(y - uy * k), 1, 1);
   }
   g.fillStyle = '#8fd0ff';
-  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active && !r.fox) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
+  for (let i = 0; i < arrows.length; i++) { const r = arrows[i]; if (r.active && !r.fox && !r.die) g.fillRect(Math.round(r.x + 1 - camX), Math.round(r.y + 1), 2, 2); }
 }
 function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
   if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
+  if (b.kind >= 29 && b.kind <= 34) { drawDicerollBullet(b, camX); return; }
   if (b.kind === 24 || b.kind === 25 || b.kind === 27 || b.kind === 28 || b.sspr >= 0) { drawShiranuiBullet(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);
   else if (b.kind === 2) g.drawImage(SPR.heart.r, x - 1, y - 1);
@@ -5590,7 +6227,7 @@ function drawPortrait(a, x, y) {
   // procedural fallback art (?sprites=0)
   const pal = (a.friend === 'tobiume' && !rescued) ? 'dark' : 'normal';
   if (a.friend === 'tobiume') g.drawImage(SPR.tobi[pal].idle[0].r, 10, 0, 20, 20, x, y, 40, 40);
-  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A', shiranui: 'K' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
+  else { const k = { neenia: 'N', seiten: 'S', astarte: 'A', shiranui: 'K', diceroll: 'R' }[a.friend]; if (k) { g.drawImage(SPR.ally[k][0].r, 6, 2, 20, 20, x, y, 40, 40); if (shadow) { g.fillStyle = 'rgba(16,8,32,0.8)'; g.fillRect(x, y, 40, 40); } } }
 }
 function drawCheck(x, y) { // 13x10 green check mark with dark outline
   const pts = [[0, 5], [1, 6], [2, 7], [3, 8], [4, 7], [5, 6], [6, 5], [7, 4], [8, 3], [9, 2], [10, 1], [11, 0]];
@@ -5761,6 +6398,7 @@ function render() {
     else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
     else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
     else if (support.kind === 'lily') drawHiText('リリィ＆ウミミ・スターライトレイン！', VW / 2, 67, 8, '#fff1cf', '#6e285e');
+    else if (support.kind === 'diceroll') { if (support.t < 90) drawHiText('ダイスロール・運命のダイス！', VW / 2, 67, 8, '#fff4d8', '#6a1020'); }
     else if (support.kind === 'shiranui') { if (support.t < 80) drawHiText('シラヌイ・狐火の舞じゃ！', VW / 2, 67, 8, '#ffe8d8', '#6e1a24'); }
     else if (support.kind === 'star') { if (support.t < 80) drawHiText('スターさん・錬金モーフスラッシュ！', VW / 2, 67, 8, '#e0f8ff', '#1d3e6e'); }
     else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');

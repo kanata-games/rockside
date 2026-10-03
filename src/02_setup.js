@@ -29,7 +29,7 @@ function loadMap(screens) {
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
     else if (ch === 'W' || ch === 'H' || ch === 'F') spawns.push({ type: ch, c: c, r: r });
-    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'K') allySpawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'A' || ch === 'N' || ch === 'S' || ch === 'K' || ch === 'R') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
   ROOM_X = ROOM_COL * TS;

@@ -103,12 +103,25 @@ function artShiranui(R, f) {
   if (f) { R('#101010', 20, 9, 5, 3); R(red, 21, 10, 3, 1); R(skin, 19, 13, 2, 2); }   // open fan
   else { R('#101010', 19, 13, 2, 4); R(skin, 19, 12, 2, 2); }
 }
+// ダイスロール (the girl): white long hair, red eyes, small crown, harlequin jacket (fallback art for ?sprites=0)
+function artDiceroll(R, f) {
+  const hair = '#f0eef4', hairD = '#c8c4d4', blk = '#1a1620', wht = '#f4f4f8', skin = '#fff0ea', gold = '#f0c040';
+  R(hair, 8, 6, 12, 21); R(hairD, 8, 20, 3, 7);                                     // long white hair
+  R(gold, 12, 2, 7, 2); R(gold, 12, 1, 1, 1); R(gold, 15, 1, 1, 1); R(gold, 18, 1, 1, 1); R('#d02030', 15, 2, 1, 1); // crown
+  for (let y = 12; y < 20; y++) for (let x = 12; x < 21; x++) R(((x + y) & 1) ? blk : wht, x, y, 1, 1);      // harlequin jacket
+  R(blk, 12, 20, 9, 6); R('#d02030', 15, 12, 2, 2);                                 // skirt + ribbon
+  R(skin, 14, 26, 2, 2); R(skin, 17, 26, 2, 2); R(blk, 13, 28, 3, 4); R(blk, 17, 28, 3, 4);
+  R(skin, 14, 6, 6, 6); R(hair, 13, 5, 8, 2); R(hair, 13, 7, 2, 5); R('#e02030', 16, 9, 1, 1); R('#e02030', 18, 9, 1, 1);
+  if (f) { R(skin, 20, 12, 2, 2); R(wht, 22, 12, 3, 1); R('#ff8040', 25, 12, 1, 1); }  // cigarette
+  else { R(skin, 19, 18, 2, 2); }
+}
 const ALLY_W = 32, ALLY_H = 32;
 const ALLY_INFO = {
   A: { name: 'アスターテ', color: '#5a6ad8', art: artAstarte },
   N: { name: 'ネーニア', color: '#4a60b0', art: artNeenia },
   S: { name: '青天', color: '#c0203a', art: artSeiten },
   K: { name: 'シラヌイ', color: '#d0303a', art: artShiranui },
+  R: { name: 'ダイスロール', color: '#c8203a', art: artDiceroll },
 };
 (function buildChars() {
   for (const pal of ['dark', 'normal']) for (const p of TOBI_POSES) {
@@ -170,6 +183,15 @@ const SHEET_DEFS = {
   shiranuiDark: { file: 'assets/shiranui_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, muzX: 38, muzY: 24,
     map: { idle: [0, 2], glide: [2, 1], vanish: [3, 1], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   shiranuiBullets: { file: 'assets/shiranui_bullets.png', fw: 24, fh: 24, frames: 5, cx: 12 },       // foxfire a/b, wisp, flame crescent, fan (face right)
+  // ダイスロール (girl) NORMAL 32x32 x6: 0-1 idle, 2 cigarette, 3 lazy wave (thanks), 4 toss die up, 5 card
+  diceroll: { file: 'assets/diceroll.png', fw: 32, fh: 32, frames: 6, cx: 16,
+    map: { idle: [0, 2], smoke: [2, 1], thanks: [3, 1], toss: [4, 1], card: [5, 1] } },
+  // DARK ダイスロール 48x48 x9 (ground walker, feet y=47): 0-1 idle, 2-3 walk, 4 wind-up (hand 10,21), 5 throw (die 39,23),
+  // 6 fling cards (36,23), 7 hit, 8 defeat (dice head cracks)
+  dicerollDark: { file: 'assets/diceroll_dark.png', fw: 48, fh: 48, frames: 9, cx: 24, muzX: 39, muzY: 23,
+    map: { idle: [0, 2], walk: [2, 2], windup: [4, 1], throwDice: [5, 1], flickCards: [6, 1], hurt: [7, 1], defeat: [8, 1] } },
+  // dice 1-6 (0-5), rolling die (6-9), card back/edge/front (10-12), chips red/black (13-14), roulette ball (15), flaming die (16)
+  dicerollBullets: { file: 'assets/diceroll_bullets.png', fw: 24, fh: 24, frames: 17, cx: 12 },
   shiranuiPillar:  { file: 'assets/shiranui_bullets_pillar.png', fw: 24, fh: 48, frames: 2, cx: 12 }, // fire pillar, floor line y=45
   transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
   starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
@@ -178,7 +200,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark', 'diceroll', 'diceroll_dark'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -258,7 +280,8 @@ function loadSheets() {
   // sheets never embedded by build.py --embed: always loaded from assets/ (Lily, Umimi, Disaster / Star)
   const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
     'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets',
-    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark']);
+    'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark',
+    'diceroll', 'dicerollDark', 'dicerollBullets', 'face_diceroll', 'face_diceroll_dark']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();

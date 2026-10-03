@@ -24,6 +24,11 @@ const TILESETS = {
 TILESETS.foxfire = { rock: ['#4a4250', '#3a3240', '#625a6a', '#2c2632', '#221c28'], top: ['#3e6a4a', '#86c08a', '#2c4e38'],
   girder: ['#7a1a1a', '#c8382c', '#f07a50', '#5a1010'], cave: ['#1a1020', '#24162a'],
   metal: ['#1e0e14', '#2a141c', '#16080e', '#3a1a22', '#6a2a30', '#7e3438', '#c86a5a', '#f4b090'] };
+// 宵闇のカジノ: red carpet, green felt edges with gold trim, chip-stack / card-table girders; the boss hall is bright
+// green felt so the black harlequin suit stays readable
+TILESETS.casino = { rock: ['#7a1a2a', '#5a1020', '#9a2a3a', '#3a0a14', '#2a0610'], top: ['#1e7a4a', '#f0c850', '#145a36'],
+  girder: ['#2a1a10', '#d03030', '#f4f0e8', '#101010'], cave: ['#2a1030', '#381440'], chips: true,
+  metal: ['#1e6a46', '#237a50', '#185a3c', '#6a1424', '#a02a3a', '#b83848', '#f0c850', '#fff0a0'] };
 const THEMES = {
   sunset: { sky: ['#181238', '#55306e', '#e8845c'], stars: 40, sun: { x: 190, y: 120, r: 20, cols: ['#ffcf7a', '#ffe9b0'] },
     far: { style: 'hills', cols: ['#6a4a82', '#7d5a95'] }, near: { style: 'hills', cols: ['#3c2c56', '#4b3868'] }, tiles: TILESETS.sunset },
@@ -35,6 +40,8 @@ const THEMES = {
     far: { style: 'ruins', cols: ['#5d376f', '#86598f'] }, near: { style: 'city', cols: ['#241834', '#3a2548'], lights: '#ffd6ef' }, tiles: TILESETS.shrine },
   disaster: { sky: ['#160719', '#4a102c', '#a22b45'], stars: 70, moon: { x: 188, y: 54, r: 32, cols: ['#ff3a58', '#ff8495', '#c5264b'] },
     far: { style: 'ruins', cols: ['#36102d', '#581b3f'] }, near: { style: 'ruins', cols: ['#1a0c22', '#300d30'] }, tiles: TILESETS.shrine, castle: true },
+  casino: { sky: ['#1c0a34', '#561a6e', '#d84a7a'], stars: 30,
+    far: { style: 'city', cols: ['#3e1a58', '#62307a'], lights: '#ffd060' }, near: { style: 'city', cols: ['#26123a', '#40205a'], lights: '#ff7ad8' }, tiles: TILESETS.casino, casino: true },
   foxfire: { sky: ['#07061a', '#1e1240', '#5a2448'], stars: 90, moon: { x: 196, y: 52, r: 20, cols: ['#fff2d8', '#fffaf0', '#e8d0b0'] },
     far: { style: 'trees', cols: ['#1c1434', '#2a1e48'] }, near: { style: 'trees', cols: ['#0e0a1c', '#1c1230'] }, tiles: TILESETS.foxfire, foxShrine: true },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
@@ -121,7 +128,38 @@ function buildBackground(th) {
   drawLayer(farCv.getContext('2d'), th.far, 132, 44, 1);
   drawLayer(nearCv.getContext('2d'), th.near, 168, 40, 2);
   if (th.castle) { drawCrimsonCastle(farCv.getContext('2d'), false); drawCrimsonCastle(nearCv.getContext('2d'), true); }
+  if (th.casino) { drawCasino(farCv.getContext('2d'), false); drawCasino(nearCv.getContext('2d'), true); }
   if (th.foxShrine) { drawFoxShrine(farCv.getContext('2d'), false); drawFoxShrine(nearCv.getContext('2d'), true); }
+}
+// MIDNIGHT CASINO parallax: neon suit signs + roulette wheel (far), slot machines with lit reels and marquee bulbs (near)
+function drawCasino(cg, near) {
+  const F = (x, y, w, h, c) => { cg.fillStyle = c; cg.fillRect(x, y, w, h); };
+  const SUIT = { s: ['..#..', '.###.', '#####', '#####', '..#..'], h: ['##.##', '#####', '#####', '.###.', '..#..'],
+    d: ['..#..', '.###.', '#####', '.###.', '..#..'], c: ['.#.#.', '#####', '#####', '..#..', '.###.'] };
+  const suit = (x, y, k, s, col) => { const P = SUIT[k]; for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (P[r][c] === '#') F(x + c * s, y + r * s, s, s, col); };
+  if (!near) {
+    for (const ox of [60, 316]) { // roulette wheel on the far wall
+      const cx = ox + 30, cy = 70, R = 24;
+      for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) { const d = Math.hypot(x, y); if (d > R) continue;
+        const a = Math.atan2(y, x), seg = Math.floor((a + Math.PI) / (Math.PI * 2) * 18);
+        F(cx + x, cy + y, 1, 1, d > R - 2 ? '#c8a040' : d > R - 9 ? (seg % 9 === 0 ? '#1e8a4a' : seg & 1 ? '#c02030' : '#1a1418') : d > 5 ? '#6a3a1a' : '#f0c850'); }
+    }
+    for (let i = 0; i < 4; i++) { // neon suit signs
+      const x = 150 + i * 28 + (i > 1 ? 256 - 112 : 0), col = ['#ff5ad0', '#ff4a4a', '#5af0ff', '#ffe060'][i];
+      F(x - 3, 44, 22, 22, '#20102c'); F(x - 3, 44, 22, 1, col); F(x - 3, 65, 22, 1, col); F(x - 3, 44, 1, 22, col); F(x + 18, 44, 1, 22, col);
+      suit(x + 1, 48, 'shdc'[i], 3, col);
+    }
+    return;
+  }
+  for (let x = 20; x < 512; x += 96) { // slot machines
+    const y = 116, ink = '#2a1238';
+    F(x, y, 34, 52, ink); F(x + 2, y - 8, 30, 10, '#5a1a6a'); F(x, y + 52, 34, 4, '#1a0a24');
+    for (let k = 0; k < 7; k++) F(x + 3 + k * 4, y - 6, 2, 2, ((k + (x >> 5)) & 1) ? '#ffe060' : '#ff7ad8'); // marquee bulbs
+    F(x + 4, y + 8, 26, 14, '#f4f0e8');
+    for (let k = 0; k < 3; k++) { F(x + 5 + k * 8, y + 9, 7, 12, k === 1 ? '#fffaf0' : '#e8e0d8'); F(x + 7 + k * 8, y + 12, 3, 6, '#d02030'); F(x + 6 + k * 8, y + 12, 5, 1, '#d02030'); } // 7 7 7
+    F(x + 6, y + 26, 22, 3, '#ffd060'); F(x + 4, y + 34, 26, 10, '#3a1a48'); F(x + 35, y + 10, 2, 14, '#b0b0c0'); F(x + 34, y + 8, 4, 4, '#ff3040'); // lever
+  }
+  for (let i = 0; i < 16; i++) { const h = hash(i, 71), x = h % 512, y = 30 + ((h >> 9) % 70); F(x, y, 1, 1, ['#ffe060', '#ff7ad8', '#5af0ff'][(h >> 20) % 3]); } // sparkles
 }
 // FOXFIRE SHRINE parallax: rows of vermilion torii, stone lanterns with warm light, a shrine roof, drifting foxfire dots
 function drawFoxShrine(cg, near) {
@@ -213,6 +251,16 @@ function buildLevel() {
             F(TP[0], x, y, 16, 4); F(TP[1], x, y, 16, 1);
             for (let k = 0; k < 4; k++) { const hh = hash(c * 5 + k, r * 3 + 1); F(TP[2], x + (hh & 15), y + 4, 2, 1 + ((hh >> 5) & 1)); }
           }
+        }
+      } else if (t === T_GIRDER && TT.chips) { // casino: card tables (green felt, wood rim) or chip stacks, chosen per platform run
+        let c0 = c; while (c0 > 0 && tileAt(c0 - 1, r) === T_GIRDER) c0--;
+        if (hash(c0, r) & 1) {
+          F('#5a3418', x, y, 16, 16); F('#1e7a4a', x, y, 16, 6); F('#2a9a5e', x, y, 16, 1); F('#f0c850', x, y + 6, 16, 1); F('#3a2010', x, y + 7, 16, 9);
+          if (c === c0 || tileAt(c + 1, r) !== T_GIRDER) F('#2a1408', x + (c === c0 ? 2 : 11), y + 7, 3, 9);
+        } else {
+          const cols = ['#d03030', '#1a1a1a', '#1e8a4a', '#2a5ad0'];
+          for (let k = 0; k < 4; k++) { const cc = cols[(k + c + r) % 4]; F(cc, x + 1, y + k * 4, 14, 4); F('#f4f0e8', x + 3 + ((c + k) & 1) * 6, y + k * 4 + 1, 3, 2); F('#000000', x + 1, y + k * 4 + 3, 14, 1); }
+          F('#f0c850', x + 1, y, 14, 1);
         }
       } else if (t === T_GIRDER) {
         F(GD[0], x, y, 16, 16); F(GD[1], x, y, 16, 14); F(GD[2], x, y, 16, 2);
