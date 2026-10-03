@@ -588,6 +588,42 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(2500);
   ok('DiceRoll helper (R) appears in Moon Forest after her rescue and greets Umine', !!rInfo && (await G(page, () => ROCKSIDE.allies.find(a => a.type === 'R').said)), rInfo);
   await ctx.close();
+  // v9b: DiceRoll card fans always leave a safe gap on Umine's standing spot (fate 3-4, normal 4/5, ALL IN 5):
+  //      Umine stands still on the floor at several distances on both sides -> no card hits her
+  ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=8&boss=1'));
+  await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 10000); await page.keyboard.up('ArrowRight');
+  await waitState(page, 'play', 15000);
+  await G(page, () => { const R = ROCKSIDE; (function f() { const b = R.boss; if (b.state === 'drRecover' || b.state === 'hover') { b.state = 'drRecover'; b.recT = 1e9; b.comboLeft = 0; } requestAnimationFrame(f); })(); });
+  const fanRes = [];
+  for (const [n, dx] of [[3, -90], [4, 60], [4, -130], [5, 90], [5, -45], [5, 150]]) {
+    fanRes.push(await G(page, async ([n, dx]) => { const R = ROCKSIDE, b = R.boss, P = R.P; for (const q of R.bullets) q.active = false;
+      b.x = R.roomX + 128 - b.w / 2; b.allin = true; b.allinStep = 0; R.teleport(b.x + b.w / 2 + dx - P.w / 2, R.floorY - P.h); P.hp = 99; P.inv = 0;
+      await new Promise(r => setTimeout(r, 100));
+      b.fateCount = n; b.cardW = 0; b.cardAngs = null; b.state = 'drCards'; b.t = 0; let spawned = 0;
+      const t0 = performance.now(); await new Promise(res => { (function f() { spawned = Math.max(spawned, R.bullets.filter(q => q.active && q.kind === 30).length); if (performance.now() - t0 > 3200) return res(); requestAnimationFrame(f); })(); });
+      return { n, dx, cards: spawned, dmg: 99 - P.hp }; }, [n, dx]));
+  }
+  ok('DiceRoll card fans (3/4/5 cards): standing still on the green mark is always safe (gap aimed at the standing spot)', fanRes.every(r => r.dmg === 0 && r.cards === r.n), fanRes);
+  await ctx.close();
+  // v9b: boomerang cards (one at a time, constant speed, snap back): a stand/jump schedule exists at every distance
+  { const B = ROCKSIDE_CFG.diceroll, Cg = 0.25, JV = 5, CUT = 1.0, PH = 20, PW = 10, CW = 8, CH = 12, bad = [];
+    for (const wall of [999, 70, 110]) for (const n of [3, 4]) {
+      const pos = []; let i = 0, next = 18, c = null;
+      for (let t = 0; t < 500; t++) { const fr = [];
+        if (!c && i < n && t >= next) { c = { y: (i & 1) ? -40 : -9, x: 12, vx: B.boomSpeed, back: false }; i++; }
+        if (c) { if (!c.back && (c.x - 12 >= B.boomRange || c.x >= wall)) { c.back = true; c.vx = -c.vx; } c.x += c.vx; if (c.back && c.x <= 0) { c = null; next = t + B.boomGap; } else fr.push([c.x, c.y]); }
+        pos.push(fr); }
+      const hit = (fr, d, h) => fr.some(([x, y]) => Math.abs(x - d) < (CW + PW) / 2 && y + CH / 2 > -h - PH && y - CH / 2 < -h);
+      for (let d = 14; d <= 170; d += 4) { const memo = new Map();
+        const go = (t, h, vy, gr, hold) => { if (t >= pos.length) return true; const k = t + '|' + Math.round(h * 2) + '|' + Math.round(vy * 4) + '|' + (gr ? 1 : 0) + (hold ? 1 : 0); if (memo.has(k)) return memo.get(k);
+          const opts = gr ? [[false, false], [true, false]] : [[false, false], ...(hold && vy < 0 ? [[false, true]] : [])]; let r = false;
+          for (const [jump, cut] of opts) { let nh = h, nv = vy, ng = gr, nhold = hold;
+            if (jump) { nv = -JV; ng = false; nhold = true; } if (cut) { nv = Math.max(nv, -CUT); nhold = false; }
+            if (!ng) { nv = Math.min(nv + Cg, 7); nh -= nv; if (nh <= 0) { nh = 0; nv = 0; ng = true; nhold = false; } }
+            if (!hit(pos[t], d, nh) && go(t + 1, nh, nv, ng, nhold)) { r = true; break; } }
+          memo.set(k, r); return r; };
+        if (!go(0, 0, 0, true, false)) bad.push(wall + '/' + n + '/' + d); } }
+    ok('DiceRoll boomerang cards: a jump/stand answer exists at every distance (one card at a time, low=jump / high=stay down)', bad.length === 0, bad.slice(0, 10)); }
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));
   await page.keyboard.press('KeyH'); await sleep(60);

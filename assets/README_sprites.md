@@ -61,6 +61,7 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - astarte_dark.png: 生素材から作り直し。全フレームで体が x=22 に揃う（ゲーム側は cx 22、cxF 削除でOK）。
 - neenia_dark.png: 作り直し。体の中心 x=20、矢の先端 ≈(45,22)（フレーム5）。ゲーム側の cx 21 / muzX 40 / muzY 24 は json の値に合わせて更新を。
 - neenia_dark_face.png: 通常版と区別できるよう、灰紫の色調＋赤く光る目＋茨に作り直し。
+  → **2026-10-03 ユーザーの希望で取り消し。** 本番の neenia_dark_face.png は作り直し前の版（abe6b1b より前 / work/backup_20261003/neenia_dark_face.png と同じもの）に戻しました。neenia_dark.png（体のシート）は新しい版のままです。
 - lily_dark.png: フレーム5だけ作り直し、体の位置を他フレームに合わせた。
 - seiten_dark.json / この README: leap の説明を修正（2 空中、3 しゃがみ）。画像の並びはゲームのコード（poseF 0 = 空中、1 = しゃがみ）と合っているので入れ替えていない。
 - 追加: disaster_dark / alchemic_weapons / transform_fx / disaster_bullets / star / star_weapon と各顔アイコン、プレビュー（work/fixes_preview.png ほか）。
@@ -69,4 +70,4 @@ kanon_face.png, tobiume_face.png, tobiume_dark_face.png, neenia_face.png, neenia
 - **lily_dark.png はリポジトリ版（ChatGPT が作り直したシート）を使い続けています。** 上の lily_dark の説明（フレーム5に音波を描き込み・cx=21）はローカル旧シートの修正版のもので、本番では採用していません。
   本番のシートはフレーム5に音波を含まず、音波は `lilySongWave`（02b_chars.js）として別レイヤーで歌攻撃のときだけ重ねます。体の中心 cx=24。
 - Disaster / Star の素材（disaster_dark, star, alchemic_weapons, transform_fx, star_weapon, disaster_bullets, 顔）は本番に統合済み（src/04b_disaster.js）。
-- astarte_dark（cx=22, cxF 廃止）、neenia_dark（cx=20, 矢先 45,22）、neenia_dark_face は本番に反映済み。
+- astarte_dark（cx=22, cxF 廃止）、neenia_dark（cx=20, 矢先 45,22）は本番に反映済み。neenia_dark_face は作り直し前の版に戻しています（上の変更履歴を参照）。

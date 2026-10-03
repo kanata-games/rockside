@@ -4,10 +4,12 @@
 //  crown, trapped inside a crowned dice-headed harlequin). Ground walker. Every attack starts from the wind-up pose
 //  (sprite frame 4, hand raised) with its own telegraph:
 //    fate       tosses a big die over her head; the face (1-6, drawn 2x with a label) decides the follow-up:
-//               1-2 ROULETTE with N balls / 3-4 CARDS fan of N+2 / 5-6 CHIPS rain on N-1 columns
+//               1-2 ROULETTE with N balls / 3-4 CARDS fan of N / 5-6 CHIPS rain on N-1 columns
 //    dice       2 dice (enraged 3) hop once, then roll along the floor (jump them)
-//    cards      aimed card fan; dotted preview lines just before the flick
-//    boomerang  spinning cards fly out and come back: low (jump), high (stand), [enraged: low again]
+//    cards      card fan with a guaranteed gap on Umine's standing spot (dotted preview paths + green floor mark):
+//               stay on the floor where the mark is (or walk away from her) and every card misses
+//    boomerang  spinning cards fly out and come back, one at a time (the next only after she catches the last;
+//               a height mark shows which): low (jump), high (stand), low [enraged: + high]
 //    chips      marked columns (Umine's + others, a free lane is always next to her), then chip stacks drop
 //    roulette   the ball circles her hand, then bounces around the room (limited bounces)
 //    flame      (enraged) flaming die bounces toward Umine, each bounce leaves 2 embers rolling on the floor
@@ -42,11 +44,13 @@ function drDieHook(q) { // kind 29: hops once, then rolls along the floor
   } else { q.y = FLOOR_Y - q.h; q.vy = 0; }
   return false;
 }
-function drBoomHook(q) { // kind 30 boomerang card: decelerates, comes back at the same height, caught by her
+function drBoomHook(q) { // kind 30 boomerang card: constant speed out (range or wall), snaps back at the same height, caught by her
   const B = CONFIG.bosses.diceroll;
-  if (!q.back) { q.vx -= q.f * B.boomDecel; if (Math.sign(q.vx) !== q.f) { q.back = true; sfx('swoosh'); } }
-  else {
-    q.vx = -q.f * Math.min(B.boomSpeed, Math.abs(q.vx) + B.boomDecel);
+  if (!q.back) {
+    if (Math.abs(q.x + q.w / 2 - q.x0) >= B.boomRange || (q.f > 0 && q.x + q.w + q.vx > ROOM_R - 2) || (q.f < 0 && q.x + q.vx < ROOM_L + 2)) {
+      q.back = true; q.vx = -q.vx; sfx('swoosh'); spawnPart(q.x + q.w / 2, q.y + q.h / 2, 0, 0, 8, 1, '#ffd84a');
+    }
+  } else {
     const bc = boss.x + boss.w / 2;
     if ((q.x + q.w / 2 - bc) * q.f <= 0 || q.t > 240 || boss.state === 'rescue') { q.active = false; return true; }
   }
@@ -84,6 +88,27 @@ function drFlameHook(q) { // kind 33 flaming die: bounces toward Umine, embers o
   return false;
 }
 
+// Card fan geometry. The gap is centred on Umine's STANDING box at her x when the fan locks (not where she is mid-jump),
+// and widened until both gap cards clear that box (+ margin) over its whole width: standing still on the floor is always
+// safe; the other cards fan out from there (upper side gets the extra card). Angles in screen space (y down).
+function drCardLine(tp, a, x) { const c = Math.cos(a); if (Math.abs(c) < 1e-3 || (x - tp.x) * c <= 0) return null; return tp.y + (x - tp.x) * Math.tan(a); }
+function drCardClear(tp, a, px, B) {
+  const cy = FLOOR_Y - P.h / 2, half = (BULLET_SIZE[30][1] + P.h) / 2 + B.cardGapMargin, xs = [px - (BULLET_SIZE[30][0] + P.w) / 2, px + (BULLET_SIZE[30][0] + P.w) / 2];
+  let side = 0;
+  for (const x of xs) { const y = drCardLine(tp, a, x); if (y === null) continue; const d = y - cy; if (Math.abs(d) < half) return false; const sg = Math.sign(d); if (side && sg !== side) return false; side = sg; }
+  return true;
+}
+function drCardFan(tp, px, face, n, B) {
+  let tx = px; if ((tx - tp.x) * face < 40) tx = tp.x + face * 40;       // hugging her: aim just ahead
+  const aim = Math.atan2(FLOOR_Y - P.h / 2 - tp.y, tx - tp.x);
+  let half = B.cardGapMin;
+  while (half < 1.2 && !(drCardClear(tp, aim - half, px, B) && drCardClear(tp, aim + half, px, B))) half += 0.01;
+  const up = face > 0 ? -1 : 1, nUp = Math.ceil(n / 2), nDown = n - nUp, out = [];
+  for (let k = 0; k < nUp; k++) out.push(aim + up * (half + k * B.cardSpread));
+  for (let k = 0; k < nDown; k++) out.push(aim - up * (half + k * B.cardSpread));
+  return out;
+}
+
 // ---- AI ----
 function aiDiceroll(b, B, pcx, pcy) {
   bossFall(b);
@@ -119,7 +144,7 @@ function aiDiceroll(b, B, pcx, pcy) {
     if (b.t >= 12 + B.fateRoll + show) {
       const n = b.fateN;
       if (n <= 2) { b.fateCount = n; bossSet('drRoulette'); }
-      else if (n <= 4) { b.fateCount = n + 2; bossSet('drCards'); }
+      else if (n <= 4) { b.fateCount = n; bossSet('drCards'); }
       else { b.fateCount = n - 1; bossSet('drChips'); }
       bossFacePlayer(); b.fateN = 0; b.fateShown = n;
     }
@@ -138,35 +163,34 @@ function aiDiceroll(b, B, pcx, pcy) {
     if (k >= n * B.diceGap + 6) dicerollRecover(b, B, b.allinStep > 0);
     return;
   }
-  if (b.state === 'drCards') { // aimed card fan with preview lines
-    const wind = b.fateCount ? 14 : (rage ? B.cardWindRage : B.cardWind), n = b.fateCount || (rage ? B.cardCountRage : B.cardCount);
-    if (b.t < wind) { b.pose = 'windup'; b.poseF = 0; }
-    else { b.pose = 'flickCards'; b.poseF = 0; }
-    if (b.t < wind - 10) bossFacePlayer();
-    if (b.t === Math.max(0, wind - 10)) { const tp = drCardPt(b); b.cardAng = Math.atan2(pcy - tp.y, pcx - tp.x); b.cardN = n; }
-    if (b.t === wind) {
+  if (b.state === 'drCards') { // card fan with a guaranteed safe gap where Umine stands (preview lines + green floor mark)
+    if (!b.cardW) { b.cardW = b.fateCount ? B.cardWindFate : (rage ? B.cardWindRage : B.cardWind); b.cardN = b.fateCount || (rage ? B.cardCountRage : B.cardCount); b.cardAngs = null; }
+    const wind = b.cardW, n = b.cardN, lock = wind - B.cardPreview;
+    b.pose = b.t < wind ? 'windup' : 'flickCards'; b.poseF = 0;
+    if (b.t < lock) bossFacePlayer();
+    if (b.t === Math.max(1, lock)) { const tp = drCardPt(b); b.cardSafeX = pcx; b.cardAngs = drCardFan(tp, pcx, b.face, n, B); }
+    if (b.t === wind && b.cardAngs) {
       const tp = drCardPt(b);
-      for (let i = 0; i < n; i++) {
-        const a = b.cardAng + (i - (n - 1) / 2) * B.cardSpread;
-        drSpawn(tp.x, tp.y, Math.cos(a) * B.cardSpeed, Math.sin(a) * B.cardSpeed, 30, B.cardDamage, 0);
-      }
+      for (const a of b.cardAngs) drSpawn(tp.x, tp.y, Math.cos(a) * B.cardSpeed, Math.sin(a) * B.cardSpeed, 30, B.cardDamage, 0);
       sfx('swoosh');
     }
-    if (b.t >= wind + 22) { b.fateCount = 0; if (b.allinStep === 2) { b.allinStep = 3; dicerollStart(b, 'dice'); } else dicerollRecover(b, B, false); }
+    if (b.t >= wind + 22) { b.fateCount = 0; b.cardW = 0; b.cardAngs = null; if (b.allinStep === 2) { b.allinStep = 3; dicerollStart(b, 'dice'); } else dicerollRecover(b, B, false); }
     return;
   }
-  if (b.state === 'drBoom') { // boomerang cards: low (jump) / high (stand) / [enraged: low again]
-    const wind = rage ? B.boomWindRage : B.boomWind, n = b.pr ? 3 : 2, k = b.t - wind;
-    if (k < 0) { b.pose = 'windup'; b.poseF = 0; bossFacePlayer(); }
-    else { b.pose = (k % B.boomGap) < 10 && k / B.boomGap < n ? 'flickCards' : 'idle'; b.poseF = 0; }
-    if (k >= 0 && k % B.boomGap === 0 && k / B.boomGap < n) {
-      const i = k / B.boomGap, high = i === 1, y = high ? FLOOR_Y - 40 : FLOOR_Y - 9;
+  if (b.state === 'drBoom') { // boomerang cards one at a time (next one only after she catches the last): low (jump) / high (stand) / low [enraged: + high]
+    const wind = rage ? B.boomWindRage : B.boomWind, n = b.pr ? 4 : 3;
+    if (b.t <= 1 || b.boomI === undefined) { b.boomI = 0; b.boomAt = wind; b.boomFlick = -99; }
+    const flying = bullets.some(q => q.active && q.boom);
+    if (flying) b.boomAt = Math.max(b.boomAt, b.t + B.boomGap);
+    else if (b.boomI < n && b.t < b.boomAt) bossFacePlayer();
+    if (!flying && b.boomI < n && b.t >= b.boomAt) {
+      const high = (b.boomI & 1) === 1, y = high ? FLOOR_Y - 40 : FLOOR_Y - 9;
       const q = drSpawn(cx + b.face * 12, y, b.face * B.boomSpeed, 0, 30, B.boomDamage, 1);
-      if (q) { q.hook = drBoomHook; q.f = b.face; q.back = false; q.boom = true; }
-      sfx('swoosh');
+      if (q) { q.hook = drBoomHook; q.f = b.face; q.back = false; q.boom = true; q.x0 = q.x + q.w / 2; }
+      b.boomI++; b.boomFlick = b.t; sfx('swoosh');
     }
-    if (k >= n * B.boomGap + 50 && !bullets.some(q => q.active && q.boom)) dicerollRecover(b, B, false);
-    if (k > n * B.boomGap + 200) dicerollRecover(b, B, false);
+    b.poseF = 0; b.pose = b.t - b.boomFlick < 10 ? 'flickCards' : (!flying && b.boomI < n ? 'windup' : 'idle');
+    if ((b.boomI >= n && !flying && b.t - b.boomFlick > 10) || b.t > 420) { b.boomI = undefined; dicerollRecover(b, B, false); }
     return;
   }
   if (b.state === 'drChips') { // marked columns, then chip stacks fall there
@@ -185,7 +209,7 @@ function aiDiceroll(b, B, pcx, pcy) {
       for (const x of b.chipCols) { const q = drSpawn(x, -4, 0, B.chipSpeed, 31, B.chipDamage, (k / 7 + (x | 0)) & 1); if (q) q.chip = true; }
       if (k === 0) sfx('bshoot');
     }
-    if (k >= 3 * 7 + 34) { b.chipCols = []; b.fateCount = 0; if (b.allinStep === 1) { b.allinStep = 2; b.fateCount = 6; dicerollStart(b, 'cards'); } else dicerollRecover(b, B, false); }
+    if (k >= 3 * 7 + 34) { b.chipCols = []; b.fateCount = 0; if (b.allinStep === 1) { b.allinStep = 2; b.fateCount = 5; dicerollStart(b, 'cards'); } else dicerollRecover(b, B, false); }
     return;
   }
   if (b.state === 'drRoulette') { // ball(s) circle her hand, then bounce around the room
@@ -237,7 +261,7 @@ function drCell(idx, x, y, scale, rot, flip, cxo) {
 }
 // die face (0-5) - used by the helper's lobbed die and the support move
 function drawDie(x, y, faceIdx, scale, rot) { drCell(Math.max(0, Math.min(5, faceIdx | 0)), x, y, scale || 1, rot ? Math.round(rot / (Math.PI / 2)) * (Math.PI / 2) : 0); }
-function drFateLabel(n) { return n <= 2 ? 'ROULETTE X' + n : n <= 4 ? 'CARDS X' + (n + 2) : 'CHIPS X' + (n - 1); }
+function drFateLabel(n) { return n <= 2 ? 'ROULETTE X' + n : n <= 4 ? 'CARDS X' + n : 'CHIPS X' + (n - 1); }
 function drawDicerollOverlay(b, mx, by, camX) {
   const B = CONFIG.bosses.diceroll, headY = by - 66;
   if (b.state === 'drFate') {
@@ -278,17 +302,17 @@ function drawDicerollMarks(b, camX, blink) {
       drCell(13, x, 30, 1, 0);
     }
   }
-  if (b.state === 'drCards' && b.cardN) { // dotted preview of the fan
-    const wind = b.fateCount ? 14 : (bossRage() ? B.cardWindRage : B.cardWind);
-    if (b.t >= wind - 10 && b.t < wind) {
-      const tp = drCardPt(b), n = b.cardN;
-      g.fillStyle = blink ? '#ffffff' : '#ffd84a';
-      for (let i = 0; i < n; i++) { const a = b.cardAng + (i - (n - 1) / 2) * B.cardSpread; for (let d = 14; d < 90; d += 8) g.fillRect(Math.round(tp.x - camX + Math.cos(a) * d), Math.round(tp.y + Math.sin(a) * d), 2, 2); }
-    }
+  if (b.state === 'drCards' && b.cardAngs && b.t < b.cardW) { // preview: dotted card paths + green SAFE mark where the gap is
+    const tp = drCardPt(b), x0 = Math.round(tp.x - camX);
+    g.fillStyle = blink ? '#ffffff' : '#ff4a5a';
+    for (const a of b.cardAngs) for (let d = 12; d < 170; d += 6) { const y = Math.round(tp.y + Math.sin(a) * d); if (y > FLOOR_Y - 1 || y < 18) break; g.fillRect(x0 + Math.round(Math.cos(a) * d), y, 2, 2); }
+    const sx = Math.round(b.cardSafeX - camX);
+    g.fillStyle = blink ? '#7dff9a' : '#3ad06a';
+    g.fillRect(sx - 9, FLOOR_Y - 2, 18, 2); g.fillRect(sx - 9, FLOOR_Y - 6, 2, 4); g.fillRect(sx + 7, FLOOR_Y - 6, 2, 4);
   }
-  if (b.state === 'drBoom' && b.pose === 'windup') { // height hints: low then high
-    const x = Math.round(b.x + b.w / 2 - camX + b.face * 20);
-    g.fillStyle = blink ? '#ffd84a' : '#ffffff'; g.fillRect(x, FLOOR_Y - 10, 6, 2); g.fillRect(x, FLOOR_Y - 41, 6, 2);
+  if (b.state === 'drBoom' && b.pose === 'windup' && b.boomI !== undefined) { // height hint for the NEXT card: low (jump) or high (stay down)
+    const x = Math.round(b.x + b.w / 2 - camX + b.face * 16), y = (b.boomI & 1) ? FLOOR_Y - 41 : FLOOR_Y - 10;
+    g.fillStyle = blink ? '#ffd84a' : '#ffffff'; g.fillRect(x - (b.face < 0 ? 10 : 0), y, 10, 2);
   }
 }
 function drawDicerollBullet(q, camX) {

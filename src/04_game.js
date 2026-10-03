@@ -328,7 +328,7 @@ function bossReset() {
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.weapon = 'sword'; b.nextWeapon = ''; b.comboLeft = 0; b.chainB = null; b.chainReach = 0; b.recT = 0;
   b.clones = []; b.fanB = null; b.pillars = []; b.blink = false; b.wisps = [];
-  b.fateN = 0; b.fateShow = 0; b.chipCols = []; b.allin = false; b.allinStep = 0; b.balls = 0;
+  b.fateN = 0; b.fateShow = 0; b.chipCols = []; b.allin = false; b.allinStep = 0; b.balls = 0; b.cardW = 0; b.cardAngs = null;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;

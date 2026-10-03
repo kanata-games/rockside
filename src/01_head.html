@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.9.0';
+const GAME_VERSION = '0.9.1';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -154,19 +154,19 @@ const CONFIG = {
       idleFrames: 44, idleFramesRage: 28, songWind: 28, starWind: 26, healTriggerHP: 10, healAmount: 5, rescueLineFrames: 240 },
     // DARK ダイスロール (dice-headed monster; the girl inside is ダイスロール, she/her). Ground walker. Dice / cards / chips / roulette:
     // fate: tosses a big die; the face shown (1-6, drawn large above her head + label) picks the follow-up and its count:
-    //       1-2 roulette (1 or 2 balls), 3-4 card fan (face+2 cards), 5-6 chip rain (face-1 columns)
-    // dice: 2 dice (enraged 3) bounce once and roll along the floor (jump) / cards: aimed card fan with gaps (dotted preview)
-    // boomerang: spinning cards out and back, low then high (enraged +1) / chips: marked columns, then chip stacks drop
+    //       1-2 roulette (1 or 2 balls), 3-4 card fan (face = number of cards), 5-6 chip rain (face-1 columns)
+    // dice: 2 dice (enraged 3) bounce once and roll along the floor (jump) / cards: card fan with a guaranteed safe gap on Umine's standing spot (dotted paths + green floor mark, 24f preview)
+    // boomerang: spinning cards out and back one at a time (next after the catch, height mark): low, high, low (enraged + high) / chips: marked columns, then chip stacks drop
     // roulette: the ball circles her hand, then bounces around the room for a while
     // enraged (<= 50%): flaming die (bounces, leaves embers on landing) + once: ALL IN (chips -> card fan -> dice, announced)
-    diceroll: { hp: 40, iFrames: 12, contactDamage: 3, walkSpeed: 0.9, walkSpeedRage: 1.15, idleFrames: 30, idleFramesRage: 22, recover: 24, recoverRage: 16,
-      comboChance: 0.15, comboChanceRage: 0.5,
+    diceroll: { hp: 40, iFrames: 15, contactDamage: 3, walkSpeed: 0.9, walkSpeedRage: 1.15, idleFrames: 27, idleFramesRage: 20, recover: 24, recoverRage: 16,
+      comboChance: 0.2, comboChanceRage: 0.65,
       fateRoll: 26, fateShow: 26, fateShowRage: 20,
-      diceWind: 18, diceWindRage: 13, diceCount: 2, diceCountRage: 3, diceGap: 22, diceSpeed: 2.0, diceSpeedRage: 2.4, diceDamage: 3,
-      cardWind: 22, cardWindRage: 16, cardCount: 5, cardCountRage: 6, cardSpread: 0.24, cardSpeed: 2.6, cardDamage: 2,
-      boomWind: 18, boomWindRage: 14, boomSpeed: 3.4, boomDecel: 0.08, boomGap: 22, boomDamage: 2,
-      chipWarn: 44, chipWarnRage: 34, chipCols: 4, chipColsRage: 5, chipSpeed: 3.2, chipDamage: 2,
-      rouletteWind: 26, rouletteSpeed: 2.4, rouletteLife: 200, rouletteBounces: 7, rouletteDamage: 2,
+      diceWind: 18, diceWindRage: 13, diceCount: 2, diceCountRage: 3, diceGap: 22, diceSpeed: 2.2, diceSpeedRage: 2.5, diceDamage: 3,
+      cardWind: 32, cardWindRage: 28, cardWindFate: 30, cardPreview: 24, cardCount: 4, cardCountRage: 5, cardSpread: 0.30, cardGapMin: 0.2, cardGapMargin: 6, cardSpeed: 2.0, cardDamage: 2,
+      boomWind: 18, boomWindRage: 14, boomSpeed: 3.0, boomRange: 150, boomGap: 14, boomDamage: 3,
+      chipWarn: 44, chipWarnRage: 34, chipCols: 4, chipColsRage: 5, chipSpeed: 3.2, chipDamage: 3,
+      rouletteWind: 26, rouletteSpeed: 2.4, rouletteLife: 200, rouletteBounces: 7, rouletteDamage: 3,
       flameWind: 22, flameBounces: 3, flameDamage: 3, emberDamage: 2, allinAnnounce: 46, rescueLineFrames: 260 },
     // DARK シラヌイ (fox girl, floats). Every attack starts from a readable pose: fan raised (wind-up glow at the fan tip)
     // volley: aimed foxfires that home a little at first (enraged 5) / wisp: purple will-o-wisps orbit her, then drift at Umine one by one
