@@ -1330,38 +1330,38 @@ const ALLY_INFO = {
 // frames are anchored with their bottom edge on the hitbox bottom (feet) and cx on the hitbox centre.
 const SHEET_DEFS = {
   // kanon.png 32x32: idle2, run4, jump1, fall1, shoot1, runshoot4, hurt1. Staff tip at (30,17).
-  kanon:   { file: 'assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
+  kanon:   { file: '../assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
   // tobiume_dark.png 48x48: idle2, fly2, attack2 (5 = firing), hurt1, defeat1. Magic hand light ~(46,30).
-  tobiume: { file: 'assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  tobiume: { file: '../assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // tobiume.png = NORMAL (pre-dark) Tobiume, used after she is rescued. 32x32 x15; layout comes from
   // assets/tobiume.json (embedded at build time as EMBEDDED_META), these values are the fallback.
   // If the file is missing a pink-tinted copy of the dark sheet is used.
-  tobiumeNormal: { file: 'assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
+  tobiumeNormal: { file: '../assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
     map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], kick: [7, 4], special_dive_kick: [11, 4] } },
   // eyes: [x, y] of each eye in the right-facing frame (used by the shadow / DARK render mode)
-  neenia:  { file: 'assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
-  seiten:  { file: 'assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
-  astarte: { file: 'assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
-  lily:    { file: 'assets/lily.png', fw: 32, fh: 32, frames: 2, cx: 16 },
-  umimi:   { file: 'assets/umimi.png', fw: 32, fh: 32, frames: 10, cx: 16,
+  neenia:  { file: '../assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
+  seiten:  { file: '../assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
+  astarte: { file: '../assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
+  lily:    { file: '../assets/lily.png', fw: 32, fh: 32, frames: 2, cx: 16 },
+  umimi:   { file: '../assets/umimi.png', fw: 32, fh: 32, frames: 10, cx: 16,
     map: { idle: [0, 2], swim: [2, 2], enter: [4, 1], platform: [5, 2], heal: [7, 2], exit: [9, 1] } },
   // v4 DARK friend bosses, 48x48 x8 (layout from the .json, embedded). cx = body centre in the right-facing
   // frame; cxF overrides per frame (Astarte's attack frames are drawn further right). muz = projectile origin.
-  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
+  neeniaDark:  { file: '../assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
-  seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
+  seitenDark:  { file: '../assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
-  lilyDark: { file: 'assets/lily_dark.png', fw: 48, fh: 48, frames: 8, cx: 24,
+  lilyDark: { file: '../assets/lily_dark.png', fw: 48, fh: 48, frames: 8, cx: 24,
     cxF: [24, 24, 24, 24, 24, 24, 24, 24], muzX: 39, muzY: 24,
     map: { idle: [0, 2], windup: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // Frame 6's red song wave isolated from Lily's body. Drawn on top of attack frame 5.
   lilySongWave: { file: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABXElEQVR4nO3Wv0rDQBwH8EtFERRNLqNIGtHLm1RfQF/AxdXBVUj6FNlMT8cUX8DB1aGggtKKIk7i4iIOtfB1ynGtCWK0+SO/z5Ij3CW/3939cmGMEEJ+q8kM5B3b+MtA8to1nbJDmK7AcnOvEEmzaMz+eEZPzPXUMaXUwBs+jLT7e0srKsiwtV3/bdNedlQSlVoBxhgLrKYKqMOFaktrQ7XdxtzYmMj2viRRWALJy5Pr4etj6jbS+8/vH2Q+p3D9oxht08HLeQ+SC0S2h3BzB5ILjJ5uEfshBlEXo4crSC7wft3D8O4SkgtILjC8v0E/6iKyPfja1ipMUpTJDHZsD6rNBQLLRWC5iP1Q9RvI07EaiLQxpUk7lLJq4FhrJwlMP8IctlbXUgPTvzxZX6HKmpzt2iUwqZIJ6Cfvv1bZ4tU9n11UP0hSF7X/lW7NLNQ7AUIIIYQQQgghhHzvEx2NkYPhZI2wAAAAAElFTkSuQmCC', fw: 48, fh: 48, frames: 1, cx: 15 },
-  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
+  astarteDark: { file: '../assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
 for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi'])
-  SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
+  SHEET_DEFS['face_' + f] = { file: '../assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
 function tintCanvas(c, col, alpha) {

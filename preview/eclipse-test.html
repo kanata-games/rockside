@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d0f1a">
 <meta name="robots" content="noindex, nofollow">
-<title>ROCKSIDE – STAR RAIN V5 TEST</title>
+<title>ROCKSIDE – ECLIPSE PHASE TEST</title>
 <style>
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d0f1a;
   touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -40,7 +40,7 @@ body.land #hint{display:none;}
 </head>
 <body>
 <canvas id="screen" width="256" height="240"></canvas>
-<div style="position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif;letter-spacing:.2px">★ STAR RAIN V5 TEST</div>
+<div style="position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">☾ ECLIPSE TEST / HALF HP</div>
 <div id="pad">
   <div class="btn dpad" id="bL"><svg viewBox="0 0 24 24"><path d="M16 3 L5 12 L16 21 Z" fill="currentColor"/></svg></div>
   <div class="btn dpad" id="bR"><svg viewBox="0 0 24 24"><path d="M8 3 L19 12 L8 21 Z" fill="currentColor"/></svg></div>
@@ -1200,30 +1200,30 @@ const ALLY_INFO = {
 // frames are anchored with their bottom edge on the hitbox bottom (feet) and cx on the hitbox centre.
 const SHEET_DEFS = {
   // kanon.png 32x32: idle2, run4, jump1, fall1, shoot1, runshoot4, hurt1. Staff tip at (30,17).
-  kanon:   { file: 'assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
+  kanon:   { file: '../assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
   // tobiume_dark.png 48x48: idle2, fly2, attack2 (5 = firing), hurt1, defeat1. Magic hand light ~(46,30).
-  tobiume: { file: 'assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  tobiume: { file: '../assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // tobiume.png = NORMAL (pre-dark) Tobiume, used after she is rescued. 32x32 x15; layout comes from
   // assets/tobiume.json (embedded at build time as EMBEDDED_META), these values are the fallback.
   // If the file is missing a pink-tinted copy of the dark sheet is used.
-  tobiumeNormal: { file: 'assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
+  tobiumeNormal: { file: '../assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
     map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], kick: [7, 4], special_dive_kick: [11, 4] } },
   // eyes: [x, y] of each eye in the right-facing frame (used by the shadow / DARK render mode)
-  neenia:  { file: 'assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
-  seiten:  { file: 'assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
-  astarte: { file: 'assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
+  neenia:  { file: '../assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
+  seiten:  { file: '../assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
+  astarte: { file: '../assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
   // v4 DARK friend bosses, 48x48 x8 (layout from the .json, embedded). cx = body centre in the right-facing
   // frame; cxF overrides per frame (Astarte's attack frames are drawn further right). muz = projectile origin.
-  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
+  neeniaDark:  { file: '../assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
-  seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
+  seitenDark:  { file: '../assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
-  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
+  astarteDark: { file: '../assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
 for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark'])
-  SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
+  SHEET_DEFS['face_' + f] = { file: '../assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
 function tintCanvas(c, col, alpha) {
@@ -1930,6 +1930,8 @@ function bossReset() {
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
   b.bag.length = 0; b.counterCD = 0;
+  // Dedicated practice file only: start Astarte at half HP and open with Eclipse.
+  if (curArea.boss === 'astarte') { b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall'); }
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
@@ -1940,7 +1942,7 @@ function startGame(area) {
 // ---------------------------------------------------------------------
 //  Progress (localStorage) + STAGE SELECT (3x3, centre = final area)
 // ---------------------------------------------------------------------
-const PROGRESS_KEY = 'rockside_progress_picchan_preview_v1';
+const PROGRESS_KEY = 'rockside_progress_picchan_eclipse_test_v1';
 const progress = { cleared: [], rescued: [] }; // area ids cleared / friend ids rescued (joined as allies)
 function loadProgress() {
   try { const d = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null');
@@ -2228,7 +2230,16 @@ function damageBoss(s) {
   const b = boss;
   if (!bossHittable()) return false;
   if (b.inv > 0) { sfx('tink'); return true; }
+  const hpBefore = b.hp;
   b.hp -= CONFIG.shotDamage; b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
+  // Astarte phase 2: interrupt the current attack on the actual 50% HP crossing,
+  // rather than waiting for a long orb animation or the next random choice.
+  if (curArea.boss === 'astarte' && hpBefore > bossCfg().hp / 2 && b.hp <= bossCfg().hp / 2 && b.hp > 0 && !b.hidden) {
+    bossSeen('eclipse'); b.fireT = 0;
+    // Clear old orbit bullets so the transition remains readable. Delayed star rain is independent.
+    for (const bb of bullets) if (bb.active && bb.orbit) bb.active = false;
+    bossSet('eclipse'); sfx('warn');
+  }
   if (b.hp <= 0) {
     b.hp = 0; b.hidden = false; b.alpha = 1; bossSet('rescue'); hitStop = 12; shake(16, 3); sfx('boom');
     for (const bb of bullets) bb.active = false;

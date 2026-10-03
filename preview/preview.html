@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d0f1a">
 <meta name="robots" content="noindex, nofollow">
-<title>ROCKSIDE – ECLIPSE PHASE TEST</title>
+<title>ROCKSIDE – 飛梅ちゃんボス技追加試作</title>
 <style>
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d0f1a;
   touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -28,6 +28,11 @@ body{position:fixed;inset:0;font-family:system-ui,-apple-system,"Segoe UI",sans-
 #bS.on{background:#d8466a;border-color:#ffb3c4;}
 #bJ{border-color:#4fae6e;background:#16281e;}
 #bJ.on{background:#3fbf68;border-color:#bfffd2;}
+#bM{border:2px solid #8acbe8;background:#15384d;color:#d7faff;border-radius:50%;font:800 10px/1 system-ui,sans-serif;pointer-events:auto;z-index:5;touch-action:none;}
+#bM.on{background:#3484aa;border-color:#e1ffff;}
+#bSupport{border:2px solid #ffa8cf;background:#40243d;color:#fff1f8;border-radius:50%;font:800 9px/1 system-ui,sans-serif;pointer-events:auto;z-index:5;touch-action:none;}
+#bSupport.on{background:#a94275;border-color:white;}
+#bSupport.used{opacity:.38;filter:grayscale(1);}
 #mute{position:absolute;box-sizing:border-box;padding:0 10px;height:30px;border-radius:15px;text-align:center;
   border:2px solid #3a4666;background:#141a2c;color:#9fb0d8;font:700 12px/26px system-ui,sans-serif;letter-spacing:1px;
   pointer-events:auto;white-space:nowrap;}
@@ -40,12 +45,14 @@ body.land #hint{display:none;}
 </head>
 <body>
 <canvas id="screen" width="256" height="240"></canvas>
-<div style="position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#14132bde;color:#ffe9ad;border:1px solid #bc9b5a;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">☾ ECLIPSE TEST / HALF HP</div>
+<div style="position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#27162bd8;color:#efd8ff;border:1px solid #9975de;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">TOBIUME · NEW HEART RAIN</div>
 <div id="pad">
   <div class="btn dpad" id="bL"><svg viewBox="0 0 24 24"><path d="M16 3 L5 12 L16 21 Z" fill="currentColor"/></svg></div>
   <div class="btn dpad" id="bR"><svg viewBox="0 0 24 24"><path d="M8 3 L19 12 L8 21 Z" fill="currentColor"/></svg></div>
   <div class="btn round" id="bS">SHOT</div>
   <div class="btn round" id="bJ">JUMP</div>
+  <div class="btn" id="bM">ORB</div>
+  <div class="btn" id="bSupport" style="display:none">HELP</div>
   <div id="mute">SOUND ON</div>
   <div id="hint">ROCKSIDE PROTOTYPE v0.1</div>
 </div>
@@ -82,6 +89,7 @@ const CONFIG = {
 
   // ---- player health ----
   playerMaxHP: 16,
+  magicMaxMP: 20, magicOrbCost: 6, magicRegenFrames: 50, magicOrbLife: 360,
   invincFrames: 90,       // blinking mercy frames after a hit
   knockbackFrames: 18,    // frames of lost control after a hit
   knockbackSpeed: 1.0,    // px/frame pushed away while stunned
@@ -115,6 +123,7 @@ const CONFIG = {
     swoopTelegraph: 28, swoopSpeed: 3.4, landFrames: 26,
     kickRiseY: 36, kickAimFrames: 40, kickAimSpeed: 2.2, kickSpeed: 6.5, shockSpeed: 2.0,
     recoverSpeed: 1.6,
+    heartRainWarn: 40, heartRainGap: 13, heartRainSpeed: 3.4, // marked falling hearts, 2 normal / 3 rage
     rescueLineFrames: 260,  // how long her thank-you line stays before STAGE CLEAR (tap skips)
   },
 
@@ -192,7 +201,7 @@ const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox
 //  A アスターテ (guide; the last one is the checkpoint)  N ネーニア (archer)  S 青天 (healer)
 // =====================================================================
 const STAGE_SUNSET_HILLS = [
-[ // 0 start
+[ // 0 trailhead, a gentle start
 "................",
 "................",
 "................",
@@ -203,12 +212,13 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-"..........====..",
 "................",
-"..P.....A.......",
+"................",
+"..P....A........",
 "################",
-"################"],
-[ // 1 walker + steps
+"################"
+],
+[ // 1 terraced hillside, low wall and small ditch
 "................",
 "................",
 "................",
@@ -220,11 +230,46 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-"............####",
-"......Q....#####",
+"................",
+".....W...#......",
+"###########.####",
+"###########.####"
+],
+[ // 2 wooden crossing, jumper on the landing
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"......====......",
+"................",
+"................",
+"...........H....",
+"#######..#######",
+"#######..#######"
+],
+[ // 3 windmill ridge, airy staggered platforms
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".........F......",
+"................",
+".........====...",
+"................",
+"...===..........",
+"................",
 "################",
-"################"],
-[ // 2 step down, small pit, hopper
+"################"
+],
+[ // 4 old ruins, raised route above the foes
 "................",
 "................",
 "................",
@@ -233,62 +278,32 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
+".....=====......",
 "................",
 "................",
 "................",
-"####............",
-"#####.....H.....",
-"#####...########",
-"#####...########"],
-[ // 3 flyer, narrow pit, girder
+"....#...H....W..",
+"################",
+"################"
+],
+[ // 5 ravine, Neenia's perch
 "................",
 "................",
 "................",
 "................",
 "................",
 "................",
-"........F.......",
+"..........F.....",
+".......N........",
+"....=====.......",
 "................",
-"................",
-"................",
-"..........===...",
+"...........===..",
 "................",
 "................",
 "######..########",
-"######..########"],
-[ // 4 blocks, hopper + walker, upper route starts
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-".......===...===",
-"................",
-"....##..........",
-"....##..........",
-"..####..H...##W.",
-"################",
-"################"],
-[ // 5 pit bridged by girder (low route) / Neenia's perch (upper route), flyer
-"................",
-"................",
-"................",
-"................",
-"................",
-"...........F....",
-"................",
-".......N........",
-"==...=====......",
-"................",
-"................",
-"......==........",
-"................",
-"#####....#######",
-"#####....#######"],
-[ // 6 walker + hopper
+"######..########"
+],
+[ // 6 meadow, approach to the checkpoint
 "................",
 "................",
 "................",
@@ -298,12 +313,13 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-".........====...",
+".......===......",
 "................",
 "................",
 "...W.......H....",
 "################",
-"################"],
+"################"
+],
 [ // 7 checkpoint + corridor
 "..........######",
 "..........######",
@@ -1200,30 +1216,30 @@ const ALLY_INFO = {
 // frames are anchored with their bottom edge on the hitbox bottom (feet) and cx on the hitbox centre.
 const SHEET_DEFS = {
   // kanon.png 32x32: idle2, run4, jump1, fall1, shoot1, runshoot4, hurt1. Staff tip at (30,17).
-  kanon:   { file: 'assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
+  kanon:   { file: '../assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
   // tobiume_dark.png 48x48: idle2, fly2, attack2 (5 = firing), hurt1, defeat1. Magic hand light ~(46,30).
-  tobiume: { file: 'assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  tobiume: { file: '../assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // tobiume.png = NORMAL (pre-dark) Tobiume, used after she is rescued. 32x32 x15; layout comes from
   // assets/tobiume.json (embedded at build time as EMBEDDED_META), these values are the fallback.
   // If the file is missing a pink-tinted copy of the dark sheet is used.
-  tobiumeNormal: { file: 'assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
+  tobiumeNormal: { file: '../assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
     map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], kick: [7, 4], special_dive_kick: [11, 4] } },
   // eyes: [x, y] of each eye in the right-facing frame (used by the shadow / DARK render mode)
-  neenia:  { file: 'assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
-  seiten:  { file: 'assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
-  astarte: { file: 'assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
+  neenia:  { file: '../assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
+  seiten:  { file: '../assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
+  astarte: { file: '../assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
   // v4 DARK friend bosses, 48x48 x8 (layout from the .json, embedded). cx = body centre in the right-facing
   // frame; cxF overrides per frame (Astarte's attack frames are drawn further right). muz = projectile origin.
-  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
+  neeniaDark:  { file: '../assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
-  seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
+  seitenDark:  { file: '../assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
-  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
+  astarteDark: { file: '../assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
 for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark'])
-  SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
+  SHEET_DEFS['face_' + f] = { file: '../assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
 function tintCanvas(c, col, alpha) {
@@ -1545,6 +1561,43 @@ function buildLevel() {
         for (let i = 0; i < 11; i++) { F(GD[3], x + 2 + i, y + 3 + i, 1, 1); F(GD[3], x + 13 - i, y + 3 + i, 1, 1); }
       }
     }
+    // Sunset-only surface foliage. Decorative pixels do not alter collisions.
+    if (curTiles === TILESETS.sunset && c < ROOM_COL) {
+      for (let r = 2; r < ROWS - 2; r++) {
+        if (tileAt(c, r) !== T_ROCK || tileAt(c, r - 1) !== T_EMPTY) continue;
+        const h = hash(c, 320 + r);
+        const x = c * TS, y = r * TS;
+        if ((h & 3) !== 0) {
+          F('#2a754a', x + 3, y - 3, 1, 3); F('#a8cf72', x + 6, y - 2, 1, 2);
+          F('#5ca766', x + 11, y - 4, 1, 4);
+        }
+        if ((h & 7) === 2) {
+          F('#d7a3cf', x + 6, y - 5, 2, 2); F('#ffe4a4', x + 7, y - 4, 1, 1);
+        }
+      }
+    }
+  }
+  // Small hand-placed waymarks. Purely visual and never collide with Umine.
+  if (curTiles === TILESETS.sunset) {
+    const T = (x, y, w, h, col) => F(col, x, y, w, h);
+    for (const [col, kind] of [[14, 0], [16 + 15, 1], [3 * 16 + 1, 0], [4 * 16 + 14, 1], [6 * 16 + 15, 0]]) {
+      const x = col * TS + 8, ground = 13 * TS;
+      if (kind === 0) {
+        // Trail sign: pale wooden post and a warm gold arrow pointing onward.
+        T(x, ground - 19, 2, 19, '#61445b');
+        T(x - 5, ground - 18, 13, 7, '#c18a62');
+        T(x - 4, ground - 17, 9, 5, '#e7b27c');
+        T(x + 5, ground - 16, 3, 3, '#f4d394');
+        T(x - 4, ground - 10, 2, 2, '#69485b');
+      } else {
+        // Narrow driftwood fence remains behind the character, not solid.
+        for (let j = 0; j < 2; j++) {
+          T(x + j * 8, ground - 12, 2, 12, '#624255');
+          T(x + j * 8, ground - 12, 2, 2, '#d6a373');
+        }
+        T(x - 1, ground - 8, 14, 2, '#9e6b65');
+      }
+    }
   }
 }
 buildLevel();
@@ -1620,7 +1673,7 @@ function sfx(n) { Snd.play(n); }
 // =====================================================================
 const keys = { left: false, right: false, jump: false, shoot: false, up: false, down: false }; // up/down: stage-select cursor only
 const touch = { left: false, right: false, jump: false, shoot: false };
-const inp = { left: false, right: false, jump: false, shoot: false, jumpPressed: false, shootPressed: false, startPressed: false,
+const inp = { left: false, right: false, jump: false, shoot: false, magicPressed: false, supportPressed: false, supportCyclePressed: false, jumpPressed: false, shootPressed: false, startPressed: false,
   enterPressed: false, backPressed: false, leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, resetPressed: false };
 const stats = { updates: 0, jumps: 0, shots: 0, kills: 0, hits: 0, deaths: 0, touchDowns: 0, playFrames: 0, arrows: 0, arrowKills: 0, heals: 0 };
 
@@ -1630,6 +1683,9 @@ window.addEventListener('keydown', e => {
   Snd.init();
   if (e.code === 'Enter' || e.code === 'NumpadEnter') { inp.startPressed = true; inp.enterPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
+  if (e.code === 'KeyC') { if (!e.repeat) inp.magicPressed = true; e.preventDefault(); return; }
+  if (e.code === 'KeyB') { if (!e.repeat) inp.supportPressed = true; e.preventDefault(); return; }
+  if (e.code === 'KeyV') { if (!e.repeat) inp.supportCyclePressed = true; e.preventDefault(); return; }
   if (e.code === 'Escape') { inp.backPressed = true; return; } // stage select -> title
   if (e.code === 'Delete' || e.code === 'Backspace') { inp.resetPressed = true; e.preventDefault(); return; } // title: erase progress (press twice)
   const b = KEYMAP[e.code]; if (!b) return;
@@ -1644,6 +1700,16 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (!b) return; e.preventDefault(); keys[b] = false; refreshButtons(); });
 
 const pad = document.getElementById('pad'), muteBtn = document.getElementById('mute'), hintEl = document.getElementById('hint');
+const orbBtn = document.getElementById('bM');
+const helpBtn = document.getElementById('bSupport');
+helpBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Snd.init(); inp.supportPressed = true; helpBtn.classList.add('on'); });
+helpBtn.addEventListener('pointerup', e => { e.preventDefault(); e.stopPropagation(); helpBtn.classList.remove('on'); });
+helpBtn.addEventListener('pointercancel', () => helpBtn.classList.remove('on'));
+helpBtn.addEventListener('lostpointercapture', () => helpBtn.classList.remove('on'));
+orbBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Snd.init(); inp.magicPressed = true; orbBtn.classList.add('on'); });
+orbBtn.addEventListener('pointerup', e => { e.preventDefault(); e.stopPropagation(); orbBtn.classList.remove('on'); });
+orbBtn.addEventListener('pointercancel', () => orbBtn.classList.remove('on'));
+orbBtn.addEventListener('lostpointercapture', () => orbBtn.classList.remove('on'));
 const BTN = { left: document.getElementById('bL'), right: document.getElementById('bR'), shoot: document.getElementById('bS'), jump: document.getElementById('bJ') };
 const BTN_ON = { left: false, right: false, shoot: false, jump: false };
 const ptrs = new Map(); // pointerId -> zone name
@@ -1676,7 +1742,7 @@ function refreshButtons() {
 }
 pad.addEventListener('pointerdown', e => {
   e.preventDefault(); Snd.init();
-  if (e.target === muteBtn) { toggleMute(); return; }
+  if (e.target === muteBtn || e.target === helpBtn || e.target === orbBtn) return;
   stats.touchDowns++;
   // taps inside the game view on the stage select / title go to those screens (cells, reset button)
   const gx = (e.clientX - layout.gameX) / layout.gameW * VW, gy = (e.clientY - layout.gameY) / layout.gameH * VH;
@@ -1742,11 +1808,15 @@ function doLayout() {
     margin = Math.max(12, Math.round(W * 0.035));
     cy = ctrlTop + ctrlH * 0.52;
     place(muteBtn, W - margin - 100, ctrlTop + 14, 100, 30);
+    place(orbBtn, Math.round(W / 2 - 24), ctrlTop + 12, 48, 48);
+    place(helpBtn, Math.round(W / 2 - 24), ctrlTop + 67, 48, 48);
     hintEl.style.top = (H - 26) + 'px';
   } else {
     bs = Math.max(64, Math.min(92, H * 0.23));
     margin = 14; cy = H * 0.64; gap = 8;
     place(muteBtn, 10, 10, 96, 30);
+    place(orbBtn, W - 62, 10, 48, 48);
+    place(helpBtn, W - 62, 66, 48, 48);
   }
   const lx = margin, rx = margin + bs + gap;
   place(BTN.left, lx, cy - bs / 2, bs, bs); place(BTN.right, rx, cy - bs / 2, bs, bs);
@@ -1765,6 +1835,8 @@ doLayout();
 const P = { x: 0, y: 0, w: 10, h: 20, vx: 0, vy: 0, face: 1, onGround: false, coyote: 0, jumpBuf: 0, jumping: false,
   shootT: 0, cool: 0, autoT: 0, shootBuf: 0, hp: 16, inv: 0, hurt: 0, knockDir: 0, dead: false, animT: 0 };
 const cam = { x: 0 };
+// Prototype special magic: a single temporary water-orb foothold.
+const magic = { mp: CONFIG.magicMaxMP, regen: 0, orb: null, cooldown: 0 };
 const shots = []; for (let i = 0; i < CONFIG.maxShots; i++) shots.push({ active: false, x: 0, y: 0, vx: 0, w: 7, h: 5 });
 // bullet kinds: 0 small, 2 heart, 3 star, 4 shockwave (Tobiume) / 6 arrow, 7 rain arrow (Neenia) /
 // 8 floor sound wave, 11 note (Seiten) / 9 crescent, 10 star orb, 12 scythe slash area (Astarte)
@@ -1843,7 +1915,7 @@ function loadArea(area) {
 
 let state = 'title', stateT = 0, frame = 0, hitStop = 0, shakeT = 0, shakeMag = 0;
 let checkpoint = false, doorClosed = false, doorAnim = 0, introPhase = 0, titleScroll = 0;
-function setState(s) { state = s; stateT = 0; }
+function setState(s) { state = s; stateT = 0; if (typeof helpBtn !== 'undefined') refreshSupportButton(); }
 
 // ---------------------------------------------------------------------
 //  Tile collision
@@ -1919,6 +1991,8 @@ function resetStage(fromCP) {
   for (const r of arrows) r.active = false;
   for (const a of allies) { a.said = false; a.bubbleT = 0; a.act = 0; a.t = 0; }
   bossReset();
+  magic.mp = CONFIG.magicMaxMP; magic.regen = 0; magic.orb = null; magic.cooldown = 0;
+  support.used = false; support.t = 0; support.active = false; support.hit = false; refreshSupportButton();
   doorClosed = false; doorAnim = 0; introPhase = 0; hitStop = 0; shakeT = 0;
   cam.x = clampCam(P.x + P.w / 2 - VW / 2);
   setState('ready');
@@ -1927,11 +2001,10 @@ function bossReset() {
   const T = bossType(), b = boss;
   b.dark = true; b.pose = 'idle'; b.poseF = -1; b.hopY = 0; b.w = T.w; b.h = T.h; b.alpha = 1; b.hidden = false; b.rainN = 0; b.warn = 0;
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
-  b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
+  b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
-  b.bag.length = 0; b.counterCD = 0;
-  // Dedicated practice file only: start Astarte at half HP and open with Eclipse.
-  if (curArea.boss === 'astarte') { b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall'); }
+  b.bag.length = 0; b.counterCD = 0; b.heartRainX = 0;
+  if (curArea.boss === 'astarte' && QS.get('eclipse') === '1') { b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall'); }
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
@@ -1942,22 +2015,49 @@ function startGame(area) {
 // ---------------------------------------------------------------------
 //  Progress (localStorage) + STAGE SELECT (3x3, centre = final area)
 // ---------------------------------------------------------------------
-const PROGRESS_KEY = 'rockside_progress_picchan_eclipse_test_v1';
-const progress = { cleared: [], rescued: [] }; // area ids cleared / friend ids rescued (joined as allies)
+const PROGRESS_KEY = 'rockside_progress_picchan_preview_v1';
+const progress = { cleared: [], rescued: [], support: null }; // area ids cleared / friend ids rescued (joined as allies)
 function loadProgress() {
   try { const d = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null');
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
-    if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string'); } catch (_) {}
+    if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
+    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support; } catch (_) {}
+  if (QS.get('supporttest') === '1') progress.support = SUPPORT_ROSTER.includes(QS.get('supportfriend')) ? QS.get('supportfriend') : 'tobiume';
 }
-function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued })); } catch (_) {} }
+function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
 function markCleared(area) {
   if (!progress.cleared.includes(area.id)) progress.cleared.push(area.id);
   if (area.friend && !progress.rescued.includes(area.friend)) progress.rescued.push(area.friend);
+  if (area.friend === 'tobiume' && !progress.support) progress.support = 'tobiume';
   saveProgress();
 }
-function eraseProgress() { progress.cleared.length = 0; progress.rescued.length = 0; try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {} }
+function eraseProgress() { progress.cleared.length = 0; progress.rescued.length = 0; progress.support = null; try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {} }
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
+// One equippable rescue special at a time. Future friends can join this roster.
+const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte'];
+const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ' };
+const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA' };
+const support = { active: false, used: false, t: 0, hit: false, x: 0, y: -45, face: 1, kind: null, camX: 0 };
+function supportUnlocked(id) { return isRescued(id) || (QS.get('supporttest') === '1' && SUPPORT_ROSTER.includes(id)); }
+function equippedSupport() { return progress.support && supportUnlocked(progress.support) && curArea.friend !== progress.support ? progress.support : null; }
+function refreshSupportButton() {
+  const ok = (state === 'play' || state === 'ready') && !!equippedSupport() && !P.dead;
+  helpBtn.style.display = ok ? 'flex' : 'none';
+  const id = equippedSupport();
+  helpBtn.textContent = support.used ? 'USED' : ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[id] || 'HELP');
+  helpBtn.style.borderColor = ({ tobiume: '#ffa8cf', neenia: '#a3c6ff', seiten: '#ff98a8', astarte: '#c4b2ff' }[id] || '#ffa8cf');
+  helpBtn.classList.toggle('used', support.used);
+}
+function cycleSupport() {
+  const open = SUPPORT_ROSTER.filter(supportUnlocked);
+  if (!open.length) { sfx('buzz'); selMessage('仲間を救出するとサポートが解放されるよ', 'RESCUE A FRIEND FIRST'); return; }
+  const n = open.indexOf(progress.support);
+  progress.support = n < 0 ? open[0] : (n + 1 === open.length ? null : open[n + 1]);
+  saveProgress(); sfx('cursor');
+  const name = SUPPORT_NAMES[progress.support];
+  selMessage(name ? name + 'をサポートにセット！' : 'サポートを外したよ', ({ tobiume: 'SUPER ULTRA TOBIUME KICK!', neenia: 'NEENIA: STARFALL ARROWS!', seiten: 'SEITEN: GUARDIAN SONG!', astarte: 'ASTARTE: MOON CLEAVE!' })[progress.support] || 'SUPPORT: NONE');
+}
 function outerAreas() { return AREAS.filter(a => !a.final); }
 function clearedCount() { return outerAreas().filter(a => isCleared(a.id)).length; }
 function finalUnlocked() { return DEBUG.unlockAll || clearedCount() >= 8; }
@@ -1968,7 +2068,8 @@ buildActors();
 // geometry of the grid in game pixels (shared with the renderer and tap handling)
 const SEL = { x0: 8, y0: 23, cw: 76, ch: 70, gx: 6, gy: 3 };
 function cellRect(slot) { const c = slot % 3, r = (slot / 3) | 0; return { x: SEL.x0 + c * (SEL.cw + SEL.gx), y: SEL.y0 + r * (SEL.ch + SEL.gy), w: SEL.cw, h: SEL.ch }; }
-const SEL_BACK = { x: 3, y: 4, w: 36, h: 13 };      // "TITLE" button on the select header
+const SEL_BACK = { x: 3, y: 4, w: 36, h: 13 };
+const SEL_SUPPORT = { x: 44, y: 3, w: 67, h: 15 };      // "TITLE" button on the select header
 const TITLE_RESET = { x: 186, y: 3, w: 67, h: 12 };  // "ERASE DATA" button on the title (shown when there is progress)
 let selCursor = 0, selMsg = null, selMsgT = 0, introArea = null, resetArmT = 0;
 function selMessage(jp, en) { selMsg = { jp: jp, en: en }; selMsgT = 110; }
@@ -1984,6 +2085,7 @@ function chooseSlot(slot) {
 function updateSelect() {
   if (selMsgT > 0) { selMsgT--; if (selMsgT <= 0) selMsg = null; }
   if (stateT < 8) return;
+  if (inp.supportCyclePressed) { cycleSupport(); return; }
   let c = selCursor % 3, r = (selCursor / 3) | 0, moved = false;
   // left/right walk through all 9 cells in reading order (touch d-pad has no up/down); up/down change row
   if (inp.leftPressed) { selCursor = (selCursor + 8) % 9; moved = true; }
@@ -2007,6 +2109,7 @@ function screenTap(x, y) {
   if (state === 'select') {
     if (stateT < 8) return true;
     if (inR(SEL_BACK)) { inp.backPressed = true; return true; }
+    if (inR(SEL_SUPPORT)) { cycleSupport(); return true; }
     if (selMsg && selMsgT < 104) { selMsg = null; selMsgT = 0; return true; }
     for (let slot = 0; slot < 9; slot++) if (inR(cellRect(slot))) { if (!selMsg) { if (slot !== selCursor) sfx('cursor'); chooseSlot(slot); } return true; }
     return true; // taps between cells do nothing
@@ -2036,6 +2139,27 @@ function fireShot() {
     P.cool = CONFIG.shotCooldown; P.autoT = CONFIG.autoFireInterval; P.shootT = CONFIG.shootPoseFrames;
     stats.shots++; sfx('shot'); return;
   }
+}
+function castWaterOrb() {
+  if (magic.cooldown || magic.mp < CONFIG.magicOrbCost || P.dead) { sfx('buzz'); return; }
+  const x = Math.max(4, Math.min(LEVEL_W - 28, Math.round(P.x + P.w / 2 + P.face * 27 - 12)));
+  const y = Math.max(44, Math.round(P.y - 14));
+  // No casting into rock, doors or occupied ceiling space.
+  for (const [dx, dy] of [[0, 0], [23, 0], [0, 7], [23, 7]]) {
+    if (solid(Math.floor((x + dx) / TS), Math.floor((y + dy) / TS))) { sfx('buzz'); return; }
+  }
+  magic.orb = { x, y, w: 24, h: 8, life: CONFIG.magicOrbLife };
+  magic.mp -= CONFIG.magicOrbCost; magic.regen = 0; magic.cooldown = 18;
+  for (let k = 0; k < 8; k++) spawnPart(x + 12, y + 4, DIR8X[k], DIR8Y[k], 24, 0, '#89ebff');
+  sfx('cp');
+}
+function updateMagic() {
+  if (magic.cooldown > 0) magic.cooldown--;
+  if (magic.orb && --magic.orb.life <= 0) magic.orb = null;
+  if (magic.mp < CONFIG.magicMaxMP && ++magic.regen >= CONFIG.magicRegenFrames) {
+    magic.regen = 0; magic.mp++;
+  }
+  if (inp.magicPressed) castWaterOrb();
 }
 function updatePlayer() {
   const p = P;
@@ -2069,7 +2193,14 @@ function updatePlayer() {
   if (p.shootBuf > 0) p.shootBuf--;
 
   p.vy += CONFIG.gravity; if (p.vy > CONFIG.maxFall) p.vy = CONFIG.maxFall;
+  const previousFeet = p.y + p.h;
   moveX(p); moveY(p);
+  // Falling only: the temporary orb acts like a one-way platform.
+  const orb = magic.orb;
+  if (orb && p.vy >= 0 && previousFeet <= orb.y + 3 && p.y + p.h >= orb.y &&
+      p.x + p.w > orb.x + 2 && p.x < orb.x + orb.w - 2) {
+    p.y = orb.y - p.h; p.vy = 0; p.onGround = true;
+  }
   if (p.onGround) { p.coyote = CONFIG.coyoteFrames; p.jumping = false; } else if (p.coyote > 0) p.coyote--;
   if (p.onGround && p.vx !== 0) p.animT++; else if (p.onGround) p.animT = 0;
   if (p.y > VH + 24) killPlayer(true);
@@ -2231,7 +2362,7 @@ function damageBoss(s) {
   if (!bossHittable()) return false;
   if (b.inv > 0) { sfx('tink'); return true; }
   const hpBefore = b.hp;
-  b.hp -= CONFIG.shotDamage; b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
+  b.hp -= (arguments.length > 1 ? arguments[1] : CONFIG.shotDamage); b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
   // Astarte phase 2: interrupt the current attack on the actual 50% HP crossing,
   // rather than waiting for a long orb animation or the next random choice.
   if (curArea.boss === 'astarte' && hpBefore > bossCfg().hp / 2 && b.hp <= bossCfg().hp / 2 && b.hp > 0 && !b.hidden) {
@@ -2324,11 +2455,16 @@ function pickPattern(opts) { // random, never the same pattern twice in a row
   if (opts[pi] === boss.last) pi = (pi + 1 + ((Math.random() * (opts.length - 1)) | 0)) % opts.length;
   boss.last = opts[pi]; bossSeen(opts[pi]); return opts[pi];
 }
-const BOSS_OPTS = ['fan', 'swoop', 'kick'];
+const BOSS_OPTS = ['fan', 'swoop', 'kick', 'heartRain'];
 function bossChoose() {
   const a = pickPattern(BOSS_OPTS); bossFacePlayer();
   if (a === 'fan') { boss.shots = 0; bossSet('fan'); }
   else if (a === 'swoop') { bossSet('swoopWind'); sfx('warn'); }
+  else if (a === 'heartRain') {
+    boss.heartRainX = Math.max(ROOM_L + 38, Math.min(ROOM_R - 38, P.x + P.w / 2));
+    bossPickSide(); // cast while flying across the room; rain target remains locked to its warning
+    bossSet('heartRainWind'); sfx('warn');
+  }
   else { bossSet('kickAim'); sfx('warn'); }
 }
 function aiTobiume(b, B, pcx, pcy) {
@@ -2357,6 +2493,23 @@ function aiTobiume(b, B, pcx, pcy) {
       }
       const total = b.pr ? B.fanVolleysRage : 1;
       if (b.shots >= total && b.t > B.fanWindup + (total - 1) * 30 + 24) { bossSet('hover'); bossPickSide(); }
+      break;
+    }
+    case 'heartRainWind':
+      b.pose = 'attack'; bossHover(b, B, true);
+      if (b.t % 7 === 0) spawnPart(b.x + b.w / 2, b.y + 13, (b.t % 3 - 1) * 0.4, -0.8, 22, 0, '#ff9bce');
+      if (b.t >= B.heartRainWarn) { b.shots = 0; bossSet('heartRain'); sfx('bshoot'); }
+      break;
+    case 'heartRain': {
+      b.pose = 'attack'; bossHover(b, B, true);
+      const count = b.pr ? 3 : 2, at = 1 + b.shots * B.heartRainGap;
+      if (b.shots < count && b.t === at) {
+        const offset = b.shots === 0 ? -19 : b.shots === 1 ? 19 : 0;
+        const x = Math.max(ROOM_L + 4, Math.min(ROOM_R - 8, b.heartRainX + offset - 3));
+        const shot = spawnBullet(x, 34, 0, B.heartRainSpeed, 2, B.bulletDamage);
+        if (shot) { b.shots++; sfx('bshoot'); }
+      }
+      if (b.shots >= count && b.t > count * B.heartRainGap + 15) { bossSet('hover'); bossPickSide(); }
       break;
     }
     case 'swoopWind':
@@ -2730,7 +2883,7 @@ function astarteChoose(b, B) {
     bossRage() && !b.seen.includes('eclipse') ? pickPattern(['eclipse']) : pickPattern(pool);
   bossFacePlayer();
   if (a === 'slash') { b.shots = 0; bossSet('slash'); }
-  else if (a === 'warp') { b.warp2 = false; bossSet('warpOut'); sfx('warn'); }
+  else if (a === 'warp') { b.warp2 = false; b.eclipseFinisher = false; bossSet('warpOut'); sfx('warn'); }
   else if (a === 'cleave') { bossSet('cleave'); sfx('warn'); }
   else if (a === 'shadow') { bossSet('shadowOut'); sfx('warn'); }
   else if (a === 'starfall') { bossSet('starCast'); sfx('warn'); }
@@ -2782,7 +2935,7 @@ function aiAstarte(b, B, pcx, pcy) {
         b.fireT = 15; sfx('swoosh'); shake(4, 1);
       }
       if (b.t >= B.eclipseWind + B.eclipseGap + B.eclipseRecover) {
-        b.warp2 = true; bossSet('warpOut'); sfx('warn');
+        b.warp2 = true; b.eclipseFinisher = true; bossSet('warpOut'); sfx('warn');
       }
       break;
     }
@@ -2842,8 +2995,22 @@ function aiAstarte(b, B, pcx, pcy) {
       if (b.t % 3 === 0) { const h = hash(b.t, 19); spawnPart(b.x + (h % b.w), b.y + ((h >> 8) % b.h), 0, -0.6, 18, 5, '#c090ff'); }
       if (b.t >= B.fadeFrames) {
         b.hidden = true; b.alpha = 0;
-        let tx = pcx - P.face * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx + P.face * 40;
-        b.warnX = Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx)); b.warn = rage ? B.warnFramesRage : B.warnFrames;
+        let tx;
+        if (b.eclipseFinisher) {
+          // The finale prioritizes a rear landing, with an occasional front feint.
+          // Flip to the other side only when the intended position would be outside the arena.
+          const side = Math.random() < 0.9 ? -P.face : P.face;
+          const minX = ROOM_L + b.w / 2 + 4, maxX = ROOM_R - b.w / 2 - 4;
+          tx = pcx + side * 29;
+          if (tx < minX || tx > maxX) tx = pcx - side * 29;
+          b.warnX = Math.max(minX, Math.min(maxX, tx));
+        } else {
+          // Ordinary warp also prefers the player's rear, while sometimes attacking from the front.
+          const side = Math.random() < 0.8 ? -P.face : P.face;
+          tx = pcx + side * 40; if (tx < ROOM_L + 14 || tx > ROOM_R - 14) tx = pcx - side * 40;
+          b.warnX = Math.max(ROOM_L + 14, Math.min(ROOM_R - 14, tx));
+        }
+        b.warn = rage ? B.warnFramesRage : B.warnFrames;
         bossSet('warpWarn'); sfx('warn');
       }
       break;
@@ -2860,7 +3027,7 @@ function aiAstarte(b, B, pcx, pcy) {
       break;
     case 'warpSlash':
       astarteFloat(b, B); b.pose = 'attack'; b.poseF = b.fireT > 0 ? 1 : 0;
-      if (b.t >= B.warpRecover) { if (rage && !b.warp2) { b.warp2 = true; bossSet('warpOut'); } else bossSet('hover'); }
+      if (b.t >= B.warpRecover) { if (rage && !b.warp2) { b.warp2 = true; bossSet('warpOut'); } else { b.eclipseFinisher = false; bossSet('hover'); } }
       break;
     case 'orbs': {
       astarteFloat(b, B); const T1 = 16 + B.orbFrames;
@@ -2878,6 +3045,167 @@ function aiAstarte(b, B, pcx, pcy) {
   }
 }
 const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte };
+
+// Once-per-stage summoned friend. During the kick, lock the landing target to the
+// camera's visible combat space; the attack hits visible enemies, never the player.
+function castSupport() {
+  if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
+  support.used = true; support.active = true; support.hit = false; support.t = 0;
+  support.kind = equippedSupport(); support.camX = cam.x;
+  const bossVisible = bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW;
+  let target = bossVisible ? boss.x + boss.w / 2 : P.x + P.w / 2 + P.face * 46;
+  if (!bossVisible) for (const e of enemies) {
+    if (e.alive && e.active && e.x + e.w > cam.x && e.x < cam.x + VW) { target = e.x + e.w / 2; break; }
+  }
+  support.x = Math.max(cam.x + 28, Math.min(cam.x + VW - 28, target));
+  support.y = support.kind === 'tobiume' ? -42 : FLOOR_Y - 32;
+  if (support.kind === 'seiten') { support.x = P.x + P.w / 2 + (P.face < 0 ? 20 : -20); support.y = P.y; }
+  if (support.kind === 'astarte') {
+    if (bossVisible) support.x = Math.max(cam.x + 22, Math.min(cam.x + VW - 22, boss.x + boss.w / 2 - (boss.face || 1) * 22));
+    support.y = bossVisible ? boss.y + boss.h / 2 : P.y;
+  }
+  support.face = P.face; sfx('warn'); refreshSupportButton();
+}
+function updateSupport() {
+  if (!support.active) return;
+  support.t++;
+  const t = support.t;
+  if (support.kind === 'seiten') {
+    // A single burst of restorative song; the shield then stays active for two seconds.
+    support.x += (P.x + P.w / 2 + (P.face < 0 ? 20 : -20) - support.x) * 0.22;
+    support.y += (P.y - support.y) * 0.22;
+    if (t === 24) {
+      const gained = Math.min(6, CONFIG.playerMaxHP - P.hp);
+      P.hp += gained; stats.heals += gained;
+      P.inv = Math.max(P.inv, 120); sfx('song'); sfx('heal');
+      for (let i = 0; i < 16; i++) spawnPart(P.x + P.w / 2 + DIR8X[i % 8] * 12, P.y + P.h / 2 + DIR8Y[i % 8] * 12, DIR8X[i % 8] * 0.6, -0.65, 45, i % 4 === 0 ? 5 : 0, i % 2 ? '#ffb3cb' : '#ffe99b');
+    }
+    if (t >= 96) support.active = false;
+    return;
+  }
+  if (support.kind === 'astarte') {
+    if (t === 29 && !support.hit) {
+      support.hit = true; shake(13, 2); sfx('swoosh'); sfx('bhit');
+      const hitX = support.x;
+      if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+        boss.inv = 0; damageBoss(null, 4);
+      } else {
+        let best = null, bd = 80;
+        for (const e of enemies) {
+          if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+          const d = Math.abs(e.x + e.w / 2 - hitX);
+          if (d < bd) { best = e; bd = d; }
+        }
+        if (best) {
+          best.hp -= 4; best.flash = 13;
+          if (best.hp <= 0) killEnemy(best);
+        }
+      }
+      for (let i = 0; i < 20; i++) spawnPart(hitX + (i % 5 - 2) * 4, support.y + (i % 4 - 2) * 6, (i % 5 - 2) * 0.75, (i % 4 - 2) * 0.9, 20, 0, i % 3 ? '#c5b3ff' : '#fffaff');
+    }
+    if (t >= 63) support.active = false;
+    return;
+  }
+  if (support.kind === 'neenia') {
+    if (t === 41 || t === 61 || t === 81) {
+      // Three visible waves, each deals damage once across the active viewport.
+      sfx('arrow'); shake(5, 1);
+      for (const e of enemies) {
+        if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+        e.hp -= 1; e.flash = 8;
+        spawnPart(e.x + e.w / 2, e.y, 0, -0.7, 13, 3, '#b8d6ff');
+        if (e.hp <= 0) { killEnemy(e); stats.arrowKills++; }
+      }
+      if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+        boss.inv = 0; damageBoss(null, 1);
+      }
+    }
+    if (t >= 112) support.active = false;
+    return;
+  }
+  // Approach from beyond the upper edge, then descend into the fight.
+  support.y = t < 13 ? -42 + t * 3.4 : t < 40 ? 2 + (t - 13) * 5.6 : FLOOR_Y - 32;
+  if (t === 40 && !support.hit) {
+    support.hit = true; shake(17, 3); sfx('boomS'); sfx('rescue');
+    for (const e of enemies) {
+      if (!e.alive || !e.active || e.x + e.w < cam.x || e.x > cam.x + VW) continue;
+      e.hp -= 5; e.flash = 12;
+      if (e.hp <= 0) killEnemy(e);
+    }
+    if (bossHittable() && boss.x + boss.w > cam.x && boss.x < cam.x + VW) {
+      boss.inv = 0; damageBoss(null, 5);
+    }
+    for (let k = 0; k < 24; k++) {
+      const ang = k * Math.PI / 12;
+      spawnPart(support.x, FLOOR_Y - 13, Math.cos(ang) * (0.7 + k % 3), Math.sin(ang) * 1.4 - 0.6, 29, 0, k % 3 ? '#ff9dcc' : '#ffffff');
+    }
+  }
+  if (t > 89) support.active = false;
+}
+function drawSupport(camX) {
+  if (!support.active) return;
+  const t = support.t, x = Math.round(support.x - camX), y = Math.round(support.y);
+  if (support.kind === 'seiten') {
+    const fr = SHEETS.seiten, d = SHEET_DEFS.seiten, im = fr ? fr[(t >> 4) & 1] : SPR.ally.S[(t >> 4) & 1];
+    g.drawImage(pick(im, support.face, false), x - (fr ? (support.face > 0 ? d.cx : d.fw - d.cx) : 16), y - 23);
+    for (let i = 0; i < 5; i++) {
+      const px = x - 19 + i * 10, py = y - 30 - (i & 1) * 6 + Math.round(Math.sin(frame * 0.17 + i) * 4);
+      g.fillStyle = i & 1 ? '#fff4ab' : '#ff8ea8';
+      g.fillRect(px, py + 3, 3, 3); g.fillRect(px + 2, py - 3, 2, 8); g.fillRect(px + 4, py - 3, 3, 1);
+    }
+    if (t >= 24) {
+      const rad = (t - 24) * 2;
+      g.strokeStyle = '#ffe4aa'; g.lineWidth = 2;
+      g.beginPath(); g.ellipse(Math.round(P.x + P.w / 2 - camX), Math.round(P.y + P.h / 2), Math.min(28, rad), Math.min(27, rad), 0, 0, Math.PI * 2); g.stroke();
+    }
+    return;
+  }
+  if (support.kind === 'astarte') {
+    const fr = SHEETS.astarte, d = SHEET_DEFS.astarte, sp = fr ? fr[t < 29 ? 0 : 1] : SPR.ally.A[t < 29 ? 0 : 1];
+    g.drawImage(pick(sp, support.face, t >= 29 && t < 36 && (frame & 2)), x - (fr ? (support.face > 0 ? d.cx : d.fw - d.cx) : 16), y - 20);
+    if (t >= 23 && t <= 47) {
+      const w = Math.min(75, (t - 22) * 6);
+      g.strokeStyle = t & 2 ? '#eae2ff' : '#9c80fa'; g.lineWidth = 3;
+      g.beginPath(); g.arc(x, y - 3, w, -1.25, 0.65); g.stroke();
+      g.fillStyle = '#ffffff'; g.fillRect(x + Math.min(28, w), y - 12, 3, 3);
+    }
+    return;
+  }
+  if (support.kind === 'neenia') {
+    const N = SHEETS.neenia, face = support.face;
+    if (N) {
+      const d = SHEET_DEFS.neenia, sp = N[(frame >> 4) & 1];
+      g.drawImage(pick(sp, face, false), x - (face >= 0 ? d.cx : d.fw - d.cx), FLOOR_Y - d.fh);
+    } else g.drawImage(pick(SPR.ally.N[(frame >> 4) & 1], face, false), x - 16, FLOOR_Y - 32);
+    // Light-filled volleys sweep the whole screen; they are scenery, not enemy bullets.
+    for (const beat of [28, 48, 68]) {
+      const dt = t - beat;
+      if (dt < -10 || dt > 17) continue;
+      for (let i = 0; i < 17; i++) {
+        const px = i * 15 + ((i * 7 + beat) % 11);
+        const py = Math.round(-18 + (dt + 10) * (8 + (i & 1)));
+        g.fillStyle = i & 1 ? '#a9c3ff' : '#f6e7ff';
+        g.fillRect(px, py, 2, 14); g.fillRect(px - 2, py + 9, 6, 2);
+        g.fillStyle = '#ffffff'; g.fillRect(px, py + 2, 1, 8);
+      }
+    }
+    return;
+  }
+  const fr = SHEETS.tobiumeNormal;
+  if (fr) {
+    const D = SHEET_DEFS.tobiumeNormal, anim = D.map.special_dive_kick || D.map.kick || D.map.fly;
+    const index = anim[0] + Math.min(anim[1] - 1, Math.floor(t / 10));
+    const sp = fr[index];
+    if (sp) g.drawImage(pick(sp, support.face, t >= 40 && t < 48 && (frame & 2)), x - (support.face >= 0 ? D.cx : D.fw - D.cx), y - D.fh + 20);
+  } else {
+    const pose = t < 30 ? 'fly' : 'kick';
+    g.drawImage(pick(SPR.tobi.normal[pose][(t >> 3) & 1], support.face, t >= 40 && t < 48 && (frame & 2)), x - 20, y - 20);
+  }
+  if (t >= 40 && t < 64) {
+    g.fillStyle = t & 2 ? '#fff4df' : '#ffa3d2';
+    for (let i = 0; i < 2; i++) { const r = (t - 40) * 5 + i * 12; g.fillRect(x - r, FLOOR_Y - 12 - i * 4, r * 2, 2); }
+  }
+}
 
 // ---------------------------------------------------------------------
 //  Allies: アスターテ (guide + checkpoint), ネーニア (support arrows), 青天 (healing song)
@@ -3101,9 +3429,10 @@ function update() {
         break;
       case 'play':
         stats.playFrames++;
-        updatePlayer();
+        updateMagic(); updatePlayer();
+        if (inp.supportPressed) castSupport();
         if (state !== 'play') break;
-        updateEnemies(); updateAllies(); updateBoss(); updateShots(); updateArrows(); updateBullets(); playerContacts();
+        updateEnemies(); updateAllies(); updateBoss(); updateSupport(); updateShots(); updateArrows(); updateBullets(); playerContacts();
         updateCamera(); checkTriggers();
         break;
       case 'bossIntro':
@@ -3122,7 +3451,7 @@ function update() {
     updateParticles();
     if (shakeT > 0) shakeT--;
   }
-  inp.jumpPressed = false; inp.shootPressed = false; inp.startPressed = false; inp.enterPressed = false; inp.resetPressed = false; inp.backPressed = false;
+  inp.magicPressed = false; inp.supportPressed = false; inp.supportCyclePressed = false; inp.jumpPressed = false; inp.shootPressed = false; inp.startPressed = false; inp.enterPressed = false; inp.resetPressed = false; inp.backPressed = false;
   inp.leftPressed = false; inp.rightPressed = false; inp.upPressed = false; inp.downPressed = false;
 }
 
@@ -3141,12 +3470,78 @@ const kanjiCv = mkCanvas(34, 17);
   }
 })();
 
+// Sunset Hills: hand-composed parallax landmarks follow the journey rather than
+// repeating every 512 pixels. All art is canvas pixel art, no external images.
+function drawSunsetLandmarks(camX) {
+  const p = 0.56, F = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  const screenX = world => (world - camX) * p + VW * (1 - p) * 0.5;
+  // Amber haze grows into plum dusk as Umine travels toward the boss.
+  const dusk = Math.min(0.22, Math.max(0, camX / (LEVEL_W - VW)) * 0.22);
+  g.fillStyle = 'rgba(62,26,86,' + dusk.toFixed(3) + ')'; g.fillRect(0, 30, VW, 140);
+  // Distant fence posts / waymarkers; vary their heights and spacing.
+  for (const world of [235, 460, 1140, 1550, 1800]) {
+    const x = Math.round(screenX(world)); if (x < -30 || x > VW + 30) continue;
+    F(x, 139, 2, 25, '#51304e'); F(x - 4, 139, 11, 2, '#a06a78');
+    F(x + 2, 142, 8, 2, '#51304e'); F(x + 7, 144, 1, 5, '#51304e');
+  }
+  // Windmill at the ridge: animated blades, bright window and wooden support.
+  const wx = Math.round(screenX(850));
+  if (wx > -65 && wx < VW + 65) {
+    F(wx - 13, 135, 27, 31, '#463047'); F(wx - 10, 131, 21, 5, '#62405b');
+    F(wx - 16, 129, 33, 3, '#8c6170');
+    F(wx - 5, 118, 11, 39, '#53374f'); F(wx - 3, 122, 7, 4, '#ffc778');
+    const a = frame * 0.013, bx = wx + 1, by = 117;
+    for (let k = 0; k < 4; k++) {
+      const theta = a + k * Math.PI / 2;
+      const ex = Math.round(bx + Math.cos(theta) * 23), ey = Math.round(by + Math.sin(theta) * 23);
+      g.strokeStyle = '#d8a079'; g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke();
+      F(ex - 2, ey - 2, 5, 3, '#f3c38b');
+    }
+    F(wx - 1, 115, 4, 4, '#fff1c3');
+  }
+  // Ancient hilltop ruin near the upper route and the ravine.
+  const rx = Math.round(screenX(1190));
+  if (rx > -85 && rx < VW + 85) {
+    F(rx - 35, 147, 75, 17, '#4c3456'); F(rx - 30, 143, 66, 4, '#78506b');
+    for (const [ox, hh] of [[-27, 33],[-5, 41],[19, 29]]) {
+      F(rx + ox, 145 - hh, 8, hh, '#604263');
+      F(rx + ox - 3, 144 - hh, 14, 3, '#ad7180');
+      F(rx + ox + 1, 150 - hh, 2, hh - 9, '#79506f');
+    }
+    F(rx - 32, 106, 48, 3, '#714a69');
+  }
+  // Ravine-side bridge, silhouetted beyond the playable platforms.
+  const bx = Math.round(screenX(1450));
+  if (bx > -70 && bx < VW + 70) {
+    F(bx - 56, 159, 114, 3, '#6e4763');
+    for (let k = -3; k <= 3; k++) F(bx + k * 16, 157, 2, 19 + Math.abs(k) * 3, '#65405b');
+    F(bx - 55, 154, 112, 2, '#a56c78');
+  }
+  // Slowly drifting birds cross the final stretch; they are not enemies.
+  for (let i = 0; i < 5; i++) {
+    const x = Math.round(screenX(340 + i * 330) - (frame % 360) * (i & 1 ? 0.055 : 0.085));
+    const y = 65 + (hash(i, 42) % 32) + Math.round(Math.sin(frame * 0.028 + i) * 2);
+    if (x < 5 || x > VW - 5) continue;
+    F(x - 3, y, 3, 1, '#f9ba9e'); F(x, y + 1, 1, 1, '#f9ba9e'); F(x + 1, y, 3, 1, '#f9ba9e');
+  }
+}
 function drawBackground(camX) {
   g.drawImage(skyCv, 0, 0);
   let fx = -Math.floor(camX * 0.15) % 512; if (fx > 0) fx -= 512;
   g.drawImage(farCv, fx, 0); g.drawImage(farCv, fx + 512, 0);
+  if (curArea.id === 'sunset') drawSunsetLandmarks(camX);
   let nx = -Math.floor(camX * 0.4) % 512; if (nx > 0) nx -= 512;
   g.drawImage(nearCv, nx, 0); g.drawImage(nearCv, nx + 512, 0);
+  if (curArea.id === 'sunset' && camX < ROOM_X - VW + 32) {
+    // Windblown dusk pollen (screen-space ambience, no gameplay collision).
+    for (let i = 0; i < 20; i++) {
+      const h = hash(i, 620);
+      const x = ((h % (VW + 40)) - (frame * (0.12 + (i % 3) * 0.07) + camX * 0.07)) % (VW + 40);
+      const y = 55 + ((h >>> 9) % 136) + Math.sin(frame * 0.018 + i) * 3;
+      g.fillStyle = i % 4 === 0 ? '#ffd8a3' : '#b99aba';
+      g.fillRect(Math.floor((x + VW + 40) % (VW + 40)) - 20, Math.round(y), 1, 1);
+    }
+  }
 }
 
 // ---- character draw functions (swap these for sprite-sheet images later) ----
@@ -3217,7 +3612,7 @@ function drawTobiume(camX) {
 }
 function drawBoss(camX) {
   const b = boss; if (b.state === 'off') return;
-  if (curArea.boss === 'tobiume') { drawTobiume(camX); return; }
+  if (curArea.boss === 'tobiume') { drawBossMarks(camX); drawTobiume(camX); return; }
   drawBossMarks(camX);
   if (b.hidden || b.alpha <= 0) return;
   const T = BOSS_TYPES[curArea.boss];
@@ -3255,6 +3650,18 @@ function drawBossMarks(camX) {
     for (let k = 1; k <= n; k++) g.fillRect(Math.round(b.mx + dx / len * k * 6 - camX), Math.round(b.my + dy / len * k * 6), 1, 1);
     const ax = Math.round(b.aimX - camX), ay = Math.round(b.aimY);
     g.fillRect(ax - 3, ay, 2, 1); g.fillRect(ax + 2, ay, 2, 1); g.fillRect(ax, ay - 3, 1, 2); g.fillRect(ax, ay + 2, 1, 2);
+  }
+  if (curArea.boss === 'tobiume' && (b.state === 'heartRainWind' || b.state === 'heartRain')) {
+    const num = b.pr ? 3 : 2, pulse = (frame >> 2) & 1;
+    for (let i = 0; i < num; i++) {
+      const dx = i === 0 ? -19 : i === 1 ? 19 : 0;
+      if (b.state === 'heartRain' && i < b.shots) continue;
+      const x = Math.round(b.heartRainX + dx - camX);
+      g.fillStyle = 'rgba(255,117,176,0.14)'; g.fillRect(x - 6, 31, 12, FLOOR_Y - 33);
+      g.fillStyle = pulse ? '#fff0f7' : '#ff79b3';
+      g.fillRect(x - 7, FLOOR_Y - 2, 14, 2);
+      g.fillRect(x - 2, 33, 5, 2); g.fillRect(x - 1, 35, 3, 3);
+    }
   }
   if (b.rainN > 0) { // marked rain columns
     for (let i = 0; i < b.rainN; i++) {
@@ -3471,10 +3878,26 @@ function drawBar(x, y, label, val, max, fill, align) {
   g.fillStyle = '#ffffff';
   for (let i = 0; i < max && i < val; i++) g.fillRect(bx + 2 + i * st, y + 8, pw, 1);
 }
+function drawWaterOrb(camX) {
+  const o = magic.orb; if (!o) return;
+  const x = Math.round(o.x - camX), y = Math.round(o.y + Math.sin(frame * 0.11) * 1.5);
+  g.fillStyle = 'rgba(91,204,250,0.19)'; g.fillRect(x - 3, y - 5, 30, 17);
+  g.fillStyle = '#256889'; g.fillRect(x, y, 24, 7);
+  g.fillStyle = '#68d4ff'; g.fillRect(x + 1, y, 22, 3);
+  g.fillStyle = '#ddfcff'; g.fillRect(x + 4, y + 1, 8, 1); g.fillRect(x + 17, y + 2, 3, 1);
+  g.fillStyle = '#b8edff'; g.fillRect(x + 2, y + 7, 20, 1);
+  if (o.life < 70 && (frame & 4)) { g.fillStyle = '#ffffff'; g.fillRect(x + 11, y - 3, 2, 2); }
+}
 function drawHUD() {
   drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
   if (boss.state !== 'off') drawBar(VW - 8, 8, BOSS_TYPES[curArea.boss].hud, boss.hpShown, bossCfg().hp, '#ff5d5d', 'r');
-  if (DEBUG.god) drawText('GOD', 8, 28, 'g', 1);
+  g.fillStyle = 'rgba(10,8,24,0.72)'; g.fillRect(6, 26, 92, 12);
+  drawText('MP', 8, 28, 'c', 1);
+  for (let i = 0; i < CONFIG.magicMaxMP; i++) {
+    g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
+  }
+  if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: ' + ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[equippedSupport()] || 'HELP'), 8, 42, support.used ? 'b' : 'y', 1);
+  if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
 }
 function drawHitboxes(camX) {
   g.strokeStyle = '#00ff00'; g.lineWidth = 1;
@@ -3582,8 +4005,11 @@ function renderSelect() {
     g.fillStyle = (h >> 8) & 1 ? '#3a4270' : '#262c50'; g.fillRect(x, (h >>> 9) % VH, 1, 1);
   }
   g.fillStyle = 'rgba(22,26,56,0.96)'; g.fillRect(0, 0, VW, 21); g.fillStyle = '#ffd84a'; g.fillRect(0, 21, VW, 1);
-  drawTextShadow('STAGE SELECT', VW / 2, 6, 'y', 2, 'c');
+  drawTextShadow('STAGES', 145, 6, 'y', 2, 'c');
   const B = SEL_BACK; g.fillStyle = '#141a30'; g.fillRect(B.x, B.y, B.w, B.h); rectLine(B.x, B.y, B.w, B.h, '#4a5680'); drawText('TITLE', B.x + B.w / 2 + 1, B.y + 4, 'b', 1, 'c');
+  const SB = SEL_SUPPORT; g.fillStyle = progress.support && supportUnlocked(progress.support) ? '#53304b' : '#202039';
+  g.fillRect(SB.x, SB.y, SB.w, SB.h); rectLine(SB.x, SB.y, SB.w, SB.h, '#d087ac');
+  drawText(progress.support && supportUnlocked(progress.support) ? 'SUP: ' + SUPPORT_TAGS[progress.support] : 'SUP: ---', SB.x + SB.w / 2, SB.y + 5, 'w', 1, 'c');
   drawText(clearedCount() + '/8', VW - 5, 9, clearedCount() ? 'g' : 'b', 1, 'r');
   for (let slot = 0; slot < 9; slot++) drawCell(slot);
   const R = cellRect(selCursor);
@@ -3667,6 +4093,8 @@ function render() {
   drawDoor(camX); drawAllies(camX);
   for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.alive && e.active) drawEnemy(e, camX); }
   drawBoss(camX);
+  drawWaterOrb(camX);
+  drawSupport(camX);
   if (!(state === 'ready' && (stateT & 8))) drawPlayer(camX);
   for (let i = 0; i < shots.length; i++) if (shots[i].active) drawShot(shots[i], camX);
   drawArrows(camX);
@@ -3692,6 +4120,12 @@ function render() {
     if (stateT > 60 && (frame >> 5) & 1) drawTextShadow('TAP OR ENTER: STAGE SELECT', VW / 2, 150, 'w', 1, 'c');
   }
   blit();
+  if (support.active && support.t < 106) {
+    if (support.kind === 'neenia') drawHiText('ネーニア・星降る矢雨！', VW / 2, 67, 8, '#e2ecff', '#253568');
+    else if (support.kind === 'seiten') drawHiText('青天・守護の歌！', VW / 2, 67, 8, '#ffe5eb', '#661b37');
+    else if (support.kind === 'astarte') drawHiText('アスターテ・月影の一閃！', VW / 2, 67, 8, '#ece7ff', '#30236e');
+    else if (support.t < 75) drawHiText('スーパーウルトラ飛梅ちゃんキック！', VW / 2, 67, 8, '#ffe0ee', '#581d4b');
+  }
   // ---- high-res overlays: speech bubbles / dialogue / Japanese lines ----
   if (state === 'play' || state === 'ready' || state === 'bossIntro') {
     for (let i = 0; i < allies.length; i++) {
@@ -3742,7 +4176,7 @@ requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
 window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, bullets, allies, arrows, SHEETS_LOADED, SHEET_DEFS,
-  AREAS, progress, PROGRESS_KEY, SEL, SEL_BACK, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  AREAS, progress, support, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
   get state() { return state; }, get stateT() { return stateT; }, get checkpoint() { return checkpoint; },
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },

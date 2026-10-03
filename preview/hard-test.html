@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d0f1a">
 <meta name="robots" content="noindex, nofollow">
-<title>ROCKSIDE – 飛梅ちゃんボス技追加試作</title>
+<title>ROCKSIDE – 海音の冒険</title>
 <style>
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d0f1a;
   touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -45,7 +45,6 @@ body.land #hint{display:none;}
 </head>
 <body>
 <canvas id="screen" width="256" height="240"></canvas>
-<div style="position:fixed;top:4px;left:5px;z-index:9;pointer-events:none;background:#27162bd8;color:#efd8ff;border:1px solid #9975de;border-radius:3px;padding:3px 5px;font:700 10px system-ui,sans-serif">TOBIUME · NEW HEART RAIN</div>
 <div id="pad">
   <div class="btn dpad" id="bL"><svg viewBox="0 0 24 24"><path d="M16 3 L5 12 L16 21 Z" fill="currentColor"/></svg></div>
   <div class="btn dpad" id="bR"><svg viewBox="0 0 24 24"><path d="M8 3 L19 12 L8 21 Z" fill="currentColor"/></svg></div>
@@ -107,7 +106,6 @@ const CONFIG = {
     walker: { hp: 2, speed: 0.5, damage: 2, hurtUp: 8 },   // contact 12x12, hurtbox 12x20
     hopper: { hp: 3, jumpVel: 4.5, hopSpeed: 1.2, waitFrames: 55, damage: 3, hurtUp: 9 }, // contact 12x11, hurtbox 12x20
     flyer:  { hp: 2, speed: 0.5, bobAmp: 10, fireInterval: 130, bulletSpeed: 1.3, damage: 2, leash: 96 },
-    sentry: { hp: 3, patrolSpeed: 0.35, alertRange: 80, warnFrames: 26, dashSpeed: 1.8, dashFrames: 24, cooldownFrames: 90, damage: 2, hurtUp: 8 },
   },
 
   // ---- boss: 闇落ち飛梅 (Dark Tobiume) - flying boss ----
@@ -123,7 +121,6 @@ const CONFIG = {
     swoopTelegraph: 28, swoopSpeed: 3.4, landFrames: 26,
     kickRiseY: 36, kickAimFrames: 40, kickAimSpeed: 2.2, kickSpeed: 6.5, shockSpeed: 2.0,
     recoverSpeed: 1.6,
-    heartRainWarn: 40, heartRainGap: 13, heartRainSpeed: 3.4, // marked falling hearts, 2 normal / 3 rage
     rescueLineFrames: 260,  // how long her thank-you line stays before STAGE CLEAR (tap skips)
   },
 
@@ -191,6 +188,9 @@ const CONFIG = {
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
+let hardMode = QS.get('hard') === '1';
+function playerMaxHP() { return hardMode ? Math.max(1, Math.floor(CONFIG.playerMaxHP / 2)) : CONFIG.playerMaxHP; }
+function toggleHardMode() { hardMode = !hardMode; P.hp = Math.min(P.hp, playerMaxHP()); sfx('cursor'); }
 const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0 };
 
@@ -201,7 +201,7 @@ const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox
 //  A アスターテ (guide; the last one is the checkpoint)  N ネーニア (archer)  S 青天 (healer)
 // =====================================================================
 const STAGE_SUNSET_HILLS = [
-[ // 0 trailhead, a gentle start
+[ // 0 start
 "................",
 "................",
 "................",
@@ -212,13 +212,12 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
+"..........====..",
 "................",
-"................",
-"..P....A........",
+"..P.....A.......",
 "################",
-"################"
-],
-[ // 1 terraced hillside, low wall and small ditch
+"################"],
+[ // 1 walker + steps
 "................",
 "................",
 "................",
@@ -230,46 +229,11 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-"................",
-".....W...#......",
-"###########.####",
-"###########.####"
-],
-[ // 2 wooden crossing, jumper on the landing
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"......====......",
-"................",
-"................",
-"...........H....",
-"#######..#######",
-"#######..#######"
-],
-[ // 3 windmill ridge, airy staggered platforms
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-"................",
-".........F......",
-"................",
-".........====...",
-"................",
-"...===..........",
-"................",
+"............####",
+"......W....#####",
 "################",
-"################"
-],
-[ // 4 old ruins, raised route above the foes
+"################"],
+[ // 2 step down, small pit, hopper
 "................",
 "................",
 "................",
@@ -278,32 +242,62 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-".....=====......",
 "................",
 "................",
 "................",
-"....#...H....W..",
-"################",
-"################"
-],
-[ // 5 ravine, Neenia's perch
+"####............",
+"#####.....H.....",
+"#####...########",
+"#####...########"],
+[ // 3 flyer, narrow pit, girder
 "................",
 "................",
 "................",
 "................",
 "................",
 "................",
-"..........F.....",
-".......N........",
-"....=====.......",
+"........F.......",
 "................",
-"...........===..",
+"................",
+"................",
+"..........===...",
 "................",
 "................",
 "######..########",
-"######..########"
-],
-[ // 6 meadow, approach to the checkpoint
+"######..########"],
+[ // 4 blocks, hopper + walker, upper route starts
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......===...===",
+"................",
+"....##..........",
+"....##..........",
+"..####..H...##W.",
+"################",
+"################"],
+[ // 5 pit bridged by girder (low route) / Neenia's perch (upper route), flyer
+"................",
+"................",
+"................",
+"................",
+"................",
+"...........F....",
+"................",
+".......N........",
+"==...=====......",
+"................",
+"................",
+"......==........",
+"................",
+"#####....#######",
+"#####....#######"],
+[ // 6 walker + hopper
 "................",
 "................",
 "................",
@@ -313,13 +307,12 @@ const STAGE_SUNSET_HILLS = [
 "................",
 "................",
 "................",
-".......===......",
+".........====...",
 "................",
 "................",
 "...W.......H....",
 "################",
-"################"
-],
+"################"],
 [ // 7 checkpoint + corridor
 "..........######",
 "..........######",
@@ -871,7 +864,7 @@ function loadMap(screens) {
     else if (ch === 'P') { START_C = c; START_R = r; }
     else if (ch === 'C') { CP_C = c; CP_R = r; }
     else if (ch === 'B') { BOSS_C = c; BOSS_R = r; }
-    else if (ch === 'W' || ch === 'H' || ch === 'F' || ch === 'Q') spawns.push({ type: ch, c: c, r: r });
+    else if (ch === 'W' || ch === 'H' || ch === 'F') spawns.push({ type: ch, c: c, r: r });
     else if (ch === 'A' || ch === 'N' || ch === 'S') allySpawns.push({ type: ch, c: c, r: r });
     grid[r * COLS + c] = t;
   }
@@ -1044,17 +1037,6 @@ function artHopper(R, f) {
   if (!f) { R('#9aa3b8', 5, 13 + T, 6, 1); R('#5b6278', 5, 14 + T, 6, 1); R('#9aa3b8', 5, 15 + T, 6, 1); }
   else { for (let i = 0; i < 7; i++) R(i & 1 ? '#5b6278' : '#9aa3b8', 6, 9 + T + i, 4, 1); }
 }
-// ---- MOON SENTRY: same 16x22 scale as existing ground enemies ----
-function artSentry(R, f) {
-  const dark = '#34364d', armour = '#7887a9', light = '#b5c6e4', moon = '#81d9ec';
-  R(dark, 5, 0, 6, 3); R(armour, 4, 3, 8, 5); R(light, 5, 4, 6, 1);
-  R(moon, 7, 5, 4, 2); R('#ffffff', 9, 5, 1, 1);
-  R(dark, 2, 8, 12, 9); R(armour, 3, 9, 10, 7); R(light, 4, 10, 3, 1);
-  R(moon, 7, 11, 2, 3); R('#356f91', 8, 12, 1, 2);
-  R(dark, 1, 10, 2, 7); R(dark, 13, 10, 2, 7);
-  R(armour, f ? 4 : 3, 17, 4, 4); R(armour, f ? 9 : 8, 17, 4, 4);
-  R(light, f ? 4 : 3, 20, 4, 1); R(light, f ? 9 : 8, 20, 4, 1);
-}
 // ---- FLYER: "BUZZKITE" (16x14) ----
 function artFlyer(R, f) {
   R('#9aa3b8', 7, 2, 2, 3);
@@ -1063,7 +1045,7 @@ function artFlyer(R, f) {
   R('#ffffff', 8, 6, 4, 3); R('#ff3b3b', 10, 7, 2, 1);
   R('#6b7288', 7, 11, 2, 2);
 }
-const SPR = { hero: {}, walker: [], hopper: [], flyer: [], sentry: [], tobi: { dark: {}, normal: {} }, ally: {} };
+const SPR = { hero: {}, walker: [], hopper: [], flyer: [], tobi: { dark: {}, normal: {} }, ally: {} };
 const OUT = [16, 14, 40];
 (function buildSprites() {
   const poses = ['stand', 'run0', 'run1', 'run2', 'jump', 'hurt'];
@@ -1072,7 +1054,6 @@ const OUT = [16, 14, 40];
     SPR.walker.push(makeSprite(16, 22, R => artWalker(R, f), [26, 15, 10]));
     SPR.hopper.push(makeSprite(16, 22, R => artHopper(R, f), [12, 30, 14]));
     SPR.flyer.push(makeSprite(16, 14, R => artFlyer(R, f), [30, 12, 44]));
-    SPR.sentry.push(makeSprite(16, 22, R => artSentry(R, f), [22, 24, 42]));
   }
   // water bullet (droplet pointing right; flipped copy used for left)
   SPR.shot = makeSprite(8, 6, R => { R('#bfeaff', 0, 2, 2, 2); R('#3a8fd8', 2, 1, 5, 4); R('#3a8fd8', 3, 0, 3, 6); R('#7fd6ff', 3, 1, 4, 4); R('#ffffff', 5, 1, 1, 2); }, null);
@@ -1216,30 +1197,30 @@ const ALLY_INFO = {
 // frames are anchored with their bottom edge on the hitbox bottom (feet) and cx on the hitbox centre.
 const SHEET_DEFS = {
   // kanon.png 32x32: idle2, run4, jump1, fall1, shoot1, runshoot4, hurt1. Staff tip at (30,17).
-  kanon:   { file: 'assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
+  kanon:   { file: '../assets/kanon.png', fw: 32, fh: 32, frames: 14, cx: 11, tipX: 30, tipY: 17, map: { idle: [0, 2], run: [2, 4], jump: [6, 1], fall: [7, 1], shoot: [8, 1], runshoot: [9, 4], hurt: [13, 1] } },
   // tobiume_dark.png 48x48: idle2, fly2, attack2 (5 = firing), hurt1, defeat1. Magic hand light ~(46,30).
-  tobiume: { file: 'assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
+  tobiume: { file: '../assets/tobiume_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 46, muzY: 30, map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   // tobiume.png = NORMAL (pre-dark) Tobiume, used after she is rescued. 32x32 x15; layout comes from
   // assets/tobiume.json (embedded at build time as EMBEDDED_META), these values are the fallback.
   // If the file is missing a pink-tinted copy of the dark sheet is used.
-  tobiumeNormal: { file: 'assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
+  tobiumeNormal: { file: '../assets/tobiume.png', fw: 32, fh: 32, frames: 15, cx: 13,
     map: { idle: [0, 2], fly: [2, 2], attack: [4, 2], hurt: [6, 1], kick: [7, 4], special_dive_kick: [11, 4] } },
   // eyes: [x, y] of each eye in the right-facing frame (used by the shadow / DARK render mode)
-  neenia:  { file: 'assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
-  seiten:  { file: 'assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
-  astarte: { file: 'assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
+  neenia:  { file: '../assets/neenia.png', fw: 32, fh: 32, frames: 2, cx: 11, eyes: [[11, 9], [14, 9]] },
+  seiten:  { file: '../assets/seiten.png', fw: 32, fh: 32, frames: 2, cx: 14, eyes: [[12, 10], [15, 10]] },
+  astarte: { file: '../assets/astarte.png', fw: 32, fh: 32, frames: 2, cx: 10, eyes: [[10, 10], [14, 10]] },
   // v4 DARK friend bosses, 48x48 x8 (layout from the .json, embedded). cx = body centre in the right-facing
   // frame; cxF overrides per frame (Astarte's attack frames are drawn further right). muz = projectile origin.
-  neeniaDark:  { file: 'assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
+  neeniaDark:  { file: '../assets/neenia_dark.png', fw: 48, fh: 48, frames: 8, cx: 21, muzX: 40, muzY: 24,
     map: { idle: [0, 2], walk: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
-  seitenDark:  { file: 'assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
+  seitenDark:  { file: '../assets/seiten_dark.png', fw: 48, fh: 48, frames: 8, cx: 20, muzX: 32, muzY: 20,
     map: { idle: [0, 2], leap: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },   // leap: 2 = airborne pounce, 3 = landing crouch
-  astarteDark: { file: 'assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
+  astarteDark: { file: '../assets/astarte_dark.png', fw: 48, fh: 48, frames: 8, cx: 16, cxF: [16, 16, 15, 15, 22, 22, 18, 22], muzX: 44, muzY: 30,
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
 for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark'])
-  SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
+  SHEET_DEFS['face_' + f] = { file: '../assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
 function tintCanvas(c, col, alpha) {
@@ -1561,43 +1542,6 @@ function buildLevel() {
         for (let i = 0; i < 11; i++) { F(GD[3], x + 2 + i, y + 3 + i, 1, 1); F(GD[3], x + 13 - i, y + 3 + i, 1, 1); }
       }
     }
-    // Sunset-only surface foliage. Decorative pixels do not alter collisions.
-    if (curTiles === TILESETS.sunset && c < ROOM_COL) {
-      for (let r = 2; r < ROWS - 2; r++) {
-        if (tileAt(c, r) !== T_ROCK || tileAt(c, r - 1) !== T_EMPTY) continue;
-        const h = hash(c, 320 + r);
-        const x = c * TS, y = r * TS;
-        if ((h & 3) !== 0) {
-          F('#2a754a', x + 3, y - 3, 1, 3); F('#a8cf72', x + 6, y - 2, 1, 2);
-          F('#5ca766', x + 11, y - 4, 1, 4);
-        }
-        if ((h & 7) === 2) {
-          F('#d7a3cf', x + 6, y - 5, 2, 2); F('#ffe4a4', x + 7, y - 4, 1, 1);
-        }
-      }
-    }
-  }
-  // Small hand-placed waymarks. Purely visual and never collide with Umine.
-  if (curTiles === TILESETS.sunset) {
-    const T = (x, y, w, h, col) => F(col, x, y, w, h);
-    for (const [col, kind] of [[14, 0], [16 + 15, 1], [3 * 16 + 1, 0], [4 * 16 + 14, 1], [6 * 16 + 15, 0]]) {
-      const x = col * TS + 8, ground = 13 * TS;
-      if (kind === 0) {
-        // Trail sign: pale wooden post and a warm gold arrow pointing onward.
-        T(x, ground - 19, 2, 19, '#61445b');
-        T(x - 5, ground - 18, 13, 7, '#c18a62');
-        T(x - 4, ground - 17, 9, 5, '#e7b27c');
-        T(x + 5, ground - 16, 3, 3, '#f4d394');
-        T(x - 4, ground - 10, 2, 2, '#69485b');
-      } else {
-        // Narrow driftwood fence remains behind the character, not solid.
-        for (let j = 0; j < 2; j++) {
-          T(x + j * 8, ground - 12, 2, 12, '#624255');
-          T(x + j * 8, ground - 12, 2, 2, '#d6a373');
-        }
-        T(x - 1, ground - 8, 14, 2, '#9e6b65');
-      }
-    }
   }
 }
 buildLevel();
@@ -1683,6 +1627,7 @@ window.addEventListener('keydown', e => {
   Snd.init();
   if (e.code === 'Enter' || e.code === 'NumpadEnter') { inp.startPressed = true; inp.enterPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
+  if (e.code === 'KeyH' && state === 'title') { toggleHardMode(); e.preventDefault(); return; }
   if (e.code === 'KeyC') { if (!e.repeat) inp.magicPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyB') { if (!e.repeat) inp.supportPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyV') { if (!e.repeat) inp.supportCyclePressed = true; e.preventDefault(); return; }
@@ -1742,7 +1687,7 @@ function refreshButtons() {
 }
 pad.addEventListener('pointerdown', e => {
   e.preventDefault(); Snd.init();
-  if (e.target === muteBtn || e.target === helpBtn || e.target === orbBtn) return;
+  if (e.target === muteBtn) { toggleMute(); return; }
   stats.touchDowns++;
   // taps inside the game view on the stage select / title go to those screens (cells, reset button)
   const gx = (e.clientX - layout.gameX) / layout.gameW * VW, gy = (e.clientY - layout.gameY) / layout.gameH * VH;
@@ -1835,7 +1780,7 @@ doLayout();
 const P = { x: 0, y: 0, w: 10, h: 20, vx: 0, vy: 0, face: 1, onGround: false, coyote: 0, jumpBuf: 0, jumping: false,
   shootT: 0, cool: 0, autoT: 0, shootBuf: 0, hp: 16, inv: 0, hurt: 0, knockDir: 0, dead: false, animT: 0 };
 const cam = { x: 0 };
-// Prototype special magic: a single temporary water-orb foothold.
+// Special magic: a single temporary water-orb foothold.
 const magic = { mp: CONFIG.magicMaxMP, regen: 0, orb: null, cooldown: 0 };
 const shots = []; for (let i = 0; i < CONFIG.maxShots; i++) shots.push({ active: false, x: 0, y: 0, vx: 0, w: 7, h: 5 });
 // bullet kinds: 0 small, 2 heart, 3 star, 4 shockwave (Tobiume) / 6 arrow, 7 rain arrow (Neenia) /
@@ -1851,7 +1796,6 @@ function makeEnemy(s) {
     alive: true, active: false, flash: 0, onGround: false, homeX: 0, homeY: 0 };
   if (s.type === 'H') { e.w = 12; e.h = 11; e.ox = 2; e.oy = 11; e.hurtUp = CONFIG.enemy.hopper.hurtUp || 0; }
   if (s.type === 'F') { e.w = 12; e.h = 9; e.ox = 2; e.oy = 4; e.hurtUp = 0; }
-  if (s.type === 'Q') { e.hurtUp = CONFIG.enemy.sentry.hurtUp; e.phase = 'patrol'; e.phaseT = 0; }
   return e;
 }
 const boss = { state: 'off', x: 0, y: 0, w: 20, h: 34, vx: 0, vy: 0, hp: 0, hpShown: 0, face: -1, t: 0, inv: 0, flash: 0,
@@ -1978,15 +1922,14 @@ function shake(t, m) { if (shakeT <= 0 || m >= shakeMag) shakeMag = m; if (t > s
 function resetStage(fromCP) {
   const c = fromCP ? CP_C : START_C, r = fromCP ? CP_R : START_R;
   P.x = c * TS + 3; P.y = (r + 1) * TS - P.h; P.vx = 0; P.vy = 0; P.face = 1; P.onGround = true; P.coyote = 0; P.jumpBuf = 0;
-  P.jumping = false; P.shootT = 0; P.cool = 0; P.autoT = 0; P.shootBuf = 0; P.hp = CONFIG.playerMaxHP; P.inv = 0; P.hurt = 0; P.dead = false; P.animT = 0;
+  P.jumping = false; P.shootT = 0; P.cool = 0; P.autoT = 0; P.shootBuf = 0; P.hp = playerMaxHP(); P.inv = 0; P.hurt = 0; P.dead = false; P.animT = 0;
   for (const s of shots) s.active = false;
   for (const b of bullets) b.active = false;
   for (const p of parts) p.active = false;
   for (const e of enemies) {
-    const def = e.type === 'W' ? CONFIG.enemy.walker : e.type === 'H' ? CONFIG.enemy.hopper : e.type === 'Q' ? CONFIG.enemy.sentry : CONFIG.enemy.flyer;
+    const def = e.type === 'W' ? CONFIG.enemy.walker : e.type === 'H' ? CONFIG.enemy.hopper : CONFIG.enemy.flyer;
     e.hp = def.hp; e.alive = true; e.active = false; e.flash = 0; e.vx = 0; e.vy = 0; e.face = -1; e.t = 0; e.fireT = 60;
     e.x = e.c * TS + (TS - e.w) / 2; e.y = e.type === 'F' ? e.r * TS : (e.r + 1) * TS - e.h; e.homeX = e.x; e.homeY = e.y;
-    if (e.type === 'Q') { e.phase = 'patrol'; e.phaseT = 0; }
   }
   for (const r of arrows) r.active = false;
   for (const a of allies) { a.said = false; a.bubbleT = 0; a.act = 0; a.t = 0; }
@@ -2003,8 +1946,7 @@ function bossReset() {
   b.state = 'off'; b.triggered = false; b.hp = bossCfg().hp; b.hpShown = 0; b.inv = 0; b.flash = 0; b.fireT = 0; b.vx = 0; b.vy = 0;
   b.seen.length = 0; b.last = ''; b.multi = false; b.didMulti = false; b.warp2 = false; b.eclipseFinisher = false; b.pvx = 0; b.onGround = false; b.aimShow = false;
   b.ricoShow = false; b.ricoLock = false; b.ricoN = 0; b.combo = false; b.pr = false; b.starRainT = 0; for (let i = 0; i < b.markT.length; i++) b.markT[i] = 0;
-  b.bag.length = 0; b.counterCD = 0; b.heartRainX = 0;
-  if (curArea.boss === 'astarte' && QS.get('eclipse') === '1') { b.hp = Math.ceil(b.hp / 2); b.seen.push('starfall'); }
+  b.bag.length = 0; b.counterCD = 0;
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
@@ -2015,13 +1957,18 @@ function startGame(area) {
 // ---------------------------------------------------------------------
 //  Progress (localStorage) + STAGE SELECT (3x3, centre = final area)
 // ---------------------------------------------------------------------
-const PROGRESS_KEY = 'rockside_progress_picchan_preview_v1';
+const PROGRESS_KEY = 'rockside_progress_hard_test_v1';
+const PROGRESS_SEED_KEY = 'rockside_progress_v1';
+
 const progress = { cleared: [], rescued: [], support: null }; // area ids cleared / friend ids rescued (joined as allies)
 function loadProgress() {
-  try { const d = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null');
+  try {
+    const own = localStorage.getItem(PROGRESS_KEY);
+    const d = JSON.parse(own || localStorage.getItem(PROGRESS_SEED_KEY) || 'null');
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
     if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
-    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support; } catch (_) {}
+    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support;
+  } catch (_) {}
   if (QS.get('supporttest') === '1') progress.support = SUPPORT_ROSTER.includes(QS.get('supportfriend')) ? QS.get('supportfriend') : 'tobiume';
 }
 function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
@@ -2034,7 +1981,7 @@ function markCleared(area) {
 function eraseProgress() { progress.cleared.length = 0; progress.rescued.length = 0; progress.support = null; try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {} }
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
-// One equippable rescue special at a time. Future friends can join this roster.
+// One equippable rescue special at a time.
 const SUPPORT_ROSTER = ['tobiume', 'neenia', 'seiten', 'astarte'];
 const SUPPORT_NAMES = { tobiume: '飛梅', neenia: 'ネーニア', seiten: '青天', astarte: 'アスターテ' };
 const SUPPORT_TAGS = { tobiume: 'TOBI', neenia: 'NEEN', seiten: 'SEIT', astarte: 'ASTA' };
@@ -2069,7 +2016,8 @@ buildActors();
 const SEL = { x0: 8, y0: 23, cw: 76, ch: 70, gx: 6, gy: 3 };
 function cellRect(slot) { const c = slot % 3, r = (slot / 3) | 0; return { x: SEL.x0 + c * (SEL.cw + SEL.gx), y: SEL.y0 + r * (SEL.ch + SEL.gy), w: SEL.cw, h: SEL.ch }; }
 const SEL_BACK = { x: 3, y: 4, w: 36, h: 13 };
-const SEL_SUPPORT = { x: 44, y: 3, w: 67, h: 15 };      // "TITLE" button on the select header
+const SEL_SUPPORT = { x: 44, y: 3, w: 67, h: 15 };
+const TITLE_HARD = { x: 3, y: 3, w: 62, h: 13 };
 const TITLE_RESET = { x: 186, y: 3, w: 67, h: 12 };  // "ERASE DATA" button on the title (shown when there is progress)
 let selCursor = 0, selMsg = null, selMsgT = 0, introArea = null, resetArmT = 0;
 function selMessage(jp, en) { selMsg = { jp: jp, en: en }; selMsgT = 110; }
@@ -2114,6 +2062,7 @@ function screenTap(x, y) {
     for (let slot = 0; slot < 9; slot++) if (inR(cellRect(slot))) { if (!selMsg) { if (slot !== selCursor) sfx('cursor'); chooseSlot(slot); } return true; }
     return true; // taps between cells do nothing
   }
+  if (state === 'title' && inR(TITLE_HARD)) { toggleHardMode(); return true; }
   if (state === 'title' && clearedCount() > 0 && inR({ x: TITLE_RESET.x - 4, y: 0, w: TITLE_RESET.w + 8, h: TITLE_RESET.h + 6 })) { inp.resetPressed = true; return true; }
   return false;
 }
@@ -2242,20 +2191,6 @@ function updateEnemies() {
         const fx = e.face > 0 ? e.x + e.w + 1 : e.x - 1;
         if (!solid(Math.floor(fx / TS), Math.floor((e.y + e.h + 2) / TS))) e.face = -e.face;
       }
-    } else if (e.type === 'Q') {
-      const d = CONFIG.enemy.sentry, dx = pcx - (e.x + e.w / 2);
-      if (e.phase === 'patrol' && Math.abs(dx) < d.alertRange && Math.abs(pcy - (e.y + e.h / 2)) < 35) {
-        e.phase = 'warn'; e.phaseT = d.warnFrames; e.face = dx < 0 ? -1 : 1;
-      }
-      if (e.phase === 'warn') { e.vx = 0; if (--e.phaseT <= 0) { e.phase = 'dash'; e.phaseT = d.dashFrames; } }
-      else if (e.phase === 'dash') { e.vx = e.face * d.dashSpeed; if (--e.phaseT <= 0) { e.phase = 'cooldown'; e.phaseT = d.cooldownFrames; } }
-      else if (e.phase === 'cooldown') { e.vx = 0; if (--e.phaseT <= 0) e.phase = 'patrol'; }
-      else e.vx = e.face * d.patrolSpeed;
-      const blocked = moveX(e);
-      e.vy = Math.min(e.vy + CONFIG.gravity, CONFIG.maxFall); moveY(e);
-      const fx = e.face > 0 ? e.x + e.w + 1 : e.x - 1;
-      const ledge = e.onGround && !solid(Math.floor(fx / TS), Math.floor((e.y + e.h + 2) / TS));
-      if (blocked || ledge) { e.face = -e.face; if (e.phase === 'dash') { e.phase = 'cooldown'; e.phaseT = d.cooldownFrames; } }
     } else if (e.type === 'H') {
       const d = CONFIG.enemy.hopper;
       if (e.onGround) {
@@ -2298,8 +2233,8 @@ function spawnBullet(x, y, vx, vy, kind, dmg) {
 const BULLET_SIZE = { 0: [4, 4], 2: [5, 5], 3: [5, 5], 4: [8, 11], 6: [5, 5], 7: [3, 10], 8: [10, 26], 9: [12, 20], 10: [8, 8], 11: [6, 6], 12: [34, 32], 17: [12, 12], 18: [10, 10],
   13: [4, 6], 14: [5, 5], 15: [4, 6], 16: [26, 9] };
 function killEnemy(e) { e.alive = false; popAt(e.x + e.w / 2, e.y + e.h / 2, enemyColor(e)); sfx('pop'); stats.kills++; hitStop = CONFIG.killHitStop; shake(4, 1); }
-function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : e.type === 'Q' ? CONFIG.enemy.sentry.damage : CONFIG.enemy.flyer.damage; }
-function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : e.type === 'Q' ? '#81d9ec' : '#a45ee5'; }
+function enemyDamage(e) { return e.type === 'W' ? CONFIG.enemy.walker.damage : e.type === 'H' ? CONFIG.enemy.hopper.damage : CONFIG.enemy.flyer.damage; }
+function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#5fd35a' : '#a45ee5'; }
 
 // ---------------------------------------------------------------------
 //  Bosses. Shared: boss object, enter (drop in through the ceiling hatch), HP fill, damage,
@@ -2309,7 +2244,7 @@ function bossSet(s) { boss.state = s; boss.t = 0; }
 function bossCfg() { return curArea.boss === 'tobiume' ? CONFIG.boss : CONFIG.bosses[curArea.boss]; }
 function bossType() { return BOSS_TYPES[curArea.boss] || BOSS_TYPES.tobiume; }
 function bossFacePlayer() { boss.face = (P.x + P.w / 2 < boss.x + boss.w / 2) ? -1 : 1; }
-function bossRage() { return boss.hp <= bossCfg().hp / 2; }
+function bossRage() { return hardMode || boss.hp <= bossCfg().hp / 2; }
 function bossSeen(name) { if (!boss.seen.includes(name)) boss.seen.push(name); }
 // gravity for the ground bosses; returns true on the frame she lands
 function bossFall(b) {
@@ -2455,16 +2390,11 @@ function pickPattern(opts) { // random, never the same pattern twice in a row
   if (opts[pi] === boss.last) pi = (pi + 1 + ((Math.random() * (opts.length - 1)) | 0)) % opts.length;
   boss.last = opts[pi]; bossSeen(opts[pi]); return opts[pi];
 }
-const BOSS_OPTS = ['fan', 'swoop', 'kick', 'heartRain'];
+const BOSS_OPTS = ['fan', 'swoop', 'kick'];
 function bossChoose() {
   const a = pickPattern(BOSS_OPTS); bossFacePlayer();
   if (a === 'fan') { boss.shots = 0; bossSet('fan'); }
   else if (a === 'swoop') { bossSet('swoopWind'); sfx('warn'); }
-  else if (a === 'heartRain') {
-    boss.heartRainX = Math.max(ROOM_L + 38, Math.min(ROOM_R - 38, P.x + P.w / 2));
-    bossPickSide(); // cast while flying across the room; rain target remains locked to its warning
-    bossSet('heartRainWind'); sfx('warn');
-  }
   else { bossSet('kickAim'); sfx('warn'); }
 }
 function aiTobiume(b, B, pcx, pcy) {
@@ -2493,23 +2423,6 @@ function aiTobiume(b, B, pcx, pcy) {
       }
       const total = b.pr ? B.fanVolleysRage : 1;
       if (b.shots >= total && b.t > B.fanWindup + (total - 1) * 30 + 24) { bossSet('hover'); bossPickSide(); }
-      break;
-    }
-    case 'heartRainWind':
-      b.pose = 'attack'; bossHover(b, B, true);
-      if (b.t % 7 === 0) spawnPart(b.x + b.w / 2, b.y + 13, (b.t % 3 - 1) * 0.4, -0.8, 22, 0, '#ff9bce');
-      if (b.t >= B.heartRainWarn) { b.shots = 0; bossSet('heartRain'); sfx('bshoot'); }
-      break;
-    case 'heartRain': {
-      b.pose = 'attack'; bossHover(b, B, true);
-      const count = b.pr ? 3 : 2, at = 1 + b.shots * B.heartRainGap;
-      if (b.shots < count && b.t === at) {
-        const offset = b.shots === 0 ? -19 : b.shots === 1 ? 19 : 0;
-        const x = Math.max(ROOM_L + 4, Math.min(ROOM_R - 8, b.heartRainX + offset - 3));
-        const shot = spawnBullet(x, 34, 0, B.heartRainSpeed, 2, B.bulletDamage);
-        if (shot) { b.shots++; sfx('bshoot'); }
-      }
-      if (b.shots >= count && b.t > count * B.heartRainGap + 15) { bossSet('hover'); bossPickSide(); }
       break;
     }
     case 'swoopWind':
@@ -3046,8 +2959,6 @@ function aiAstarte(b, B, pcx, pcy) {
 }
 const BOSS_AI = { tobiume: aiTobiume, neenia: aiNeenia, seiten: aiSeiten, astarte: aiAstarte };
 
-// Once-per-stage summoned friend. During the kick, lock the landing target to the
-// camera's visible combat space; the attack hits visible enemies, never the player.
 function castSupport() {
   if (support.used || support.active || !equippedSupport() || state !== 'play' || P.dead) { sfx('buzz'); return; }
   support.used = true; support.active = true; support.hit = false; support.t = 0;
@@ -3075,7 +2986,7 @@ function updateSupport() {
     support.x += (P.x + P.w / 2 + (P.face < 0 ? 20 : -20) - support.x) * 0.22;
     support.y += (P.y - support.y) * 0.22;
     if (t === 24) {
-      const gained = Math.min(6, CONFIG.playerMaxHP - P.hp);
+      const gained = Math.min(6, playerMaxHP() - P.hp);
       P.hp += gained; stats.heals += gained;
       P.inv = Math.max(P.inv, 120); sfx('song'); sfx('heal');
       for (let i = 0; i < 16; i++) spawnPart(P.x + P.w / 2 + DIR8X[i % 8] * 12, P.y + P.h / 2 + DIR8Y[i % 8] * 12, DIR8X[i % 8] * 0.6, -0.65, 45, i % 4 === 0 ? 5 : 0, i % 2 ? '#ffb3cb' : '#ffe99b');
@@ -3207,6 +3118,7 @@ function drawSupport(camX) {
   }
 }
 
+
 // ---------------------------------------------------------------------
 //  Allies: アスターテ (guide + checkpoint), ネーニア (support arrows), 青天 (healing song)
 // ---------------------------------------------------------------------
@@ -3258,7 +3170,7 @@ function updateAllies() {
         if (!a.said) { a.said = true; say(a); }
         a.act = 12;
         if (a.t % 10 === 0) { const h = hash(a.t, 3), k = (h >> 6) % 3; spawnPart(a.x + a.face * 6, a.y - 22, ((h & 63) / 64 - 0.5) * 0.8, -0.55, 50, 5, k === 0 ? '#ff6a8a' : k === 1 ? '#ffd84a' : '#8fd0ff'); }
-        if (P.hp < CONFIG.playerMaxHP && a.t % A.seitenHealEvery === 0) { P.hp++; stats.heals++; sfx('heal'); }
+        if (P.hp < playerMaxHP() && a.t % A.seitenHealEvery === 0) { P.hp++; stats.heals++; sfx('heal'); }
       }
     }
   }
@@ -3470,78 +3382,12 @@ const kanjiCv = mkCanvas(34, 17);
   }
 })();
 
-// Sunset Hills: hand-composed parallax landmarks follow the journey rather than
-// repeating every 512 pixels. All art is canvas pixel art, no external images.
-function drawSunsetLandmarks(camX) {
-  const p = 0.56, F = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
-  const screenX = world => (world - camX) * p + VW * (1 - p) * 0.5;
-  // Amber haze grows into plum dusk as Umine travels toward the boss.
-  const dusk = Math.min(0.22, Math.max(0, camX / (LEVEL_W - VW)) * 0.22);
-  g.fillStyle = 'rgba(62,26,86,' + dusk.toFixed(3) + ')'; g.fillRect(0, 30, VW, 140);
-  // Distant fence posts / waymarkers; vary their heights and spacing.
-  for (const world of [235, 460, 1140, 1550, 1800]) {
-    const x = Math.round(screenX(world)); if (x < -30 || x > VW + 30) continue;
-    F(x, 139, 2, 25, '#51304e'); F(x - 4, 139, 11, 2, '#a06a78');
-    F(x + 2, 142, 8, 2, '#51304e'); F(x + 7, 144, 1, 5, '#51304e');
-  }
-  // Windmill at the ridge: animated blades, bright window and wooden support.
-  const wx = Math.round(screenX(850));
-  if (wx > -65 && wx < VW + 65) {
-    F(wx - 13, 135, 27, 31, '#463047'); F(wx - 10, 131, 21, 5, '#62405b');
-    F(wx - 16, 129, 33, 3, '#8c6170');
-    F(wx - 5, 118, 11, 39, '#53374f'); F(wx - 3, 122, 7, 4, '#ffc778');
-    const a = frame * 0.013, bx = wx + 1, by = 117;
-    for (let k = 0; k < 4; k++) {
-      const theta = a + k * Math.PI / 2;
-      const ex = Math.round(bx + Math.cos(theta) * 23), ey = Math.round(by + Math.sin(theta) * 23);
-      g.strokeStyle = '#d8a079'; g.lineWidth = 2; g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke();
-      F(ex - 2, ey - 2, 5, 3, '#f3c38b');
-    }
-    F(wx - 1, 115, 4, 4, '#fff1c3');
-  }
-  // Ancient hilltop ruin near the upper route and the ravine.
-  const rx = Math.round(screenX(1190));
-  if (rx > -85 && rx < VW + 85) {
-    F(rx - 35, 147, 75, 17, '#4c3456'); F(rx - 30, 143, 66, 4, '#78506b');
-    for (const [ox, hh] of [[-27, 33],[-5, 41],[19, 29]]) {
-      F(rx + ox, 145 - hh, 8, hh, '#604263');
-      F(rx + ox - 3, 144 - hh, 14, 3, '#ad7180');
-      F(rx + ox + 1, 150 - hh, 2, hh - 9, '#79506f');
-    }
-    F(rx - 32, 106, 48, 3, '#714a69');
-  }
-  // Ravine-side bridge, silhouetted beyond the playable platforms.
-  const bx = Math.round(screenX(1450));
-  if (bx > -70 && bx < VW + 70) {
-    F(bx - 56, 159, 114, 3, '#6e4763');
-    for (let k = -3; k <= 3; k++) F(bx + k * 16, 157, 2, 19 + Math.abs(k) * 3, '#65405b');
-    F(bx - 55, 154, 112, 2, '#a56c78');
-  }
-  // Slowly drifting birds cross the final stretch; they are not enemies.
-  for (let i = 0; i < 5; i++) {
-    const x = Math.round(screenX(340 + i * 330) - (frame % 360) * (i & 1 ? 0.055 : 0.085));
-    const y = 65 + (hash(i, 42) % 32) + Math.round(Math.sin(frame * 0.028 + i) * 2);
-    if (x < 5 || x > VW - 5) continue;
-    F(x - 3, y, 3, 1, '#f9ba9e'); F(x, y + 1, 1, 1, '#f9ba9e'); F(x + 1, y, 3, 1, '#f9ba9e');
-  }
-}
 function drawBackground(camX) {
   g.drawImage(skyCv, 0, 0);
   let fx = -Math.floor(camX * 0.15) % 512; if (fx > 0) fx -= 512;
   g.drawImage(farCv, fx, 0); g.drawImage(farCv, fx + 512, 0);
-  if (curArea.id === 'sunset') drawSunsetLandmarks(camX);
   let nx = -Math.floor(camX * 0.4) % 512; if (nx > 0) nx -= 512;
   g.drawImage(nearCv, nx, 0); g.drawImage(nearCv, nx + 512, 0);
-  if (curArea.id === 'sunset' && camX < ROOM_X - VW + 32) {
-    // Windblown dusk pollen (screen-space ambience, no gameplay collision).
-    for (let i = 0; i < 20; i++) {
-      const h = hash(i, 620);
-      const x = ((h % (VW + 40)) - (frame * (0.12 + (i % 3) * 0.07) + camX * 0.07)) % (VW + 40);
-      const y = 55 + ((h >>> 9) % 136) + Math.sin(frame * 0.018 + i) * 3;
-      g.fillStyle = i % 4 === 0 ? '#ffd8a3' : '#b99aba';
-      g.fillRect(Math.floor((x + VW + 40) % (VW + 40)) - 20, Math.round(y), 1, 1);
-    }
-  }
 }
 
 // ---- character draw functions (swap these for sprite-sheet images later) ----
@@ -3577,13 +3423,7 @@ function drawHopper(e, camX, white) { g.drawImage(pick(SPR.hopper[e.onGround ? 0
 function drawFlyer(e, camX, white) { g.drawImage(pick(SPR.flyer[(e.t >> 2) & 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
 function drawEnemy(e, camX) {
   const white = e.flash > 0 && (e.flash & 2);
-  if (e.type === 'W') drawWalker(e, camX, white);
-  else if (e.type === 'H') drawHopper(e, camX, white);
-  else if (e.type === 'Q') {
-    const f = e.phase === 'warn' ? 1 : ((e.t >> (e.phase === 'dash' ? 2 : 4)) & 1);
-    g.drawImage(pick(SPR.sentry[f], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy));
-    if (e.phase === 'warn' && (e.t & 4)) { g.fillStyle = '#81d9ec'; g.fillRect(Math.round(e.x + e.w / 2 - 1 - camX), Math.round(e.y - 17), 3, 3); }
-  } else drawFlyer(e, camX, white);
+  if (e.type === 'W') drawWalker(e, camX, white); else if (e.type === 'H') drawHopper(e, camX, white); else drawFlyer(e, camX, white);
 }
 // Tobiume: dark = tobiume_dark.png (48x48) / rescued = tobiume.png (normal, 32x32, 15 frames)
 // or procedural 40x40 art. Anchored on the hitbox bottom-centre (feet) with the per-sheet body centre.
@@ -3612,7 +3452,7 @@ function drawTobiume(camX) {
 }
 function drawBoss(camX) {
   const b = boss; if (b.state === 'off') return;
-  if (curArea.boss === 'tobiume') { drawBossMarks(camX); drawTobiume(camX); return; }
+  if (curArea.boss === 'tobiume') { drawTobiume(camX); return; }
   drawBossMarks(camX);
   if (b.hidden || b.alpha <= 0) return;
   const T = BOSS_TYPES[curArea.boss];
@@ -3650,18 +3490,6 @@ function drawBossMarks(camX) {
     for (let k = 1; k <= n; k++) g.fillRect(Math.round(b.mx + dx / len * k * 6 - camX), Math.round(b.my + dy / len * k * 6), 1, 1);
     const ax = Math.round(b.aimX - camX), ay = Math.round(b.aimY);
     g.fillRect(ax - 3, ay, 2, 1); g.fillRect(ax + 2, ay, 2, 1); g.fillRect(ax, ay - 3, 1, 2); g.fillRect(ax, ay + 2, 1, 2);
-  }
-  if (curArea.boss === 'tobiume' && (b.state === 'heartRainWind' || b.state === 'heartRain')) {
-    const num = b.pr ? 3 : 2, pulse = (frame >> 2) & 1;
-    for (let i = 0; i < num; i++) {
-      const dx = i === 0 ? -19 : i === 1 ? 19 : 0;
-      if (b.state === 'heartRain' && i < b.shots) continue;
-      const x = Math.round(b.heartRainX + dx - camX);
-      g.fillStyle = 'rgba(255,117,176,0.14)'; g.fillRect(x - 6, 31, 12, FLOOR_Y - 33);
-      g.fillStyle = pulse ? '#fff0f7' : '#ff79b3';
-      g.fillRect(x - 7, FLOOR_Y - 2, 14, 2);
-      g.fillRect(x - 2, 33, 5, 2); g.fillRect(x - 1, 35, 3, 3);
-    }
   }
   if (b.rainN > 0) { // marked rain columns
     for (let i = 0; i < b.rainN; i++) {
@@ -3889,7 +3717,7 @@ function drawWaterOrb(camX) {
   if (o.life < 70 && (frame & 4)) { g.fillStyle = '#ffffff'; g.fillRect(x + 11, y - 3, 2, 2); }
 }
 function drawHUD() {
-  drawBar(8, 8, 'UMINE', P.hp, CONFIG.playerMaxHP, '#7fd6ff', 'l');
+  drawBar(8, 8, 'UMINE', P.hp, playerMaxHP(), '#7fd6ff', 'l');
   if (boss.state !== 'off') drawBar(VW - 8, 8, BOSS_TYPES[curArea.boss].hud, boss.hpShown, bossCfg().hp, '#ff5d5d', 'r');
   g.fillStyle = 'rgba(10,8,24,0.72)'; g.fillRect(6, 26, 92, 12);
   drawText('MP', 8, 28, 'c', 1);
@@ -3897,6 +3725,7 @@ function drawHUD() {
     g.fillStyle = i < magic.mp ? '#72dafa' : '#29394d'; g.fillRect(26 + i * 3, 30, 2, 5);
   }
   if (equippedSupport()) drawText(support.used ? 'SUP USED' : 'SUP B: ' + ({ tobiume: 'KICK', neenia: 'RAIN', seiten: 'SONG', astarte: 'SLASH' }[equippedSupport()] || 'HELP'), 8, 42, support.used ? 'b' : 'y', 1);
+  if (hardMode) drawText('HARD', VW - 8, 28, 'r', 1, 'r');
   if (DEBUG.god) drawText('GOD', 8, 54, 'g', 1);
 }
 function drawHitboxes(camX) {
@@ -3912,6 +3741,10 @@ function dim(a) { g.fillStyle = 'rgba(8,6,20,' + a + ')'; g.fillRect(0, 0, VW, V
 
 function renderTitle() {
   drawBackground(titleScroll);
+  const HM = TITLE_HARD;
+  g.fillStyle = hardMode ? '#4b1423' : 'rgba(12,8,30,0.82)'; g.fillRect(HM.x, HM.y, HM.w, HM.h);
+  rectLine(HM.x, HM.y, HM.w, HM.h, hardMode ? '#ff667d' : '#4a5680');
+  drawText(hardMode ? 'HARD ON' : 'HARD OFF', HM.x + HM.w / 2, HM.y + 4, hardMode ? 'r' : 'b', 1, 'c');
   g.drawImage(levelCv, 0, 208, VW, 32, 0, 208, VW, 32);
   g.fillStyle = 'rgba(12,8,30,0.78)'; g.fillRect(0, 18, VW, 56);
   g.fillStyle = '#ffd84a'; g.fillRect(0, 18, VW, 1); g.fillRect(0, 73, VW, 1);
@@ -4176,7 +4009,8 @@ requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
 window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, bullets, allies, arrows, SHEETS_LOADED, SHEET_DEFS,
-  AREAS, progress, support, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  AREAS, progress, support, magic, PROGRESS_KEY, SEL, SEL_BACK, SEL_SUPPORT, TITLE_HARD, TITLE_RESET, cellRect, clearedCount, finalUnlocked,
+  get hardMode() { return hardMode; }, get playerMaxHP() { return playerMaxHP(); },
   get state() { return state; }, get stateT() { return stateT; }, get checkpoint() { return checkpoint; },
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
