@@ -1,0 +1,72 @@
+{
+  "image": "umine_owner.png",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "facing": "right",
+  "anchor": "bottom edge of each frame（足元は下端 y=31）",
+  "cx": 16,
+  "character": "海音の中の人（水の魔女）。純粋で明るい旅好き。水色の長い髪・三日月の付いた青い魔女帽子（紫の帯・先が垂れて紫の宝石が下がる）・白いワンピース・星空柄のローブ",
+  "alignment": "全6フレームで足元の中心（靴2つの中心）が x=16、足元が下端 y=31。共通スケール 0.09（帽子の先〜靴 約30px、帽子は y=1 から）。大きな帽子はコードで描き直したテンプレート（紺の円すい・紫の帯・金の三日月2px・広いつば）を各フレームの頭に重ねている",
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ],
+      "fps": 3,
+      "loop": true,
+      "note": "0 立ち / 1 上半身（y=1〜19）を1px下げた呼吸フレーム"
+    },
+    "smile": {
+      "frames": [
+        2
+      ],
+      "note": "にっこり（^ の目）"
+    },
+    "cast": {
+      "frames": [
+        3
+      ],
+      "note": "右手を前に出して水魔法。原画の水の渦は32pxに入らないので外した → spawn.water から水の弾/エフェクトをゲーム側で"
+    },
+    "part": {
+      "frames": [
+        4
+      ],
+      "note": "両手を上げて海を割る（sea_split.png の水の壁と組み合わせる）"
+    },
+    "toast": {
+      "frames": [
+        5
+      ],
+      "note": "ジョッキで乾杯（水色のジョッキ x≈25-27, y≈9-12）"
+    }
+  },
+  "spawn": {
+    "water": {
+      "frame": 3,
+      "x": 25,
+      "y": 15,
+      "note": "前に出した手のひらの少し前"
+    },
+    "mug": {
+      "frame": 5,
+      "x": 26,
+      "y": 10
+    },
+    "handsUp": {
+      "frame": 4,
+      "left": [
+        9,
+        6
+      ],
+      "right": [
+        22,
+        5
+      ]
+    },
+    "coordNote": "左向きでは x → 31-x"
+  },
+  "eyes": "手置き：黒いまつ毛1行＋紫の瞳2px（smile と toast は ^ の閉じ目）。口は1px（cast/part/toast は開いた口の濃いピンク）",
+  "source": "work/umine_owner_raw.jpg（umine_owner_spec.json → body_sheet.py → umine_owner_post.py）"
+}

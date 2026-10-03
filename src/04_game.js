@@ -301,6 +301,7 @@ function shake(t, m) { if (shakeT <= 0 || m >= shakeMag) shakeMag = m; if (t > s
 //  Stage setup
 // ---------------------------------------------------------------------
 function resetStage(fromCP) {
+  if (curArea.final) finalOnReset();
   const c = fromCP ? CP_C : START_C, r = fromCP ? CP_R : START_R;
   P.x = c * TS + 3; P.y = (r + 1) * TS - P.h; P.vx = 0; P.vy = 0; P.face = 1; P.onGround = true; P.coyote = 0; P.jumpBuf = 0;
   P.jumping = false; P.shootT = 0; P.cool = 0; P.autoT = 0; P.shootBuf = 0; P.hp = playerMaxHP(); P.inv = 0; P.hurt = 0; P.dead = false; P.animT = 0;
@@ -335,6 +336,7 @@ function bossReset() {
 }
 function startGame(area) {
   if (area && area !== curArea) loadArea(area);
+  if (curArea.final) finalBegin();
   checkpoint = DEBUG.boss; stats.playFrames = 0; stats.kills = 0;
   sfx('start'); resetStage(checkpoint);
 }
@@ -344,22 +346,23 @@ function startGame(area) {
 // ---------------------------------------------------------------------
 const PROGRESS_KEY = 'rockside_progress_v1';
 
-const progress = { cleared: [], rescued: [], support: null }; // area ids cleared / friend ids rescued (joined as allies)
+const progress = { cleared: [], rescued: [], support: null, seen: [] }; // area ids cleared / friend ids rescued (joined as allies)
 function loadProgress() {
   try { const d = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null');
     if (d && Array.isArray(d.cleared)) progress.cleared = d.cleared.filter(id => typeof id === 'string');
     if (d && Array.isArray(d.rescued)) progress.rescued = d.rescued.filter(id => typeof id === 'string');
-    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support; } catch (_) {}
+    if (d && SUPPORT_ROSTER.includes(d.support)) progress.support = d.support;
+    if (d && Array.isArray(d.seen)) progress.seen = d.seen.filter(id => typeof id === 'string'); } catch (_) {}
   if (QS.get('supporttest') === '1') progress.support = SUPPORT_ROSTER.includes(QS.get('supportfriend')) ? QS.get('supportfriend') : 'tobiume';
 }
-function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support })); } catch (_) {} }
+function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ cleared: progress.cleared, rescued: progress.rescued, support: progress.support, seen: progress.seen })); } catch (_) {} }
 function markCleared(area) {
   if (!progress.cleared.includes(area.id)) progress.cleared.push(area.id);
   if (area.friend && !progress.rescued.includes(area.friend)) progress.rescued.push(area.friend);
   if (area.friend === 'tobiume' && !progress.support) progress.support = 'tobiume';
   saveProgress();
 }
-function eraseProgress() { progress.cleared.length = 0; progress.rescued.length = 0; progress.support = null; try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {} }
+function eraseProgress() { progress.cleared.length = 0; progress.rescued.length = 0; progress.support = null; progress.seen.length = 0; try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {} }
 function isCleared(id) { return progress.cleared.includes(id); }
 function isRescued(friend) { return !!friend && progress.rescued.includes(friend); }
 // One equippable rescue special at a time.
@@ -409,7 +412,7 @@ function chooseSlot(slot) {
   if (!a) return;
   if (a.final && !finalUnlocked()) { sfx('buzz'); selMessage('8つのエリアをすべてクリアすると解放されます', 'CLEAR ALL 8 AREAS'); return; }
   if (a.reserved) { sfx('buzz'); selMessage('まだ見ぬ友だちの席…', '??? - COMING SOON'); return; }
-  if (!a.map) { sfx('buzz'); selMessage(a.final ? '最終エリアはまだ準備中です' : a.bossName + ' のステージは準備中です', 'COMING SOON'); return; }
+  if (!a.map) { sfx('buzz'); selMessage(a.bossName + ' のステージは準備中です', 'COMING SOON'); return; }
   introArea = a; selMsg = null; sfx('select'); setState('areaIntro');
 }
 function updateSelect() {
@@ -626,7 +629,7 @@ function enemyColor(e) { return e.type === 'W' ? '#ff9a3c' : e.type === 'H' ? '#
 //  rescue sequence. Each type in BOSS_TYPES has its own AI (BOSS_AI[type]) for the fight.
 // ---------------------------------------------------------------------
 function bossSet(s) { boss.state = s; boss.t = 0; }
-function bossCfg() { return curArea.boss === 'tobiume' ? CONFIG.boss : CONFIG.bosses[curArea.boss]; }
+function bossCfg() { const c = curArea.boss === 'tobiume' ? CONFIG.boss : CONFIG.bosses[curArea.boss]; return curArea.final ? finalCfg(c) : c; }
 function bossType() { return BOSS_TYPES[curArea.boss] || BOSS_TYPES.tobiume; }
 function bossFacePlayer() { boss.face = (P.x + P.w / 2 < boss.x + boss.w / 2) ? -1 : 1; }
 function bossRage() { return hardMode || boss.hp <= bossCfg().hp / 2; }
@@ -657,7 +660,7 @@ function updateBoss() {
   if (b.dark && !b.hidden && (frame % 3) === 0) { // dark aura wisps
     const h = hash(frame, 7); spawnPart(b.x - 6 + (h % (b.w + 12)), b.y + 4 + ((h >> 8) % b.h), 0, -0.45, 22, 4, (h >> 16) & 1 ? T.aura[0] : T.aura[1]);
   }
-  if (b.state === 'rescue') { bossRescue(b, B, T); return; }
+  if (b.state === 'rescue') { if (curArea.final && finalRescue(b)) return; bossRescue(b, B, T); return; }
   if (curArea.boss !== 'tobiume') {
     if (b.state === 'enter') { // drop in through the hatch (Astarte floats down)
       b.pose = T.fly ? 'glide' : 'leap'; b.poseF = T.fly ? -1 : 0;
@@ -688,6 +691,7 @@ function damageBoss(s) {
   if (b.inv > 0) { sfx('tink'); return true; }
   const hpBefore = b.hp;
   b.hp -= (arguments.length > 1 ? arguments[1] : CONFIG.shotDamage); b.hpShown = Math.max(0, b.hp); b.inv = bossCfg().iFrames; b.flash = bossCfg().iFrames; sfx('bhit');
+  if (curArea.final && finalDamageHook(b)) return true;
   // Astarte phase 2: interrupt the current attack on the actual 50% HP crossing,
   // rather than waiting for a long orb animation or the next random choice.
   if (curArea.boss === 'astarte' && hpBefore > bossCfg().hp / 2 && b.hp <= bossCfg().hp / 2 && b.hp > 0 && !b.hidden) {
@@ -1950,6 +1954,7 @@ function updateShots() {
         sfx('tink');
       }
     }
+    if (s.active && curArea.final && finalShotHook(s)) continue;
     if (s.active && boss.state !== 'off' && overlap(s, boss)) { if (damageBoss(s)) { s.active = false; splashAt(s.x + (s.vx > 0 ? s.w : 0), s.y + 2, s.vx > 0 ? 1 : -1); } }
   }
 }
@@ -2070,6 +2075,7 @@ function updateBossIntro() {
       bossReset(); boss.triggered = true;
       boss.x = BOSS_C * TS + (TS - boss.w) / 2; boss.tx = boss.x; boss.y = -44; boss.vx = 0; boss.vy = 0; boss.face = -1; boss.bob = 0;
       bossSet('enter');
+      if (curArea.final) { if (FINAL.phase === 'mimic') { boss.y = FLOOR_Y - boss.h - 60; } finalIntroLine(); }
     }
   } else {                             // phase 2: boss flies in through the ceiling hatch, HP bar fills, then fight
     updateBoss();
@@ -2123,6 +2129,9 @@ function update() {
         break;
       case 'gameover':
         if (inp.startPressed && stateT > 30) resetStage(checkpoint);
+        break;
+      case 'climax': case 'finale': case 'theEnd': case 'ending':
+        updateFinalState();
         break;
       case 'clear':  // back to the stage select, cursor on the cleared area (now marked)
         if (inp.startPressed && stateT > 60) { resetStage(false); openSelect(curArea.slot); }

@@ -192,6 +192,23 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], walk: [2, 2], windup: [4, 1], throwDice: [5, 1], flickCards: [6, 1], hurt: [7, 1], defeat: [8, 1] } },
   // dice 1-6 (0-5), rolling die (6-9), card back/edge/front (10-12), chips red/black (13-14), roulette ball (15), flaming die (16)
   dicerollBullets: { file: 'assets/diceroll_bullets.png', fw: 24, fh: 24, frames: 17, cx: 12 },
+  // FINAL: 清掃員カナタ 64x64 x9 (body x=32, feet y=63): 0-1 idle (1 eyes closed), 2 move, 3 levitate (hand 50,24; object 54,6),
+  // 4 suck (mouth 52,41), 5 spit (mouth 56,30), 6 hit, 7 collapse, 8 float. Mirror: x -> 63-x
+  kanataBoss: { file: 'assets/kanata_boss.png', fw: 64, fh: 64, frames: 9, cx: 32, muzX: 52, muzY: 41,
+    map: { idle: [0, 2], move: [2, 1], levitate: [3, 1], suck: [4, 1], spit: [5, 1], hurt: [6, 1], defeat: [7, 1], float: [8, 1] } },
+  // 暴走ミミック 64x64 x7 (body x=34, feet y=63): 0 idle, 1 lunge, 2 big-mouth suck, 3 spit, 4 hit, 5 destroyed, 6 idle2 (idle = 0/6)
+  mimicRampage: { file: 'assets/mimic_rampage.png', fw: 64, fh: 64, frames: 7, cx: 34, muzX: 46, muzY: 47,
+    map: { idle: [0, 1], lunge: [1, 1], suck: [2, 1], spit: [3, 1], hurt: [4, 1], defeat: [5, 1], idle2: [6, 1] } },
+  kanataGhost: { file: 'assets/kanata_ghost.png', fw: 32, fh: 32, frames: 3, cx: 16, map: { float: [0, 2], throw: [2, 1] } }, // orb 27,16
+  kanata: { file: 'assets/kanata.png', fw: 32, fh: 32, frames: 5, cx: 16, map: { idle: [0, 1], blink: [1, 1], wave: [2, 1], happy: [3, 1], sing: [4, 1] } },
+  // 0-1 ghost bullet, 2 ghost fireball, 3 paper, 4 plank, 5 can, 6 rock, 7 plate shard (face right; debris centre 12,12)
+  kanataBullets: { file: 'assets/kanata_bullets.png', fw: 24, fh: 24, frames: 8, cx: 12 },
+  kanataWind: { file: 'assets/kanata_bullets_wind.png', fw: 48, fh: 24, frames: 3, cx: 4 },      // suction streaks; converge at (4,12)
+  umineOwner: { file: 'assets/umine_owner.png', fw: 32, fh: 32, frames: 6, cx: 16,
+    map: { idle: [0, 2], smile: [2, 1], cast: [3, 1], part: [4, 1], toast: [5, 1] } },              // water spawn (25,15), mug (26,10)
+  seaSplit: { file: 'assets/sea_split.png', fw: 48, fh: 96, frames: 5, cx: 45 },                  // LEFT wall; 4 = tileable body (32px)
+  partyProps: { file: 'assets/party_props.png', fw: 376, fh: 32, frames: 1, cx: 0 },              // cut by PARTY_PROPS rects
+  partyBg: { file: 'assets/party_bg_wide.png', fw: 384, fh: 240, frames: 1, cx: 0 },
   shiranuiPillar:  { file: 'assets/shiranui_bullets_pillar.png', fw: 24, fh: 48, frames: 2, cx: 12 }, // fire pillar, floor line y=45
   transformFx:     { file: 'assets/transform_fx.png', fw: 24, fh: 24, frames: 4, cx: 12 },      // purple morph flash, 4 steps
   starWeapon:      { file: 'assets/star_weapon.png', fw: 32, fh: 32, frames: 2, cx: 16 },       // 0 cyan sword, 1 cyan slash arc
@@ -200,7 +217,7 @@ const SHEET_DEFS = {
     map: { idle: [0, 2], glide: [2, 2], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
 };
 // 24x24 face icons (stage select + rescue dialogue)
-for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark', 'diceroll', 'diceroll_dark'])
+for (const f of ['kanon', 'tobiume', 'tobiume_dark', 'neenia', 'neenia_dark', 'seiten', 'seiten_dark', 'astarte', 'astarte_dark', 'lily', 'lily_dark', 'umimi', 'disaster_dark', 'star', 'shiranui', 'shiranui_dark', 'diceroll', 'diceroll_dark', 'kanata', 'umine_owner'])
   SHEET_DEFS['face_' + f] = { file: 'assets/' + f + '_face.png', fw: 24, fh: 24, frames: 1, cx: 12, face: true };
 const SHEETS = {};           // key -> array of sprite objects {r,l,wr,wl}
 const SHEETS_LOADED = [];
@@ -281,7 +298,8 @@ function loadSheets() {
   const LILY_FOLDER_SHEETS = new Set(['lily', 'lilyDark', 'lilySongWave', 'umimi', 'face_lily', 'face_lily_dark', 'face_umimi', 'disasterDark', 'starNormal', 'face_disaster_dark', 'face_star',
     'alchemicWeapons', 'transformFx', 'starWeapon', 'disasterBullets',
     'shiranui', 'shiranuiDark', 'shiranuiBullets', 'shiranuiPillar', 'face_shiranui', 'face_shiranui_dark',
-    'diceroll', 'dicerollDark', 'dicerollBullets', 'face_diceroll', 'face_diceroll_dark']);
+    'diceroll', 'dicerollDark', 'dicerollBullets', 'face_diceroll', 'face_diceroll_dark',
+    'kanataBoss', 'mimicRampage', 'kanataGhost', 'kanata', 'kanataBullets', 'kanataWind', 'umineOwner', 'seaSplit', 'partyProps', 'partyBg', 'face_kanata', 'face_umine_owner']);
   for (const k in SHEET_DEFS) {
     if (!useFolder && !emb[k] && !LILY_FOLDER_SHEETS.has(k)) continue;
     const d = SHEET_DEFS[k], img = new Image();

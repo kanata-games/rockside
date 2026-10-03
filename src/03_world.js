@@ -29,6 +29,11 @@ TILESETS.foxfire = { rock: ['#4a4250', '#3a3240', '#625a6a', '#2c2632', '#221c28
 TILESETS.casino = { rock: ['#7a1a2a', '#5a1020', '#9a2a3a', '#3a0a14', '#2a0610'], top: ['#1e7a4a', '#f0c850', '#145a36'],
   girder: ['#2a1a10', '#d03030', '#f4f0e8', '#101010'], cave: ['#2a1030', '#381440'], chips: true,
   metal: ['#1e6a46', '#237a50', '#185a3c', '#6a1424', '#a02a3a', '#b83848', '#f0c850', '#fff0a0'] };
+// 幽境の掃除館 (final): plum wallpaper rock, polished wood floor trim, haunted furniture girders (shelves with a ghost glow);
+// the boss hall is a light lavender room so the black vacuum mimic and Kanata's dark maid dress stay readable
+TILESETS.final = { rock: ['#4a3050', '#3a2440', '#5e4066', '#2a1a30', '#20142a'], top: ['#8a5a3a', '#d8a070', '#6a4028'],
+  girder: ['#3a2018', '#7a4a2a', '#c8904a', '#2a140c'], cave: ['#1e1430', '#281a3c'], furniture: true,
+  metal: ['#a49ccc', '#b2aad8', '#958dbd', '#5a4a7a', '#7a6a9a', '#8a7aac', '#d0c8ec', '#ffffff'] };
 const THEMES = {
   sunset: { sky: ['#181238', '#55306e', '#e8845c'], stars: 40, sun: { x: 190, y: 120, r: 20, cols: ['#ffcf7a', '#ffe9b0'] },
     far: { style: 'hills', cols: ['#6a4a82', '#7d5a95'] }, near: { style: 'hills', cols: ['#3c2c56', '#4b3868'] }, tiles: TILESETS.sunset },
@@ -44,6 +49,8 @@ const THEMES = {
     far: { style: 'city', cols: ['#3e1a58', '#62307a'], lights: '#ffd060' }, near: { style: 'city', cols: ['#26123a', '#40205a'], lights: '#ff7ad8' }, tiles: TILESETS.casino, casino: true },
   foxfire: { sky: ['#07061a', '#1e1240', '#5a2448'], stars: 90, moon: { x: 196, y: 52, r: 20, cols: ['#fff2d8', '#fffaf0', '#e8d0b0'] },
     far: { style: 'trees', cols: ['#1c1434', '#2a1e48'] }, near: { style: 'trees', cols: ['#0e0a1c', '#1c1230'] }, tiles: TILESETS.foxfire, foxShrine: true },
+  final: { sky: ['#0c0618', '#2a1440', '#5a2a6a'], stars: 60, moon: { x: 210, y: 34, r: 11, crescent: true, cols: ['#d8e8ff', '#f4f8ff', '#a8b8e0'] },
+    far: { style: 'ruins', cols: ['#2a1a40', '#3e2858'] }, near: { style: 'ruins', cols: ['#160c24', '#24163a'] }, tiles: TILESETS.final },
   shrine: { sky: ['#06061e', '#1c1450', '#44307c'], stars: 150, starsH: 170, band: '#8a7ae0',
     far: { style: 'ruins', cols: ['#2a2460', '#3a347a'] }, near: { style: 'ruins', cols: ['#151238', '#221e50'] }, tiles: TILESETS.shrine },
 };
@@ -262,6 +269,14 @@ function buildLevel() {
           for (let k = 0; k < 4; k++) { const cc = cols[(k + c + r) % 4]; F(cc, x + 1, y + k * 4, 14, 4); F('#f4f0e8', x + 3 + ((c + k) & 1) * 6, y + k * 4 + 1, 3, 2); F('#000000', x + 1, y + k * 4 + 3, 14, 1); }
           F('#f0c850', x + 1, y, 14, 1);
         }
+      } else if (t === T_GIRDER && TT.furniture) { // haunted furniture: a floating bookshelf / sideboard top, ghost-blue glow under it
+        let c0 = c; while (c0 > 0 && tileAt(c0 - 1, r) === T_GIRDER) c0--;
+        F('#2a140c', x, y, 16, 12); F('#7a4a2a', x, y, 16, 3); F('#c8904a', x, y, 16, 1); F('#4a2a1a', x, y + 3, 16, 9);
+        const bk = ['#a03040', '#3a6aa0', '#c8a040', '#4a8a5a', '#8a5ab0'];
+        if (hash(c0, r) & 1) { for (let k = 0; k < 4; k++) F(bk[(c + k + r) % 5], x + 1 + k * 4, y + 5 + ((c + k) & 1), 3, 6 - ((c + k) & 1)); }
+        else { F('#5a3420', x + 2, y + 5, 12, 6); F('#e8c060', x + 7, y + 7, 2, 2); }
+        F('#2a140c', x, y + 11, 16, 1);
+        F('rgba(120,170,255,0.35)', x, y + 12, 16, 2); F('rgba(120,170,255,0.15)', x, y + 14, 16, 2);
       } else if (t === T_GIRDER) {
         F(GD[0], x, y, 16, 16); F(GD[1], x, y, 16, 14); F(GD[2], x, y, 16, 2);
         F(GD[3], x, y + 2, 1, 12); F(GD[3], x + 15, y + 2, 1, 12);

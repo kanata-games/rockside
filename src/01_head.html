@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.9.1';
+const GAME_VERSION = '0.10.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -159,6 +159,28 @@ const CONFIG = {
     // boomerang: spinning cards out and back one at a time (next after the catch, height mark): low, high, low (enraged + high) / chips: marked columns, then chip stacks drop
     // roulette: the ball circles her hand, then bounces around the room for a while
     // enraged (<= 50%): flaming die (bounces, leaves embers on landing) + once: ALL IN (chips -> card fan -> dice, announced)
+    // FINAL: 清掃員カナタ form 1 (half-ghost poltergeist maid + her vacuum mimic; floats just above the floor)
+    // levitate: raised hand, 3 objects (enraged 4) rise around her and glow, aim lines, then thrown one by one at Umine
+    // suction: wind telegraph, then the vacuum pulls Umine toward its mouth (run/jump away; the pull is weaker than running)
+    //          and swallows Umine's shots in the wind cone -> spit: hose raised, ghost-bullet fan + the swallowed shots come back
+    // ghosts: ghost fireballs rise to the ceiling over floor marks, then dive / glide: she floats over Umine to the other side
+    kanata: { hp: 40, iFrames: 18, contactDamage: 3, floatGap: 1, idleFrames: 40, idleFramesRage: 28, recover: 30, recoverRage: 20,
+      comboChance: 0.15, comboChanceRage: 0.45,
+      levWind: 34, levWindRage: 26, levCount: 3, levCountRage: 4, levGap: 16, levGapRage: 12, levSpeed: 2.8, levDamage: 2,
+      suckWarn: 36, suckWarnRage: 28, suckFrames: 110, suckFramesRage: 130, suckPull: 0.62, suckPullAir: 0.5, suckRange: 150, suckBite: 3,
+      spitWind: 20, spitCount: 6, spitCountRage: 8, spitSpread: 0.2, spitSpeed: 2.4, spitDamage: 2, spitBackMax: 6, spitBackSpeed: 2.6,
+      ghostCount: 3, ghostCountRage: 4, ghostHover: 40, ghostSpeed: 3.0, ghostDamage: 2,
+      glideSpeed: 2.2, rescueLineFrames: 240 },
+    // FINAL: 暴走ミミック form 2 (the vacuum alone, berserk; Kanata's ghost floats nearby and throws objects now and then)
+    // charge: shakes + red eye (telegraph), then lunges along the floor with a small hop (jump over) / bigsuck: huge mouth suction
+    // (stronger pull, swallows shots) -> spit: debris arcs + swallowed shots / leap: shadow marker on Umine, jumps, lands with 2 floor waves
+    // climax at climaxHp: friends' cut-ins + the owner parts the sea (finishing blow)
+    mimic: { hp: 40, iFrames: 18, contactDamage: 3, idleFrames: 34, idleFramesRage: 24, recover: 26, recoverRage: 18, comboChance: 0.2, comboChanceRage: 0.5,
+      chargeWind: 34, chargeWindRage: 26, chargeSpeed: 3.6, chargeSpeedRage: 4.2, chargeDamage: 3,
+      suckWarn: 30, suckFrames: 100, suckPull: 0.72, suckPullAir: 0.55, suckRange: 170, suckBite: 3,
+      spitCount: 4, spitCountRage: 5, spitDamage: 2,
+      leapWind: 30, leapAir: 52, waveSpeed: 2.2, waveDamage: 2,
+      ghostEvery: 190, ghostEveryRage: 150, ghostSpeed: 2.2, ghostDamage: 2, climaxHp: 10, rescueLineFrames: 240 },
     diceroll: { hp: 40, iFrames: 15, contactDamage: 3, walkSpeed: 0.9, walkSpeedRage: 1.15, idleFrames: 27, idleFramesRage: 20, recover: 24, recoverRage: 16,
       comboChance: 0.2, comboChanceRage: 0.65,
       fateRoll: 26, fateShow: 26, fateShowRage: 20,
@@ -232,18 +254,23 @@ const CONFIG = {
   bossScrollSpeed: 3,
 };
 
+// 海音の中の人 (the player behind Umine) - display name used in the finale / ending. Edit here only.
+const OWNER_NAME = { jp: '海音の中の人', en: "UMINE'S OWNER" };
 // ---------------------------------------------------------------------
 //  URL debug params: ?boss=1 (start at checkpoint before boss room),
 //  ?god=1 (no damage), ?hitbox=1 (draw hitboxes), ?sprites=0 (procedural art), ?sprites=folder (load assets/*.png instead of embedded)
-//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂, 5 災厄の紅月城, 6 月光の歌劇城, 7 狐火の社, 8 宵闇のカジノ; combine with boss=1 / god=1)
+//  ?area=N (start area N directly: 1 夕焼けの丘, 2 月影の森, 3 夜曲の街, 4 星導の聖堂, 5 災厄の紅月城, 6 月光の歌劇城, 7 狐火の社, 8 宵闇のカジノ, 9 幽境の掃除館 (final); combine with boss=1 / god=1)
 //  ?unlockall=1 (stage select: final centre area unlocked without clearing all 8; progress is not written)
+//  final area (?area=9): &rush=N (start the boss rush at shadow N, 0-7), &kanata=1 (skip the rush), &mimic=1 (straight to form 2),
+//  &climax=1 (form 2 starts at the climax threshold); ?ending=1 (jump to the ending party + credits)
 // ---------------------------------------------------------------------
 const QS = new URLSearchParams(location.search);
 let hardMode = QS.get('hard') === '1';
 function playerMaxHP() { return hardMode ? Math.max(1, Math.floor(CONFIG.playerMaxHP / 2)) : CONFIG.playerMaxHP; }
 function toggleHardMode() { hardMode = !hardMode; P.hp = Math.min(P.hp, playerMaxHP()); sfx('cursor'); }
 const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
-  unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0 };
+  unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0,
+  rush: parseInt(QS.get('rush') || '0', 10) || 0, kanata: QS.get('kanata') === '1', mimic: QS.get('mimic') === '1', climax: QS.get('climax') === '1', ending: QS.get('ending') === '1' };
 
 // =====================================================================
 //  STAGE MAPS  - each stage = N screens of 16x15 tiles (the last one is the boss room).
@@ -913,6 +940,153 @@ const STAGE_DISASTER = [
 "################","################"]
 ];
 // 宵闇のカジノ MIDNIGHT CASINO (area 8, cell 7): neon signs, slot machines, card tables and chip stacks. 8 screens + boss room.
+const STAGE_FINAL = [
+[ // 0 - mansion gate (sunset painting)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"..........===...",
+"................",
+"..P......W......",
+"################",
+"################"],
+[ // 1 - floating furniture over a pit (moon-woods painting), ghosts
+"................",
+"................",
+"................",
+"................",
+"................",
+"..........F.....",
+"................",
+"................",
+"................",
+"......===.......",
+"................",
+"................",
+"...W............",
+"#########...####",
+"#########...####"],
+[ // 2 - library stairs (night-city painting)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"...........==...",
+".........####...",
+"......#######...",
+"..H...#######.W.",
+"################",
+"################"],
+[ // 3 - shrine corridor (star-shrine painting), Nenia
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......F........",
+"................",
+"................",
+"................",
+"....====....===.",
+"................",
+"..N.........W...",
+"################",
+"################"],
+[ // 4 - crimson gallery: two pits (castle painting), Seiten
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+".......==.......",
+"................",
+"..S.........H...",
+"####...###..####",
+"####...###..####"],
+[ // 5 - palace ballroom (moonlight painting), ghosts, Shiranui
+"................",
+"................",
+"................",
+"................",
+"................",
+"............F...",
+"................",
+"....F...........",
+"................",
+"..........===...",
+"................",
+"................",
+"..K....W........",
+"################",
+"################"],
+[ // 6 - torii hall (foxfire painting) + steps, DiceRoll
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"..........##....",
+"........####....",
+"..R..W..####..H.",
+"################",
+"################"],
+[ // 7 - casino antechamber: checkpoint (Astarthe / lantern) before the boss rush
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"...A.......F....",
+"################",
+"################"],
+[ // 8 - backstage hall (boss rush -> 清掃員カナタ)
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"................",
+"D...............",
+"D...............",
+"D..........B....",
+"################",
+"################"]
+];
+
 const STAGE_CASINO = [
 [ // 0 - neon entrance, a chip-stack ledge
 "................",
@@ -1361,7 +1535,10 @@ const AREAS = [
     portrait: { sheet: 'dicerollDark', frame: 0, x: 14, y: 6, size: 20 },
     portraitRescued: { sheet: 'diceroll', frame: 0, x: 6, y: 2, size: 20 },
     map: STAGE_CASINO, theme: 'casino' },
-  { id: 'final', slot: 4, final: true, name: '最終エリア', en: 'FINAL AREA' }, // no stage yet -> "coming soon" even when unlocked
+  // centre cell: unlocked after all 8 outer areas. Boss rush of the 8 shadows, then 清掃員カナタ (2 forms), climax, ending.
+  { id: 'final', no: 9, slot: 4, final: true, name: '幽境の掃除館', en: 'BACKSTAGE MANSION', enShort: 'BACKSTAGE', boss: 'kanata',
+    bossName: '清掃員カナタ', bossAlias: 'ポルターガイスト・メイド', bossEn: 'KANATA THE CLEANER',
+    face: 'face_kanata', faceRescued: 'face_kanata', map: STAGE_FINAL, theme: 'final' },
 ];
 // in-stage ally type (map letter) -> friend id
 const ALLY_FRIEND = { A: 'astarte', N: 'neenia', S: 'seiten', K: 'shiranui', R: 'diceroll' };

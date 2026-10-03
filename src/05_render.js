@@ -148,6 +148,7 @@ function drawBackground(camX) {
   let fx = -Math.floor(camX * 0.15) % 512; if (fx > 0) fx -= 512;
   g.drawImage(farCv, fx, 0); g.drawImage(farCv, fx + 512, 0);
   if (curArea.id === 'lily') drawLilyLandmarks(camX);
+  if (curArea.final && state !== 'title') drawFinalBackdrop(camX);
   let nx = -Math.floor(camX * 0.4) % 512; if (nx > 0) nx -= 512;
   g.drawImage(nearCv, nx, 0); g.drawImage(nearCv, nx + 512, 0);
 }
@@ -182,7 +183,7 @@ function drawPlayer(camX) {
 }
 function drawWalker(e, camX, white) { g.drawImage(pick(SPR.walker[(e.t >> 3) & 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
 function drawHopper(e, camX, white) { g.drawImage(pick(SPR.hopper[e.onGround ? 0 : 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
-function drawFlyer(e, camX, white) { g.drawImage(pick(SPR.flyer[(e.t >> 2) & 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
+function drawFlyer(e, camX, white) { if (curArea.final) { drawFinalGhostEnemy(e, camX, white); return; } g.drawImage(pick(SPR.flyer[(e.t >> 2) & 1], e.face, white), Math.round(e.x - e.ox - camX), Math.round(e.y - e.oy)); }
 function drawEnemy(e, camX) {
   const white = e.flash > 0 && (e.flash & 2);
   if (e.type === 'W') drawWalker(e, camX, white); else if (e.type === 'H') drawHopper(e, camX, white); else drawFlyer(e, camX, white);
@@ -236,6 +237,7 @@ function drawLilyBossSpotlight(camX) {
 function drawBoss(camX) {
   const b = boss; if (b.state === 'off') return;
   if (curArea.boss === 'tobiume') { drawTobiume(camX); return; }
+  if (curArea.final && (curArea.boss === 'kanata' || curArea.boss === 'mimic')) { drawFinalBoss(camX); return; }
   drawBossMarks(camX);
   if (b.hidden || b.alpha <= 0) return;
   const T = BOSS_TYPES[curArea.boss];
@@ -245,7 +247,8 @@ function drawBoss(camX) {
   if (curArea.boss === 'disaster' && b.state === 'disMorph') white = white || ((b.t >> 1) & 3) === 0; // morph flash
   const mx = Math.round(b.x + b.w / 2 - camX), by = Math.round(b.y + b.h + b.hopY); // hitbox bottom-centre
   const key = b.dark ? T.dark : T.normal, sh = SHEETS[key];
-  if (b.alpha < 1) g.globalAlpha = b.alpha;
+  const shA = curArea.final ? finalShadowAlpha() : 1;
+  if (b.alpha < 1 || shA < 1) g.globalAlpha = b.alpha * shA;
   if (sh) {
     const D = SHEET_DEFS[key]; let fi;
     if (b.dark && D.map) {
@@ -421,6 +424,7 @@ function drawArrows(camX) {
 function drawBullet(b, camX) {
   const x = Math.round(b.x - camX), y = Math.round(b.y);
   if (b.dspr >= 0 && SHEETS.disasterBullets) { drawDisasterBulletSprite(b, camX); return; }
+  if (b.kind >= 35 && b.kind <= 39) { drawFinalBullet(b, camX); return; }
   if (b.kind >= 29 && b.kind <= 34) { drawDicerollBullet(b, camX); return; }
   if (b.kind === 24 || b.kind === 25 || b.kind === 27 || b.kind === 28 || b.sspr >= 0) { drawShiranuiBullet(b, camX); return; }
   if (b.kind === 0) g.drawImage(SPR.ebullet.r, x, y);
@@ -603,6 +607,10 @@ function renderTitle() {
   drawText('ROCKSIDE', VW / 2, 26, 'y', 4, 'c');
   drawText('A WATER-WITCH RUN AND GUN', VW / 2, 52, 'c', 1, 'c');
   drawText('VER ' + GAME_VERSION, VW / 2, 62, 'b', 1, 'c');
+  if (isCleared('final')) { // game cleared: small star mark
+    const sx = VW - 38, sy = 58; g.fillStyle = '#120e24'; g.fillRect(sx - 1, sy - 1, 34, 11); g.fillStyle = (frame >> 4) & 1 ? '#ffd84a' : '#fff4b0';
+    g.fillRect(sx + 3, sy + 1, 3, 7); g.fillRect(sx + 1, sy + 3, 7, 3); g.fillRect(sx + 2, sy + 2, 5, 5); drawText('CLEAR', sx + 10, sy + 2, 'y', 1);
+  }
   // hero name: 海音 UMINE
   g.drawImage(kanjiCv, 78, 82);
   drawTextShadow('UMINE', 118, 85, 'c', 2);
@@ -659,8 +667,8 @@ function drawPadlock(cx, cy) {
 function cellLabel(a) { return textWidth(a.en, 1) <= SEL.cw - 4 ? a.en : (a.enShort || a.en.slice(0, Math.floor((SEL.cw - 3) / 6))); }
 function drawCell(slot) {
   const R = cellRect(slot), a = areaAtSlot(slot);
-  const playable = !!(a && a.map), locked = !!(a && a.final && !finalUnlocked()), cleared = !!(a && !a.final && isCleared(a.id));
-  const friendCell = !!(a && (a.face || a.portrait));     // a DARK <friend> boss slot (playable or coming soon)
+  const locked = !!(a && a.final && !finalUnlocked()), playable = !!(a && a.map) && !locked, cleared = !!(a && isCleared(a.id));
+  const friendCell = !!(a && (a.face || a.portrait)) && !locked;     // a DARK <friend> boss slot (playable or coming soon)
   g.fillStyle = playable ? '#1c2244' : friendCell ? '#1a1630' : '#141830'; g.fillRect(R.x, R.y, R.w, R.h);
   rectLine(R.x, R.y, R.w, R.h, cleared ? '#4a9a6a' : playable ? '#4a5a90' : friendCell ? '#44305e' : '#2c3558');
   const px = R.x + 12, py = R.y + 2;                      // 52x52 portrait frame (48x48 inside = face icon at 2x)
@@ -671,6 +679,7 @@ function drawCell(slot) {
       g.fillStyle = th.sky[cleared ? 2 : 1]; g.fillRect(px + 2, py + 2, 48, 48); g.fillStyle = th.sky[cleared ? 1 : 2]; g.fillRect(px + 2, py + 36, 48, 14); }
     else { g.fillStyle = '#5a3c80'; g.fillRect(px + 2, py + 2, 48, 48); g.fillStyle = '#7a4c90'; g.fillRect(px + 2, py + 34, 48, 16); }
     drawPortrait(a, px + 2, py + 2);
+    if (a.final && !cleared) { g.fillStyle = 'rgba(14,8,30,' + (0.72 + Math.sin(frame * 0.08) * 0.08) + ')'; g.fillRect(px + 2, py + 2, 48, 48); drawTextShadow('?', px + 27, py + 16, 'c', 3, 'c'); }
     if (cleared) { // normal face stays visible: CLEAR ribbon along the bottom + check badge
       g.fillStyle = 'rgba(6,20,12,0.82)'; g.fillRect(px + 2, py + 40, 48, 10); drawText('CLEAR', px + 26, py + 42, 'g', 1, 'c');
       g.fillStyle = '#0a2010'; g.fillRect(px + 35, py + 3, 15, 13); drawCheck(px + 37, py + 5);
@@ -681,7 +690,7 @@ function drawCell(slot) {
   } else { // ??? reserved slot for a future friend
     drawTextShadow('?', px + 27, py + 14, 'b', 4, 'c');
   }
-  const en = playable ? cellLabel(a) : a && a.final ? (locked ? 'LOCKED' : 'FINAL AREA') : a && a.reserved ? 'LOCKED' : 'COMING SOON';
+  const en = playable ? cellLabel(a) : a && a.final ? 'LOCKED' : a && a.reserved ? 'LOCKED' : 'COMING SOON';
   drawText(en, R.x + R.w / 2, R.y + R.h - 7, playable ? (cleared ? 'g' : 'w') : 'b', 1, 'c');
 }
 function renderSelect() {
@@ -770,6 +779,8 @@ function render() {
   if (state === 'title') { renderTitle(); blit(); drawHiText('〜 水の魔女と堕ちた天使 〜', VW / 2, 102, 8, '#ffd6ec', '#120e24'); return; }
   if (state === 'select' || (state === 'areaIntro' && stateT < 24)) { renderSelect(); return; }
   if (state === 'areaIntro') { renderAreaIntro(); return; }
+  if (state === 'theEnd') { renderTheEnd(); return; }
+  if (state === 'ending' && typeof renderEnding === 'function') { renderEnding(); return; }
   const camX = Math.round(cam.x);
   drawBackground(camX);
   let sx = 0, sy = 0;
@@ -789,9 +800,10 @@ function render() {
   drawArrows(camX);
   for (let i = 0; i < bullets.length; i++) if (bullets[i].active) drawBullet(bullets[i], camX);
   drawParticles(camX);
+  if (curArea.final) drawFinalWorld(camX);
   if (DEBUG.hitbox) drawHitboxes(camX);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  drawHUD();
+  if (!(curArea.final && (state === 'climax' || state === 'finale'))) drawHUD();
   if (state === 'ready' && ((stateT >> 3) & 1) === 0) drawTextShadow('GET SET!', VW / 2, 104, 'y', 2, 'c');
   if (state === 'bossIntro' && introPhase === 2 && (frame >> 3) & 1) drawTextShadow('WARNING', VW / 2, 60, 'r', 2, 'c');
   if (state === 'gameover') {
@@ -808,6 +820,7 @@ function render() {
     drawText('TIME ' + Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60) + '   KILLS ' + stats.kills, VW / 2, 114, 'w', 1, 'c');
     if (stateT > 60 && (frame >> 5) & 1) drawTextShadow('TAP OR ENTER: STAGE SELECT', VW / 2, 150, 'w', 1, 'c');
   }
+  if (curArea.final) drawFinalOverlay();
   blit();
   if (support.active && support.t < 106) {
     if (support.kind === 'neenia') drawHiText('ネーニア・星降る矢雨！', VW / 2, 67, 8, '#e2ecff', '#253568');
@@ -831,6 +844,7 @@ function render() {
   const BT = BOSS_TYPES[curArea.boss];
   if (boss.state === 'rescue' && boss.t >= 100 && state === 'play') drawDialogue(BT.speaker, BT.speakerColor, BT.line, Math.min(1, (boss.t - 100) / 15), 36, BT.face); // top: keeps both characters visible
   if (state === 'clear') drawHiText(BT.clearJp, VW / 2, 126, 8, '#ffc0dc', '#120e24');
+  if (curArea.final) drawFinalHi();
 }
 // Fill the screen at any size without shimmer: blow the frame up by a whole number with
 // hard edges first, then shrink that smoothly to the real size. Every game pixel ends up
@@ -875,6 +889,7 @@ window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, 
   get selCursor() { return selCursor; }, get selMsg() { return selMsg; }, get curArea() { return curArea.id; }, get bossSeen() { return boss.seen.slice(); }, get floorY() { return FLOOR_Y; }, get resetArmed() { return resetArmT > 0; },
   teleport(x, y) { P.x = x; P.y = y; P.vx = 0; P.vy = 0; cam.x = clampCam(x - VW / 2); },
   _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid, barGeom, cellLabel }, BOSS_TYPES,
+  get final() { return { phase: FINAL.phase, rushIdx: FINAL.rushIdx, climaxT: FINAL.climaxT, finaleI: FINAL.finaleI, swallowed: FINAL.swallowed, boss: curArea.boss }; },
   get roomX() { return ROOM_X; }, get cpX() { return CP_C * TS; }, get levelW() { return LEVEL_W; } };
 </script>
 </body>

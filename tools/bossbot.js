@@ -60,6 +60,13 @@ window.__rocksideBot = function () {
     if (Math.abs(lx - pcx) < 34) { move = lx > pcx ? -1 : 1; if ((move < 0 && P.x < L) || (move > 0 && P.x + P.w > RR)) move = -move; urgent = true; }
   }
   if (b.state === 'orbs' && ad < 74) { move = -toBoss; if ((move < 0 && P.x < L) || (move > 0 && P.x + P.w > RR)) { move = toBoss; jump = true; } }
+  // final area: suction (run away, hold fire so nothing gets swallowed), mimic charge (jump it), leap landing / floor marks (step aside)
+  const sucking = b.suckOn || b.state === 'kSuckWarn' || b.state === 'mSuckWarn';
+  if (sucking) { move = b.face; if ((move < 0 && P.x < L - 12) || (move > 0 && P.x + P.w > RR + 12)) move = 0; urgent = true; S.hold = 1; } else S.hold = 0;
+  if (b.state === 'mCharge' && Math.sign(b.vx) === toBoss * -1) { const gap = ad - b.w / 2 - P.w / 2; if (gap < 34 && gap > -4) jump = true; noJump = false; }
+  if (b.state === 'mChargeWind') { move = 0; }
+  if ((b.state === 'mLeapWind' || b.state === 'mLeap') && b.leapX !== undefined) { const lx = b.leapX + b.w / 2; if (Math.abs(lx - pcx) < 36) { move = freeDir(pcx >= lx ? 1 : -1); urgent = true; } }
+  if (b.gMarks) for (const mk of b.gMarks) if (mk.t > 0 && mk.t < 80 && Math.abs(mk.x - pcx) < 15) { move = freeDir(pcx >= mk.x ? 1 : -1); urgent = true; }
   if (noJump) jump = false;
   if (thorns.length && P.onGround) { // thorn patches: step out if standing in one; never walk into one (hop over it when in a hurry)
     if (inThorn(pcx)) { const q = thorns.find(q => pcx + 7 > q.x && pcx - 7 < q.x + q.w); const d = (pcx < q.x + q.w / 2) ? -1 : 1; move = (pcx + d * 30 > L && pcx + d * 30 < RR) ? d : -d; }
@@ -70,7 +77,7 @@ window.__rocksideBot = function () {
   K.left = move < 0; K.right = move > 0;
   if (jump && P.onGround) { I.jumpPressed = true; S.jt = 18; }
   K.jump = (S.jt = (S.jt || 0) - 1) > 0;
-  K.shoot = !!cfg.fire;
+  K.shoot = !!cfg.fire && !S.hold;
 };`;
 // Frame-accurate stage runner: holds right (+ shot), jumps at walls and ledges. module.exports.RUNNER
 const RUNNER = String.raw`

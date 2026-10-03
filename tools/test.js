@@ -314,12 +314,12 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await page.evaluate(([k, ROCKSIDE_OUTER_IDS]) => localStorage.setItem(k, JSON.stringify({ cleared: ROCKSIDE_OUTER_IDS, rescued: [] })), [await G(page, () => ROCKSIDE.PROGRESS_KEY), ROCKSIDE_OUTER_IDS]);
   await page.reload(); await sleep(600);
   ok('centre unlocks after all 8 are cleared', await G(page, () => ROCKSIDE.finalUnlocked() && ROCKSIDE.clearedCount() === 8));
-  // v9: every outer cell is a real stage now; with all 8 cleared the centre opens but the final stage is not built -> COMING SOON
-  await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(200);
+  // v10: with all 8 cleared the centre opens and launches the final area (幽境の掃除館)
+  await page.keyboard.press('Enter'); await waitState(page, 'select'); await sleep(250);
+  await page.screenshot({ path: path.join(SHOTS, 'v10_select_allclear_test.png') });
   r7 = await tryKey(4);
-  ok('all 8 cleared: centre unlocked, Enter -> COMING SOON (final stage not built), stays on select', r7.st === 'select' && r7.msg && r7.msg.en === 'COMING SOON' && (await G(page, () => ROCKSIDE.finalUnlocked() && ROCKSIDE.AREAS.filter(a => !a.final).every(a => ROCKSIDE._test.isCleared(a.id)))), r7);
-  await sleep(250); await page.screenshot({ path: path.join(SHOTS, 'v9_select_allclear_test.png') });
-  await page.keyboard.press('Enter'); await sleep(80);
+  ok('all 8 cleared: centre unlocked, Enter -> final area intro (幽境の掃除館)', r7.st === 'areaIntro' && !r7.msg && (await G(page, () => ROCKSIDE.finalUnlocked() && ROCKSIDE.AREAS.filter(a => !a.final).every(a => ROCKSIDE._test.isCleared(a.id)))), r7);
+  ok('final area intro -> stage starts (curArea final)', await waitState(page, 'play', 8000) && (await G(page, () => ROCKSIDE.curArea)) === 'final');
   await page.reload(); await sleep(600);
   await page.keyboard.press('Delete'); await sleep(60); await page.keyboard.press('Delete'); await sleep(60);
   ok('Delete x2 on title erases progress', await G(page, () => ROCKSIDE.clearedCount() === 0 && !ROCKSIDE.finalUnlocked()));
@@ -330,8 +330,9 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   for (let i = 0; i < 4; i++) { await page.keyboard.press('ArrowRight'); await sleep(40); }
   await page.keyboard.press('Enter'); await sleep(120);
   r7 = await G(page, () => ({ un: ROCKSIDE.finalUnlocked(), c: ROCKSIDE.selCursor, msg: ROCKSIDE.selMsg, saved: localStorage.getItem(ROCKSIDE.PROGRESS_KEY) }));
-  ok('?unlockall=1 unlocks the centre (final area: COMING SOON, nothing saved)', r7.un && r7.c === 4 && r7.msg && r7.msg.en === 'COMING SOON' && !r7.saved, r7);
-  await page.keyboard.press('Enter'); await sleep(250);
+  r7.st = await G(page, () => ROCKSIDE.state);
+  ok('?unlockall=1 unlocks the centre (final area launches, nothing saved)', r7.un && r7.c === 4 && !r7.msg && r7.st === 'areaIntro' && !r7.saved, r7);
+  await sleep(250);
   await page.screenshot({ path: path.join(SHOTS, 'v3_select_unlockall.png') });
   await ctx.close();
   // landscape: select screen fits, cell taps work
@@ -471,7 +472,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await sleep(400);
   let loaded = await G(page, () => ROCKSIDE.SHEETS_LOADED.slice().sort());
   const newMiss = assetMisses.slice(missBefore);
-  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui|diceroll/.test(u)), { loaded, misses: newMiss.length });
+  ok('--embed standalone file uses embedded sheets (no assets/ folder)', ['astarte', 'kanon', 'neenia', 'seiten', 'tobiume'].every(k => loaded.includes(k)) && newMiss.every(u => /lily|umimi|disaster|star|alchemic|transform_fx|shiranui|diceroll|kanata|mimic|umine_owner|sea_split|party/.test(u)), { loaded, misses: newMiss.length });
   await page.screenshot({ path: path.join(SHOTS, 'v2_standalone_title.png') });
   await ctx.close();
   // 6b. default build + a dummy assets/ folder: the folder sheets are used
@@ -624,6 +625,80 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
           memo.set(k, r); return r; };
         if (!go(0, 0, 0, true, false)) bad.push(wall + '/' + n + '/' + d); } }
     ok('DiceRoll boomerang cards: a jump/stand answer exists at every distance (one card at a time, low=jump / high=stay down)', bad.length === 0, bad.slice(0, 10)); }
+
+  // ===== v10 FINAL AREA: stage, boss rush, 清掃員カナタ (2 forms), climax, finale, save =====
+  if (!ONLY || ONLY.includes('final')) {
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1'));
+    ok('?area=9 launches the final area', await waitState(page, 'play', 4000) && (await G(page, () => ROCKSIDE.curArea)) === 'final');
+    let fi = await G(page, () => ({ allies: ROCKSIDE.allies.map(a => a.type).join(''), levelW: ROCKSIDE.levelW, en: ROCKSIDE.enemies.length, f: ROCKSIDE.final }));
+    ok(`final: 9 screens, ${fi.en} enemies, rush starts with the shadow of Tobiume`, fi.levelW === 9 * 256 && fi.en >= 10 && fi.f.phase === 'rush' && fi.f.boss === 'tobiume', fi);
+    await G(page, BOT.RUNNER); { const t0 = Date.now(); while (Date.now() - t0 < 50000) { const s = await G(page, () => ({ x: ROCKSIDE.P.x, st: ROCKSIDE.state, rx: ROCKSIDE.roomX })); if (s.st !== 'play' || s.x > s.rx - 40) break; await sleep(60); } }
+    ok('final stage: runner bot reaches the boss hall', await G(page, () => ROCKSIDE.P.x > ROCKSIDE.roomX - 60));
+    await G(page, () => { window.__rocksideBot = null; }); await ctx.close();
+    // boss rush (god mode, bot firing): 8 shadows at 60% HP, HP refill between, then Kanata enters
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1'));
+    await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000);
+    const hp0 = await G(page, () => ({ hp: ROCKSIDE.boss.hp, cfg: ROCKSIDE.CONFIG.boss.hp }));
+    ok('rush shadow HP = 60% of the original boss (Tobiume)', hp0.hp === Math.round(hp0.cfg * 0.6), hp0);
+    await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
+    const order = []; let refillOk = true;
+    { const t0 = Date.now(); let last = -1;
+      while (Date.now() - t0 < 300000) { const s = await G(page, () => ({ f: ROCKSIDE.final, hp: ROCKSIDE.P.hp, max: ROCKSIDE.playerMaxHP, st: ROCKSIDE.state }));
+        if (s.f.rushIdx !== last) { if (last >= 0 && s.hp !== s.max) refillOk = false; last = s.f.rushIdx; order.push(s.f.boss); if (s.f.phase === 'rush') await G(page, () => { ROCKSIDE.P.hp = 6; }); }
+        if (s.f.phase !== 'rush') break; await sleep(80); } }
+    const fr = await G(page, () => ROCKSIDE.final);
+    ok('boss rush: all 8 shadows in order, then 清掃員カナタ', fr.phase === 'kanata' && order.slice(0, 8).join() === 'tobiume,neenia,seiten,astarte,disaster,lily,shiranui,diceroll', { order, fr });
+    ok('boss rush: HP refilled after every shadow', refillOk && (await G(page, () => ROCKSIDE.P.hp === ROCKSIDE.playerMaxHP)));
+    await ctx.close();
+    // form 1: patterns + suction swallows a shot that comes back
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&kanata=1'));
+    await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000);
+    ok('?kanata=1: 清掃員カナタ (HP 40) in the boss hall', await G(page, () => ROCKSIDE.final.boss === 'kanata' && ROCKSIDE.boss.hp === 40 && ROCKSIDE.BOSS_TYPES.kanata.dark === 'kanataBoss' && ROCKSIDE.SHEETS_LOADED.includes('kanataBoss')));
+    await G(page, BOT.BOSS);
+    let swallowed = 0, spat = false;
+    { const t0 = Date.now(); while (Date.now() - t0 < 60000) {
+        const r = await G(page, () => { const b = ROCKSIDE.boss, f = ROCKSIDE.final; if (b.state === 'kSuck' && b.t > 10 && b.t < 60 && f.swallowed === 0) { const s = ROCKSIDE.shots[0]; s.active = true; s.x = b.x + b.w / 2 + b.face * 60; s.y = b.y + b.h - 26; s.vx = -b.face * 3; s.w = 7; s.h = 5; }
+          return { sw: f.swallowed, st: b.state, k37: ROCKSIDE.bullets.some(q => q.active && q.kind === 37), seen: ROCKSIDE.bossSeen }; });
+        swallowed = Math.max(swallowed, r.sw); if (r.k37) spat = true;
+        if (spat && ['lev', 'suck', 'ghosts', 'glide'].every(p => r.seen.includes(p))) break; await sleep(50); } }
+    const seenK = await G(page, () => ROCKSIDE.bossSeen);
+    ok('Kanata: levitate / suction / ghost fireballs / glide all appear', ['lev', 'suck', 'ghosts', 'glide'].every(p => seenK.includes(p)), seenK);
+    ok('Kanata suction swallows Umine\'s shot and spits it back (kind 37)', swallowed > 0 && spat, { swallowed, spat });
+    await G(page, () => { window.__botCfg.fire = true; });
+    { const t0 = Date.now(); while (Date.now() - t0 < 90000) { if (await G(page, () => ROCKSIDE.final.phase === 'mimic' && ROCKSIDE.state === 'play')) break; await sleep(100); } }
+    ok('Kanata defeated -> collapses, 暴走ミミック form 2 starts (HP 40, full HP refill)', await G(page, () => ROCKSIDE.final.boss === 'mimic' && ROCKSIDE.boss.hp === 40 && ROCKSIDE.P.hp === ROCKSIDE.playerMaxHP));
+    await ctx.close();
+    // form 2: patterns, climax at the threshold, sea split, finale, THE END, save
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&mimic=1'));
+    await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000);
+    await G(page, BOT.BOSS);
+    { const t0 = Date.now(); while (Date.now() - t0 < 60000) { if (await G(page, () => ['charge', 'bigsuck', 'leap'].every(p => ROCKSIDE.bossSeen.includes(p)))) break; await sleep(100); } }
+    const seenM = await G(page, () => ROCKSIDE.bossSeen);
+    ok('mimic: charge / big-mouth suction / leap all appear', ['charge', 'bigsuck', 'leap'].every(p => seenM.includes(p)), seenM);
+    await G(page, () => { window.__botCfg.fire = true; });
+    ok('mimic HP reaches the threshold -> climax (friends + 海割り)', await waitState(page, 'climax', 90000) && (await G(page, () => ROCKSIDE.boss.hp <= ROCKSIDE.CONFIG.bosses.mimic.climaxHp)));
+    await G(page, () => { window.__rocksideBot = null; });
+    await page.keyboard.press('Enter'); await sleep(400);
+    ok('first climax cannot be skipped', await G(page, () => ROCKSIDE.state === 'climax' && ROCKSIDE.final.climaxT > 20));
+    ok('climax lasts ~10-15 s and ends in the finale', await waitState(page, 'finale', 16000));
+    for (let i = 0; i < 8 && (await G(page, () => ROCKSIDE.state)) === 'finale'; i++) { await sleep(900); await page.keyboard.press('Enter'); }
+    ok('finale dialogue -> ending', await waitFor(page, () => ROCKSIDE.state === 'theEnd' || ROCKSIDE.state === 'ending', 6000));
+    const sv = await G(page, () => JSON.parse(localStorage.getItem(ROCKSIDE.PROGRESS_KEY) || '{}'));
+    ok('game clear saved (cleared: final, climax seen)', sv.cleared && sv.cleared.includes('final') && sv.seen && sv.seen.includes('climax'), sv);
+    await ctx.close();
+    // second time: the climax is skippable by tap
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&mimic=1&climax=1'));
+    await page.evaluate(k => localStorage.setItem(k, JSON.stringify({ cleared: ['final'], rescued: [], seen: ['climax'] })), await G(page, () => ROCKSIDE.PROGRESS_KEY));
+    await page.reload(); await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
+    await waitState(page, 'play', 20000); await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
+    await waitState(page, 'climax', 30000); await G(page, () => { window.__rocksideBot = null; }); await sleep(600);
+    await page.keyboard.press('Enter');
+    ok('climax skippable by tap after the first view', await waitState(page, 'finale', 3000));
+    await ctx.close();
+  }
   // hard mode: title toggle halves HP
   ({ ctx, page } = await newPage(browser, 390, 844));
   await page.keyboard.press('KeyH'); await sleep(60);
