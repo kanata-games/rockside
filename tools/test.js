@@ -747,6 +747,45 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   ok('hard mode (H on title) halves max HP', await G(page, () => ROCKSIDE.hardMode && ROCKSIDE.playerMaxHP === Math.floor(ROCKSIDE.CONFIG.playerMaxHP / 2)));
   await ctx.close();
 
+  // ===== v13 BGM: 11 chiptune tracks (+ SHOWDOWN variant), SOUND TEST, per-scene switching =====
+  ({ ctx, page } = await newPage(browser, 390, 844));
+  { const info = await G(page, () => ROCKSIDE.MUSIC_LIST.map(id => { const C = ROCKSIDE.compileSong(id), chs = new Set(); C.ev.forEach(a => a && a.forEach(e => chs.add(e.ch)));
+      return { id, n: C.ev.reduce((a, x) => a + (x ? x.length : 0), 0), dur: +C.dur.toFixed(1), chs: [...chs].sort().join(','), name: ROCKSIDE.MUSIC_SONGS[id].name }; }));
+    ok('BGM: 11 tracks + SHOWDOWN variant, each compiles to a 25-60 s loop on pulse1/pulse2/triangle/noise', info.length === 12 && new Set(info.map(i => i.name)).size === 12 && info.every(i => i.n > 200 && i.dur >= 25 && i.dur <= 60 && i.chs === 'noi,p1,p2,tri'), info);
+    ok('BGM: every boss has a theme (8 outer bosses own, 闇海音/カナタ/ミミック -> SHOWDOWN)', await G(page, () => ['tobiume', 'disaster', 'neenia', 'lily', 'shiranui', 'seiten', 'diceroll', 'astarte'].every(b => ROCKSIDE.BOSS_MUSIC[b] === b) && ['darkumine', 'kanata', 'mimic'].every(b => ROCKSIDE.BOSS_MUSIC[b] === 'final_fast'))); }
+  ok('title is silent (music waits for a user gesture / iOS)', await G(page, () => ROCKSIDE.music.id === null && ROCKSIDE.musicWanted() === null));
+  { const R = await G(page, () => TITLE_SOUND); const c = await gameToClient(page, R.x + R.w / 2, R.y + R.h / 2); await page.mouse.click(c.x, c.y); }
+  ok('title SOUND TEST button -> sound test screen', await waitState(page, 'soundtest', 2000));
+  await sleep(300); await page.keyboard.press('Enter');
+  ok('SOUND TEST: Enter plays track 01 (scheduler running on the SFX master bus)', await waitFor(page, () => ROCKSIDE.music.id === 'stage' && ROCKSIDE.music.live && ROCKSIDE.music.step > 4, 4000), await G(page, () => ROCKSIDE.music));
+  await page.keyboard.press('KeyM'); await sleep(100);
+  ok('mute (M) silences the music too (shared master gain = 0)', await G(page, () => Snd.muted && Snd.master.gain.value === 0 && ROCKSIDE.music.live));
+  await page.keyboard.press('KeyM');
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+  ok('SOUND TEST: next row plays track 02 (Dark Tobiume)', await waitFor(page, () => ROCKSIDE.music.id === 'tobiume', 2000));
+  await page.keyboard.press('Enter');
+  ok('SOUND TEST: Enter again stops it', await waitFor(page, () => ROCKSIDE.music.id === null && !ROCKSIDE.music.live, 2000));
+  { const r = await G(page, () => { const i = ROCKSIDE.MUSIC_LIST.indexOf('ending'); return { x: 60, y: ST_ROW0 + i * ST_ROWH + 6 }; }); const c = await gameToClient(page, r.x, r.y); await page.mouse.click(c.x, c.y); }
+  ok('SOUND TEST: tapping a row plays it (11 BACKSTAGE PARTY!)', await waitFor(page, () => ROCKSIDE.music.id === 'ending', 2000));
+  { const R = await G(page, () => ST_BACK); const c = await gameToClient(page, R.x + R.w / 2, R.y + R.h / 2); await page.mouse.click(c.x, c.y); }
+  ok('SOUND TEST: BACK -> title, music stops', await waitState(page, 'title', 2000) && await waitFor(page, () => ROCKSIDE.music.id === null, 1000));
+  await page.keyboard.press('KeyT');
+  ok('T on the title opens the sound test too', await waitState(page, 'soundtest', 1000));
+  await ctx.close();
+  ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?soundtest=1'));
+  ok('?soundtest=1 opens the SOUND TEST screen', await waitState(page, 'soundtest', 2000) && await G(page, () => ROCKSIDE.music.cur === 0));
+  await ctx.close();
+  { const scenes = [['?area=1', 'stage', 'stage BGM on a normal stage'], ['?area=5&boss=1&god=1', 'disaster', 'boss room -> its own theme (魔王ディザスター)'], ['?area=7&boss=1&god=1', 'shiranui', 'boss room -> シラヌイ theme'],
+      ['?area=8&boss=1&god=1', 'diceroll', 'boss room -> ダイスロール theme'], ['?area=9', 'final', '幽境の掃除館 last-stage BGM'], ['?area=9&god=1&boss=1&darkumine=1', 'final_fast', '闇海音 -> SHOWDOWN'], ['?area=9&god=1&boss=1&kanata=1', 'final_fast', 'カナタ -> SHOWDOWN'], ['?ending=1', 'ending', 'ending party BGM']];
+    for (const [q, want, label] of scenes) {
+      ({ ctx, page } = await newPage(browser, 390, 844, FILE + q)); await page.keyboard.press('ArrowLeft');
+      if (/area=/.test(q)) await waitFor(page, () => ROCKSIDE.state === 'play', 8000);
+      if (/boss=1/.test(q)) { await page.keyboard.down('ArrowRight'); await waitFor(page, () => ROCKSIDE.state === 'bossIntro', 15000); await page.keyboard.up('ArrowRight'); }
+      const got = await waitFor(page, w => ROCKSIDE.music.id === w && ROCKSIDE.music.live, 12000, want);
+      ok('music per scene: ' + label + ' (' + want + ')', got, await G(page, () => ({ st: ROCKSIDE.state, m: ROCKSIDE.music.id, want: ROCKSIDE.musicWanted() })));
+      await ctx.close();
+    } }
+
   srv.close();
   await browser.close();
   console.log('\nConsole errors/warnings: ' + (errors.length ? '\n  ' + errors.join('\n  ') : 'none'));

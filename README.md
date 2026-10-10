@@ -77,6 +77,7 @@ src/              ← ★ソースはここ。index.html はこれを連結し�
   04d_diceroll.js   エリア8 DARK ダイスロール（サイコロのボス）とダイスロールのサポート技
   04e_final.js      最終エリア: ボスラッシュ・清掃員カナタ（2形態）・クライマックス（覚醒した海音の海割り）・フィナーレ
   04g_darkumine.js  最終エリア: 闇海音（ラッシュとカナタの間）
+  04h_music.js      BGM（ファミコン風 4ch シーケンサ・全曲データ・SOUND TEST 画面・WAV 書き出し）
   04f_ending.js     エンディング（パーティー・カラオケ・クレジット）
   05_render.js      描画・UI・ステージセレクト・window.ROCKSIDE（テスト用フック）
 assets/           ← スプライトシート PNG + フレーム定義 JSON（Pages ではここから読み込み）
@@ -104,9 +105,22 @@ python3 tools/build.py --embed --out /tmp/rockside.html   # 旧来の1ファイ�
 
 `index.html` は `assets/` が隣にある前提です（GitHub Pages ではそのまま動きます）。ローカルでは `file://` ではなく `node tools/serve.js` で開いてください。
 
-デバッグ用 URL パラメータ: `?area=N`（エリア番号 no で直接開始）, `&boss=1`（ボス部屋前から）, `&god=1`, `&hitbox=1`, `&hard=1`, `?unlockall=1`, `?sprites=0`（手描き無し）, `?supporttest=1&supportfriend=lily`。最終エリア: `?area=9`（`&boss=1` と組み合わせ）`&rush=N`（ボスラッシュを N 番目 0-7 から）, `&darkumine=1`（闇海音から）, `&kanata=1`（カナタから）, `&mimic=1`（第2形態から）, `&climax=1`（第2形態がすぐクライマックス手前）, `?ending=1`（エンディングへ）。`node tools/balance.js 9d,9k,9m 8`（闇海音 / カナタ / ミミックの難易度）。
+デバッグ用 URL パラメータ: `?area=N`（エリア番号 no で直接開始）, `&boss=1`（ボス部屋前から）, `&god=1`, `&hitbox=1`, `&hard=1`, `?unlockall=1`, `?sprites=0`（手描き無し）, `?supporttest=1&supportfriend=lily`。最終エリア: `?area=9`（`&boss=1` と組み合わせ）`&rush=N`（ボスラッシュを N 番目 0-7 から）, `&darkumine=1`（闇海音から）, `&kanata=1`（カナタから）, `&mimic=1`（第2形態から）, `&climax=1`（第2形態がすぐクライマックス手前）, `?ending=1`（エンディングへ）, `?soundtest=1`（SOUND TEST 画面）。`node tools/render_bgm.js <出力フォルダ>` で全曲を 1 ループずつ WAV に書き出し（ゲームと同じシンセ、OfflineAudioContext）。`node tools/balance.js 9d,9k,9m 8`（闇海音 / カナタ / ミミックの難易度）。
 
 ---
+
+## BGM（v0.13.0）
+オリジナル曲（既存曲のメロディは使っていません）。`src/04h_music.js` の `MUSIC_SONGS` に楽譜（コード進行・メロディ文字列・ベース/ドラムのスタイル）として入っていて、パルス2本＋三角波＋ノイズの小さなシーケンサで鳴らします。音は SOUND ON/OFF（M キー）と共通のマスター音量に乗り、効果音より小さめ。iOS 対策で最初のキー/タッチまでは鳴りません。タイトルの **SOUND TEST**（または T キー / `?soundtest=1`）で全曲を試聴できます。
+
+| No | 曲 | 使う場面 |
+|---|---|---|
+| 01 | ROCKSIDE ROAD | 全ステージ道中 |
+| 02–09 | 各ボスのテーマ（飛梅 / ディザスター / ネーニア / リリィ / シラヌイ / 青天 / ダイスロール / アスターテ） | 各ボス戦・最終エリアのボスラッシュの影 |
+| 10 | BACKSTAGE MANSION | 幽境の掃除館 道中 |
+| 10B | BACKSTAGE MANSION -SHOWDOWN-（10 の速いアレンジ） | 闇海音・カナタ・ミミック・クライマックス |
+| 11 | BACKSTAGE PARTY! | エンディング（カラオケ・クレジット） |
+
+タイトル・ステージ選択・エリア紹介・ボス救出の瞬間・ゲームオーバー・最後の会話（finale）は無音（効果音とジングルのみ）。
 
 ## 共同作業ルール（人間・Claude・ChatGPT 共通）
 

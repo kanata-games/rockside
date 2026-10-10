@@ -7271,7 +7271,7 @@ function musicSchedule(ctx, dest, C, k0, k1, t0) {
 // ---------------------------------------------------------------------
 //  live player (Snd.ctx, under Snd.master so SOUND OFF mutes it)
 // ---------------------------------------------------------------------
-const Music = { id: null, C: null, bus: null, step: 0, loopT0: 0, vol: 0.85, plays: 0, history: [] };
+const Music = { id: null, C: null, bus: null, step: 0, loopT0: 0, vol: 0.4, plays: 0, history: [] };
 function musicPlay(id) {
   if (Music.id === id) return;
   musicStopBus();
@@ -7318,7 +7318,7 @@ function musicWanted() {
 //  SOUND TEST (title -> SOUND TEST / T key, ?soundtest=1)
 // ---------------------------------------------------------------------
 const SOUNDTEST = { cur: 0, playing: null };
-const ST_ROW0 = 30, ST_ROWH = 15, ST_BACK = { x: 88, y: 214, w: 80, h: 16 };
+const ST_ROW0 = 27, ST_ROWH = 14, ST_BACK = { x: 88, y: 213, w: 80, h: 16 };
 const TITLE_SOUND = { x: 70, y: 3, w: 68, h: 13 };
 function openSoundTest() { SOUNDTEST.playing = null; setState('soundtest'); sfx('start'); }
 function soundTestToggle(i) { const id = MUSIC_LIST[i]; SOUNDTEST.cur = i; SOUNDTEST.playing = SOUNDTEST.playing === id ? null : id; sfx('cursor'); }
@@ -7345,7 +7345,7 @@ function renderSoundTest() {
     if (sel) { g.fillStyle = '#20204a'; g.fillRect(6, y - 2, VW - 12, ST_ROWH - 1); rectLine(6, y - 2, VW - 12, ST_ROWH - 1, '#5a6aa8'); }
     const no = S.variant ? '10B' : String(S.no).padStart(2, '0');
     drawText(no, 12, y + 3, on ? 'g' : 'b', 1);
-    drawText(S.name.length > 24 ? S.name.slice(0, 24) : S.name, 34, y + 3, on ? 'g' : sel ? 'w' : 'c', 1);
+    drawText(S.name.length > 30 ? S.name.slice(0, 30) : S.name, 34, y + 3, on ? 'g' : sel ? 'w' : 'c', 1);
     if (on) { const k = (frame >> 3) & 3; g.fillStyle = '#8be07a'; for (let b = 0; b < 4; b++) { const h = 2 + ((hash(frame >> 3, b) >> 3) % 7); g.fillRect(VW - 30 + b * 4, y + 9 - h, 3, h); } }
     else if (sel) drawText('>', VW - 22, y + 3, 'y', 1);
   }
@@ -7353,7 +7353,7 @@ function renderSoundTest() {
   drawText('TAP / ENTER: PLAY-STOP', VW / 2, 234, 'b', 1, 'c');
   blit();
   const S = MUSIC_SONGS[MUSIC_LIST[SOUNDTEST.cur]];
-  drawHiText(S.jp, VW / 2, 196, 7.5, '#ffd6ec', '#0c0a1e');
+  drawHiText(S.jp, VW / 2, 199, 7.5, '#ffd6ec', '#0c0a1e');
 }
 // offline render of one loop (same synth): returns a 16-bit mono WAV as base64. Used by tools/render_bgm.js.
 async function musicRenderWav(id, sampleRate, normalize) {
