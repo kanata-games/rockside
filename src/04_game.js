@@ -447,6 +447,8 @@ function screenTap(x, y) {
     for (let slot = 0; slot < 9; slot++) if (inR(cellRect(slot))) { if (!selMsg) { if (slot !== selCursor) sfx('cursor'); chooseSlot(slot); } return true; }
     return true; // taps between cells do nothing
   }
+  if (state === 'soundtest') return soundTestTap(x, y);
+  if (state === 'title' && inR(TITLE_SOUND)) { openSoundTest(); return true; }
   if (state === 'title' && inR(TITLE_HARD)) { toggleHardMode(); return true; }
   if (state === 'title' && clearedCount() > 0 && inR({ x: TITLE_RESET.x - 4, y: 0, w: TITLE_RESET.w + 8, h: TITLE_RESET.h + 6 })) { inp.resetPressed = true; return true; }
   return false;
@@ -2102,6 +2104,9 @@ function update() {
           if (resetArmT > 0) { eraseProgress(); resetArmT = 0; sfx('erase'); } else { resetArmT = 180; sfx('buzz'); }
         } else if (inp.startPressed && stateT > 10) { sfx('start'); openSelect(selCursor); }
         break;
+      case 'soundtest':
+        updateSoundTest();
+        break;
       case 'select':
         titleScroll += 0.25;
         updateSelect();
@@ -2140,6 +2145,7 @@ function update() {
     updateParticles();
     if (shakeT > 0) shakeT--;
   }
+  musicTick();
   inp.magicPressed = false; inp.supportPressed = false; inp.supportCyclePressed = false; inp.jumpPressed = false; inp.shootPressed = false; inp.startPressed = false; inp.enterPressed = false; inp.resetPressed = false; inp.backPressed = false;
   inp.leftPressed = false; inp.rightPressed = false; inp.upPressed = false; inp.downPressed = false;
 }

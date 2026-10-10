@@ -58,7 +58,7 @@ body.land #hint{display:none;}
 <script>
 'use strict';
 // Version label (title screen + footer). Bump on every release; see README.
-const GAME_VERSION = '0.12.0';
+const GAME_VERSION = '0.13.0';
 // =====================================================================
 //  ROCKSIDE  -  original run-and-gun prototype
 //  All gameplay tuning lives in CONFIG. Units: pixels and frames @60Hz.
@@ -289,7 +289,7 @@ function playerMaxHP() { return hardMode ? Math.max(1, Math.floor(CONFIG.playerM
 function toggleHardMode() { hardMode = !hardMode; P.hp = Math.min(P.hp, playerMaxHP()); sfx('cursor'); }
 const DEBUG = { boss: QS.get('boss') === '1', god: QS.get('god') === '1', hitbox: QS.get('hitbox') === '1', noSprites: QS.get('sprites') === '0',
   unlockAll: QS.get('unlockall') === '1', area: parseInt(QS.get('area') || '0', 10) || 0,
-  rush: parseInt(QS.get('rush') || '0', 10) || 0, kanata: QS.get('kanata') === '1', mimic: QS.get('mimic') === '1', darkumine: QS.get('darkumine') === '1', climax: QS.get('climax') === '1', ending: QS.get('ending') === '1' };
+  rush: parseInt(QS.get('rush') || '0', 10) || 0, kanata: QS.get('kanata') === '1', mimic: QS.get('mimic') === '1', darkumine: QS.get('darkumine') === '1', soundtest: QS.get('soundtest') === '1', climax: QS.get('climax') === '1', ending: QS.get('ending') === '1' };
 
 // =====================================================================
 //  STAGE MAPS  - each stage = N screens of 16x15 tiles (the last one is the boss room).

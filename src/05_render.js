@@ -602,6 +602,7 @@ function renderTitle() {
   g.fillStyle = hardMode ? '#4b1423' : 'rgba(12,8,30,0.82)'; g.fillRect(HM.x, HM.y, HM.w, HM.h);
   rectLine(HM.x, HM.y, HM.w, HM.h, hardMode ? '#ff667d' : '#4a5680');
   drawText(hardMode ? 'HARD ON' : 'HARD OFF', HM.x + HM.w / 2, HM.y + 4, hardMode ? 'r' : 'b', 1, 'c');
+  const TS2 = TITLE_SOUND; g.fillStyle = 'rgba(12,8,30,0.82)'; g.fillRect(TS2.x, TS2.y, TS2.w, TS2.h); rectLine(TS2.x, TS2.y, TS2.w, TS2.h, '#4a5680'); drawText('SOUND TEST', TS2.x + TS2.w / 2, TS2.y + 4, 'c', 1, 'c');
   g.drawImage(levelCv, 0, 208, VW, 32, 0, 208, VW, 32);
   g.fillStyle = 'rgba(12,8,30,0.78)'; g.fillRect(0, 18, VW, 56);
   g.fillStyle = '#ffd84a'; g.fillRect(0, 18, VW, 1); g.fillRect(0, 73, VW, 1);
@@ -778,6 +779,7 @@ function renderAreaIntro() {
 
 function render() {
   g.setTransform(1, 0, 0, 1, 0, 0);
+  if (state === 'soundtest') { renderSoundTest(); return; }
   if (state === 'title') { renderTitle(); blit(); drawHiText('〜 水の魔女と堕ちた天使 〜', VW / 2, 102, 8, '#ffd6ec', '#120e24'); return; }
   if (state === 'select' || (state === 'areaIntro' && stateT < 24)) { renderSelect(); return; }
   if (state === 'areaIntro') { renderAreaIntro(); return; }
@@ -882,6 +884,7 @@ loadSheets();
 resetStage(false); setState('title');
 if (DEBUG.area) { const a = AREAS.find(x => x.no === DEBUG.area && x.map); if (a) startGame(a); } // ?area=N: straight into the stage
 if (DEBUG.ending) startEnding(); // ?ending=1: straight to the ending party + credits
+if (DEBUG.soundtest) openSoundTest(); // ?soundtest=1: the SOUND TEST screen
 requestAnimationFrame(loop);
 
 // Debug / test hook (harmless in production)
@@ -894,6 +897,7 @@ window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, 
   _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid, barGeom, cellLabel }, BOSS_TYPES,
   get ending() { return { phase: ENDING.phase, t: ENDING.t, credY: ENDING.credY, thanksT: ENDING.thanksT, h: creditsHeight() }; },
   get final() { return { phase: FINAL.phase, rushIdx: FINAL.rushIdx, climaxT: FINAL.climaxT, finaleI: FINAL.finaleI, swallowed: FINAL.swallowed, boss: curArea.boss }; },
+  MUSIC_SONGS, MUSIC_LIST, BOSS_MUSIC, compileSong, musicRenderWav, musicWanted, get music() { return { id: Music.id, plays: Music.plays, history: Music.history.slice(), live: !!Music.bus, step: Music.step, cur: SOUNDTEST.cur, playing: SOUNDTEST.playing }; },
   get roomX() { return ROOM_X; }, get cpX() { return CP_C * TS; }, get levelW() { return LEVEL_W; } };
 </script>
 </body>

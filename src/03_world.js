@@ -369,6 +369,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Enter' || e.code === 'NumpadEnter') { inp.startPressed = true; inp.enterPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
   if (e.code === 'KeyH' && state === 'title') { toggleHardMode(); e.preventDefault(); return; }
+  if (e.code === 'KeyT' && state === 'title') { openSoundTest(); e.preventDefault(); return; }
   if (e.code === 'KeyC') { if (!e.repeat) inp.magicPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyB') { if (!e.repeat) inp.supportPressed = true; e.preventDefault(); return; }
   if (e.code === 'KeyV') { if (!e.repeat) inp.supportCyclePressed = true; e.preventDefault(); return; }
