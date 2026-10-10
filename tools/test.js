@@ -228,6 +228,7 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   ok('v2_boss.png captured', bossShot);
   ok('defeat -> rescue line shown', rescueShot && seen.has('rescue'));
   ok('rescue -> STAGE CLEAR', await waitState(page, 'clear', 8000));
+  ok('rescue/clear -> ally-join fanfare jingle', await G(page, () => ROCKSIDE.music.history.includes('jingle_rescue') && ROCKSIDE.musicWanted() === 'jingle_rescue'), await G(page, () => ROCKSIDE.music.history));
   ok('rescued Tobiume = normal sheet doing her kick pose (v3_rescued.png)', rescuedShot && rescuedInfo && !rescuedInfo.dark && rescuedInfo.pose === 'kick', rescuedInfo);
   ok('clear saves progress (area cleared + friend rescued)', await G(page, () => { const d = JSON.parse(localStorage.getItem(ROCKSIDE.PROGRESS_KEY) || '{}'); return d.cleared.includes('sunset') && d.rescued.includes('tobiume'); }));
   await sleep(1300); await page.screenshot({ path: path.join(SHOTS, 'v2_clear_screen.png') });
@@ -750,25 +751,35 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   // ===== v13 BGM: 11 chiptune tracks (+ SHOWDOWN variant), SOUND TEST, per-scene switching =====
   ({ ctx, page } = await newPage(browser, 390, 844));
   { const info = await G(page, () => ROCKSIDE.MUSIC_LIST.map(id => { const C = ROCKSIDE.compileSong(id), chs = new Set(); C.ev.forEach(a => a && a.forEach(e => chs.add(e.ch)));
-      return { id, n: C.ev.reduce((a, x) => a + (x ? x.length : 0), 0), dur: +C.dur.toFixed(1), chs: [...chs].sort().join(','), name: ROCKSIDE.MUSIC_SONGS[id].name }; }));
-    ok('BGM: 11 tracks + SHOWDOWN variant, each compiles to a 25-60 s loop on pulse1/pulse2/triangle/noise', info.length === 12 && new Set(info.map(i => i.name)).size === 12 && info.every(i => i.n > 200 && i.dur >= 25 && i.dur <= 60 && i.chs === 'noi,p1,p2,tri'), info);
+      return { id, once: C.once, n: C.ev.reduce((a, x) => a + (x ? x.length : 0), 0), dur: +C.dur.toFixed(1), chs: [...chs].sort().join(','), name: ROCKSIDE.MUSIC_SONGS[id].name }; }));
+    const quiet = ['finale_soft', 'jingle_gameover']; // no drums by design
+    ok('BGM: 18 entries (title, select, stage, 8 bosses, last stage + SHOWDOWN, finale + ending, 3 jingles); loops 25-60 s, jingles 3-6 s once', info.length === 18 && new Set(info.map(i => i.name)).size === 18 &&
+      info.every(i => i.once ? (i.dur >= 3 && i.dur <= 6 && /^jingle_/.test(i.id)) : (i.n > 200 && i.dur >= 25 && i.dur <= 60)) && info.every(i => i.chs === (quiet.includes(i.id) ? 'p1,p2,tri' : 'noi,p1,p2,tri')), info);
     ok('BGM: every boss has a theme (8 outer bosses own, 闇海音/カナタ/ミミック -> SHOWDOWN)', await G(page, () => ['tobiume', 'disaster', 'neenia', 'lily', 'shiranui', 'seiten', 'diceroll', 'astarte'].every(b => ROCKSIDE.BOSS_MUSIC[b] === b) && ['darkumine', 'kanata', 'mimic'].every(b => ROCKSIDE.BOSS_MUSIC[b] === 'final_fast'))); }
-  ok('title is silent (music waits for a user gesture / iOS)', await G(page, () => ROCKSIDE.music.id === null && ROCKSIDE.musicWanted() === null));
+  ok('title wants its theme but stays silent until a user gesture (iOS)', await G(page, () => ROCKSIDE.musicWanted() === 'title' && !ROCKSIDE.music.live));
+  await page.keyboard.press('ArrowLeft');
+  ok('title theme plays after the first key press', await waitFor(page, () => ROCKSIDE.music.id === 'title' && ROCKSIDE.music.live && ROCKSIDE.music.step > 4, 4000));
   { const R = await G(page, () => TITLE_SOUND); const c = await gameToClient(page, R.x + R.w / 2, R.y + R.h / 2); await page.mouse.click(c.x, c.y); }
   ok('title SOUND TEST button -> sound test screen', await waitState(page, 'soundtest', 2000));
   await sleep(300); await page.keyboard.press('Enter');
-  ok('SOUND TEST: Enter plays track 01 (scheduler running on the SFX master bus)', await waitFor(page, () => ROCKSIDE.music.id === 'stage' && ROCKSIDE.music.live && ROCKSIDE.music.step > 4, 4000), await G(page, () => ROCKSIDE.music));
+  ok('SOUND TEST: Enter plays track 01 (scheduler running on the SFX master bus)', await waitFor(page, () => ROCKSIDE.music.id === 'title' && ROCKSIDE.music.live && ROCKSIDE.music.step > 4, 4000), await G(page, () => ROCKSIDE.music));
   await page.keyboard.press('KeyM'); await sleep(100);
   ok('mute (M) silences the music too (shared master gain = 0)', await G(page, () => Snd.muted && Snd.master.gain.value === 0 && ROCKSIDE.music.live));
   await page.keyboard.press('KeyM');
   await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
-  ok('SOUND TEST: next row plays track 02 (Dark Tobiume)', await waitFor(page, () => ROCKSIDE.music.id === 'tobiume', 2000));
+  ok('SOUND TEST: next row plays track 02 (stage select)', await waitFor(page, () => ROCKSIDE.music.id === 'select', 2000));
   await page.keyboard.press('Enter');
   ok('SOUND TEST: Enter again stops it', await waitFor(page, () => ROCKSIDE.music.id === null && !ROCKSIDE.music.live, 2000));
-  { const r = await G(page, () => { const i = ROCKSIDE.MUSIC_LIST.indexOf('ending'); return { x: 60, y: ST_ROW0 + i * ST_ROWH + 6 }; }); const c = await gameToClient(page, r.x, r.y); await page.mouse.click(c.x, c.y); }
-  ok('SOUND TEST: tapping a row plays it (11 BACKSTAGE PARTY!)', await waitFor(page, () => ROCKSIDE.music.id === 'ending', 2000));
+  { const r = await G(page, () => { const i = ROCKSIDE.MUSIC_LIST.indexOf('astarte'); return { x: 60, y: ST_ROW0 + i * ST_ROWH + 6 }; }); const c = await gameToClient(page, r.x, r.y); await page.mouse.click(c.x, c.y); }
+  ok('SOUND TEST: tapping a row plays it (11 ECLIPSE CATHEDRAL)', await waitFor(page, () => ROCKSIDE.music.id === 'astarte', 2000));
+  for (let k = 0; k < 18 && (await G(page, () => ROCKSIDE.music.cur)) !== 17; k++) { await page.keyboard.press('ArrowDown'); await sleep(60); }
+  ok('SOUND TEST: the list scrolls so the last row (18 GAME OVER jingle) is on screen', await G(page, () => ROCKSIDE.music.cur === 17 && SOUNDTEST.scroll === 18 - ST_VIS));
+  await page.keyboard.press('Enter');
+  ok('SOUND TEST: a jingle plays once, then the row goes back to stopped', await waitFor(page, () => ROCKSIDE.music.id === 'jingle_gameover' && ROCKSIDE.music.live, 2000) && await waitFor(page, () => ROCKSIDE.music.playing === null, 9000));
+  { const R = await G(page, () => ST_UP); const c = await gameToClient(page, R.x + R.w / 2, R.y + R.h / 2); await page.mouse.click(c.x, c.y); await sleep(100); }
+  ok('SOUND TEST: the up arrow scrolls back', await G(page, () => SOUNDTEST.scroll < 18 - ST_VIS));
   { const R = await G(page, () => ST_BACK); const c = await gameToClient(page, R.x + R.w / 2, R.y + R.h / 2); await page.mouse.click(c.x, c.y); }
-  ok('SOUND TEST: BACK -> title, music stops', await waitState(page, 'title', 2000) && await waitFor(page, () => ROCKSIDE.music.id === null, 1000));
+  ok('SOUND TEST: BACK -> title, the title theme comes back', await waitState(page, 'title', 2000) && await waitFor(page, () => ROCKSIDE.music.id === 'title' && ROCKSIDE.music.live, 2000));
   await page.keyboard.press('KeyT');
   ok('T on the title opens the sound test too', await waitState(page, 'soundtest', 1000));
   await ctx.close();
@@ -777,12 +788,23 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
   await ctx.close();
   { const scenes = [['?area=1', 'stage', 'stage BGM on a normal stage'], ['?area=5&boss=1&god=1', 'disaster', 'boss room -> its own theme (魔王ディザスター)'], ['?area=7&boss=1&god=1', 'shiranui', 'boss room -> シラヌイ theme'],
       ['?area=8&boss=1&god=1', 'diceroll', 'boss room -> ダイスロール theme'], ['?area=9', 'final', '幽境の掃除館 last-stage BGM'], ['?area=9&god=1&boss=1&darkumine=1', 'final_fast', '闇海音 -> SHOWDOWN'], ['?area=9&god=1&boss=1&kanata=1', 'final_fast', 'カナタ -> SHOWDOWN'], ['?ending=1', 'ending', 'ending party BGM']];
+    ({ ctx, page } = await newPage(browser, 390, 844)); await page.keyboard.press('Enter');
+    ok('music per scene: stage select theme', await waitState(page, 'select', 3000) && await waitFor(page, () => ROCKSIDE.music.id === 'select' && ROCKSIDE.music.live, 4000));
+    await ctx.close();
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=1')); await page.keyboard.press('ArrowLeft'); await waitState(page, 'play', 8000);
+    await G(page, () => setState('gameover'));
+    ok('music per scene: GAME OVER jingle (once)', await waitFor(page, () => ROCKSIDE.music.id === 'jingle_gameover' && ROCKSIDE.music.live, 3000) && await waitFor(page, () => ROCKSIDE.music.done && ROCKSIDE.state === 'gameover', 9000));
+    await ctx.close();
+    ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&kanata=1')); await page.keyboard.press('ArrowLeft'); await waitState(page, 'play', 8000);
+    ok('music per scene: finale talk -> soft AFTERGLOW arrangement of BACKSTAGE PARTY!', await G(page, () => ROCKSIDE.musicWanted.length === 0 && (() => { const s0 = state; state = 'finale'; const w = ROCKSIDE.musicWanted(); state = s0; return w; })() === 'finale_soft'));
+    await ctx.close();
     for (const [q, want, label] of scenes) {
       ({ ctx, page } = await newPage(browser, 390, 844, FILE + q)); await page.keyboard.press('ArrowLeft');
       if (/area=/.test(q)) await waitFor(page, () => ROCKSIDE.state === 'play', 8000);
       if (/boss=1/.test(q)) { await page.keyboard.down('ArrowRight'); await waitFor(page, () => ROCKSIDE.state === 'bossIntro', 15000); await page.keyboard.up('ArrowRight'); }
       const got = await waitFor(page, w => ROCKSIDE.music.id === w && ROCKSIDE.music.live, 12000, want);
-      ok('music per scene: ' + label + ' (' + want + ')', got, await G(page, () => ({ st: ROCKSIDE.state, m: ROCKSIDE.music.id, want: ROCKSIDE.musicWanted() })));
+      const warned = !/boss=1/.test(q) || await G(page, () => ROCKSIDE.music.history.includes('jingle_warning') && ROCKSIDE.music.history.indexOf('jingle_warning') < ROCKSIDE.music.history.lastIndexOf(ROCKSIDE.music.id));
+      ok('music per scene: ' + label + ' (' + want + ')' + (/boss=1/.test(q) ? ', after the WARNING sting' : ''), got && warned, await G(page, () => ({ st: ROCKSIDE.state, m: ROCKSIDE.music.id, want: ROCKSIDE.musicWanted(), h: ROCKSIDE.music.history })));
       await ctx.close();
     } }
 

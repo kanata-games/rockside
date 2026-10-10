@@ -734,7 +734,7 @@ function bossRescue(b, B, T) {
   if (b.t > 100 && ((inp.startPressed && b.t > 170) || b.t >= 100 + B.rescueLineFrames)) {
     for (const sh of shots) sh.active = false;
     markCleared(curArea); // saved as soon as the stage is cleared: area cleared + friend rescued
-    setState('clear'); sfx('clear');
+    setState('clear'); if (!(Music.id === 'jingle_rescue' && Music.bus)) sfx('clear'); // the ally-join fanfare replaces the old blip
   }
 }
 function tobiumeRescuePose(b) {

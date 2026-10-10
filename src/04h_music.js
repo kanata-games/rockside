@@ -5,13 +5,13 @@
 //  Songs are written as chord charts + melody bars (MUSIC_SONGS); bass, pulse-2 parts and drums are generated
 //  from the chords by style. One sequencer (musicSchedule) drives both live play and the offline WAV render.
 //  Live: routed into Snd.master (respects SOUND ON/OFF), starts only after a user gesture (Snd.init).
-//  Scene -> track: musicWanted(). SOUND TEST: title "SOUND TEST" button / T key / ?soundtest=1.
+//  Scene -> track: musicWanted(). Jingles (once: true) play one time; a boss theme is preceded by the WARNING sting. SOUND TEST: title "SOUND TEST" button / T key / ?soundtest=1.
 //  All melodies are original compositions for ROCKSIDE.
 // =====================================================================
 // melody token: <note><octave>[:len in 16ths] (len carries over), r = rest. e.g. 'E5:2 G5 B5:4 r:2'
 // drum chars per 16th: k kick, s snare, x kick+snare, h closed hat, o open hat, c crash, t taiko, r rim/woodblock, . none
 const MUSIC_SONGS = {
-  stage: { no: 1, name: 'ROCKSIDE ROAD', jp: '道中：みなとの冒険', mood: 'bright, adventurous D major road theme', bpm: 150,
+  stage: { name: 'ROCKSIDE ROAD', jp: '道中：みなとの冒険', mood: 'bright, adventurous D major road theme', bpm: 150,
     lead: { duty: 0.25, vol: 0.07, gate: 0.9 }, p2v: { duty: 0.125, vol: 0.045 },
     sections: {
       A: { chords: ['D', 'D', 'G', 'A', 'Bm', 'G', 'Em,A', 'D,A'], p2: 'echo', bass: 'oct8',
@@ -27,7 +27,7 @@ const MUSIC_SONGS = {
         mel: ['B4:4 r F#5 r', 'G5:4 r D5 r', 'E5:4 G5 B5 E6', 'C#6:2 B5 A5 G5 F#5 E5 D5 C#5'] } },
     order: ['A', 'B', 'C'] },
 
-  tobiume: { no: 2, name: 'PLUM PETAL STORM', jp: '闇落ち飛梅のテーマ', mood: 'bouncy but menacing E minor, fast and playful like her flying kicks', bpm: 168,
+  tobiume: { name: 'PLUM PETAL STORM', jp: '闇落ち飛梅のテーマ', mood: 'bouncy but menacing E minor, fast and playful like her flying kicks', bpm: 168,
     lead: { duty: 0.25, vol: 0.07, gate: 0.75 }, p2v: { duty: 0.5, vol: 0.035 },
     sections: {
       A: { chords: ['Em', 'C', 'D', 'B7', 'Em', 'C', 'Am,B7', 'Em'], p2: 'arp16', bass: 'gallop',
@@ -41,7 +41,7 @@ const MUSIC_SONGS = {
       A2: { base: 'A', p2: 'echo' } },
     order: ['A', 'B', 'A2'] },
 
-  disaster: { no: 3, name: 'CRIMSON OVERLORD', jp: '魔王ディザスターのテーマ', mood: 'heavy demon-lord march in C harmonic minor, ominous and grand', bpm: 138,
+  disaster: { name: 'CRIMSON OVERLORD', jp: '魔王ディザスターのテーマ', mood: 'heavy demon-lord march in C harmonic minor, ominous and grand', bpm: 138,
     lead: { duty: 0.5, vol: 0.06, gate: 0.95 }, p2v: { duty: 0.125, vol: 0.04 },
     sections: {
       A: { chords: ['Cm', 'Cm', 'Ab', 'G', 'Cm', 'Fm', 'Db', 'G7'], p2: 'arp16', bass: 'march',
@@ -54,7 +54,7 @@ const MUSIC_SONGS = {
               'Ab6:4 G6:2 F6 Eb6:4 C6', 'D6:4 Eb6:2 F6 G6:4 B5', 'C6:4 Eb6 Ab6 G6', 'F6:4 D6 B5 Ab5'] } },
     order: ['A', 'B', 'A'] },
 
-  neenia: { no: 4, name: 'MOONWOOD ARCHER', jp: '闇落ちネーニアのテーマ', mood: 'cool, swift A dorian under the moonlit trees; flowing arps like loosed arrows', bpm: 146,
+  neenia: { name: 'MOONWOOD ARCHER', jp: '闇落ちネーニアのテーマ', mood: 'cool, swift A dorian under the moonlit trees; flowing arps like loosed arrows', bpm: 146,
     lead: { duty: 0.125, vol: 0.07, gate: 0.9 }, p2v: { duty: 0.25, vol: 0.035 },
     sections: {
       A: { chords: ['Am', 'G', 'Am', 'D', 'Am', 'G', 'F', 'E'], p2: 'arp16', bass: 'root8',
@@ -68,7 +68,7 @@ const MUSIC_SONGS = {
       A2: { base: 'A', p2: 'harm3' } },
     order: ['A', 'B', 'A2'] },
 
-  lily: { no: 5, name: 'MOONLIGHT IDOL', jp: '闇落ちリリィのテーマ', mood: 'idol-pop stage show: D minor verse into a sparkly F major chorus, four-on-the-floor', bpm: 160,
+  lily: { name: 'MOONLIGHT IDOL', jp: '闇落ちリリィのテーマ', mood: 'idol-pop stage show: D minor verse into a sparkly F major chorus, four-on-the-floor', bpm: 160,
     lead: { duty: 0.25, vol: 0.07, gate: 0.85 }, p2v: { duty: 0.125, vol: 0.04 },
     sections: {
       V: { chords: ['Dm', 'Bb', 'C', 'A7', 'Dm', 'Bb', 'Gm', 'A'], p2: 'stab', bass: 'oct8',
@@ -82,7 +82,7 @@ const MUSIC_SONGS = {
       C2: { base: 'C', p2: 'echo' } },
     order: ['V', 'C', 'C2'] },
 
-  shiranui: { no: 6, name: 'FOXFIRE PROCESSION', jp: 'シラヌイのテーマ', mood: 'night-shrine procession in the Japanese miyako-bushi scale; taiko, woodblocks and a shamisen-like pulse', bpm: 136,
+  shiranui: { name: 'FOXFIRE PROCESSION', jp: 'シラヌイのテーマ', mood: 'night-shrine procession in the Japanese miyako-bushi scale; taiko, woodblocks and a shamisen-like pulse', bpm: 136,
     lead: { duty: 0.125, vol: 0.075, gate: 0.85 }, p2v: { duty: 0.25, vol: 0.04 },
     sections: {
       A: { chords: ['D5', 'D5', 'Bb', 'A5', 'Gm', 'Bb', 'A5', 'D5'], bass: 'drone',
@@ -97,7 +97,7 @@ const MUSIC_SONGS = {
               'Bb5:2 A5 G5 A5 Bb5:4 D6', 'Eb6:6 D6:2 Bb5:4 G5', 'A5:2 Bb5 A5 G5 Eb5 D5 Eb5:4', 'D5:8 A4:4 D5'] } },
     order: ['A', 'B', 'A'] },
 
-  seiten: { no: 7, name: 'NOCTURNE FOR A HEALER', jp: '闇落ち青天のテーマ', mood: 'bittersweet B minor night-city song; a lyrical, singing lead over a soft groove', bpm: 138,
+  seiten: { name: 'NOCTURNE FOR A HEALER', jp: '闇落ち青天のテーマ', mood: 'bittersweet B minor night-city song; a lyrical, singing lead over a soft groove', bpm: 138,
     lead: { duty: 0.5, vol: 0.06, gate: 0.97 }, p2v: { duty: 0.125, vol: 0.04 },
     sections: {
       A: { chords: ['Bm', 'G', 'D', 'A', 'Bm', 'G', 'Em', 'F#'], p2: 'arp8', bass: 'pop',
@@ -110,7 +110,7 @@ const MUSIC_SONGS = {
               'G5:2 B5 E6:4 D6:2 B5 G5:4', 'A5:2 C#6 E6:4 D6:2 C#6 A5:4', 'F#6:6 E6:2 D6:4 A5', 'A#5:4 C#6 E6 F#6'] } },
     order: ['A', 'B', 'A'] },
 
-  diceroll: { no: 8, name: 'MIDNIGHT ROULETTE', jp: 'ダイスロールのテーマ', mood: 'lazy late-night casino jazz: swing shuffle, walking bass, a cool sleepy lead', bpm: 132, swing: 0.34,
+  diceroll: { name: 'MIDNIGHT ROULETTE', jp: 'ダイスロールのテーマ', mood: 'lazy late-night casino jazz: swing shuffle, walking bass, a cool sleepy lead', bpm: 132, swing: 0.34,
     lead: { duty: 0.5, vol: 0.06, gate: 0.8 }, p2v: { duty: 0.125, vol: 0.035 },
     sections: {
       A: { chords: ['Dm7', 'G7', 'Cmaj7', 'A7', 'Dm7', 'G7', 'Em7,A7', 'Dm7'], p2: 'comp', bass: 'walk',
@@ -123,7 +123,7 @@ const MUSIC_SONGS = {
               'G5:2 Bb5 D6:4 C6:2 Bb5 G5:4', 'C#6:4 E6:2 G6 F6:4 E6', 'D6:2 F6 A6:4 F6:2 D6 A5:4', 'G5:2 E5 C#5:4 A4:8'] } },
     order: ['A', 'B', 'A'] },
 
-  astarte: { no: 9, name: 'ECLIPSE CATHEDRAL', jp: '闇落ちアスターテのテーマ', mood: 'solemn, majestic G minor; organ-like arpeggios under the star-shrine vaults', bpm: 128,
+  astarte: { name: 'ECLIPSE CATHEDRAL', jp: '闇落ちアスターテのテーマ', mood: 'solemn, majestic G minor; organ-like arpeggios under the star-shrine vaults', bpm: 128,
     lead: { duty: 0.25, vol: 0.065, gate: 0.97 }, p2v: { duty: 0.125, vol: 0.04 },
     sections: {
       A: { chords: ['Gm', 'Eb', 'F', 'D', 'Gm', 'Cm', 'D', 'D7'], p2: 'arp16', bass: 'half',
@@ -136,7 +136,7 @@ const MUSIC_SONGS = {
               'C6:2 D6 Eb6:4 G6 Eb6', 'F#6:8 D6:4 A5', 'Bb5:4 Eb6 G6 Bb6', 'A6:8 F#6:4 D6'] } },
     order: ['A', 'B', 'A'] },
 
-  final: { no: 10, name: 'BACKSTAGE MANSION', jp: '幽境の掃除館（最終ステージ）', mood: 'hot, driving last-stage rock in E minor with a heroic major lift', bpm: 168,
+  final: { name: 'BACKSTAGE MANSION', jp: '幽境の掃除館（最終ステージ）', mood: 'hot, driving last-stage rock in E minor with a heroic major lift', bpm: 168,
     lead: { duty: 0.25, vol: 0.07, gate: 0.88 }, p2v: { duty: 0.125, vol: 0.042 },
     sections: {
       A: { chords: ['Em', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B'], p2: 'echo', bass: 'oct8',
@@ -151,12 +151,12 @@ const MUSIC_SONGS = {
     order: ['A', 'B', 'A2'] },
 
   // arrangement variant (not a new song): faster, harmony all the way, busier drums - 闇海音 / 清掃員カナタ / 暴走ミミック
-  final_fast: { no: 10, variant: 'final', name: 'BACKSTAGE MANSION -SHOWDOWN-', jp: '最終決戦アレンジ（闇海音・カナタ・ミミック）', mood: 'the last-stage theme, faster and fully harmonized for the final fights', bpm: 184,
+  final_fast: { variant: 'final', name: 'BACKSTAGE MANSION -SHOWDOWN-', jp: '最終決戦アレンジ（闇海音・カナタ・ミミック）', mood: 'the last-stage theme, faster and fully harmonized for the final fights', bpm: 184,
     lead: { duty: 0.25, vol: 0.07, gate: 0.85 }, p2v: { duty: 0.25, vol: 0.04 },
     sections: { A: { base: 'final.A', p2: 'harm3', drums: ['k.hkx.hkk.hkx.hk'] }, B: { base: 'final.B', p2: 'harm3', drums: ['khhkx.hkkhhkx.hk'] }, A2: { base: 'final.A', p2: 'echo', drums: ['k.hkx.hkk.hkx.hk'] } },
     order: ['A', 'B', 'A2'] },
 
-  ending: { no: 11, name: 'BACKSTAGE PARTY!', jp: 'エンディング：みんなでパーティー', mood: 'bright, bouncy C major party song for the karaoke and credits', bpm: 132,
+  ending: { name: 'BACKSTAGE PARTY!', jp: 'エンディング：みんなでパーティー', mood: 'bright, bouncy C major party song for the karaoke and credits', bpm: 132,
     lead: { duty: 0.5, vol: 0.06, gate: 0.85 }, p2v: { duty: 0.25, vol: 0.038 },
     sections: {
       A: { chords: ['C', 'Am', 'F', 'G', 'C', 'Am', 'Dm,G', 'C'], p2: 'stab', bass: 'pop',
@@ -169,8 +169,62 @@ const MUSIC_SONGS = {
               'F6:2 E6 D6 C6 A5:4 D6', 'B5:2 C6 D6 G6 F6:4 D6', 'G#5:4 B5 D6 E6', 'G6:4 F6:2 D6 B5:4 G5'] },
       A2: { base: 'A', p2: 'echo' } },
     order: ['A', 'B', 'A2'] },
+  // ---- v0.13.1 ----
+  title: { name: 'TIDE OF ADVENTURE', jp: 'タイトル：水の魔女の旅立ち', mood: 'memorable, heroic G major opening theme', bpm: 144,
+    lead: { duty: 0.25, vol: 0.07, gate: 0.92 }, p2v: { duty: 0.125, vol: 0.042 },
+    sections: {
+      A: { chords: ['G', 'Em', 'C', 'D', 'G', 'Em', 'C,D', 'G'], p2: 'harm3', bass: 'oct8',
+        drums: ['k.h.s.hkk.h.s.h.'], fill: 'k.h.s.h.k.s.sscc',
+        mel: ['D5:4 G5:2 A5 B5:6 D6:2', 'C6:2 B5 A5 G5 E5:8', 'E5:4 G5:2 C6 E6:6 D6:2', 'C6:2 B5 A5 F#5 A5:8',
+              'B5:4 D6:2 G6 F#6:4 E6', 'D6:4 B5:2 G5 E6:8', 'C6:2 E6 G6 E6 D6 F#6 A6 F#6', 'G6:12 r:4'] },
+      B: { chords: ['Em', 'C', 'G', 'D', 'Am', 'C', 'D', 'D7'], p2: 'arp16', bass: 'root8',
+        drums: ['k.hks.hkk.hks.hk'], fill: 'k.s.k.s.ssssx.c.',
+        mel: ['E5:2 G5 B5:4 A5:2 G5 E5:4', 'C5:2 E5 G5:4 F#5:2 E5 C5:4', 'D5:2 G5 B5:4 D6:4 B5', 'A5:8 F#5:4 D5',
+              'C6:4 B5:2 A5 E6:8', 'E6:4 D6:2 C6 G5:8', 'A5:2 B5 C6 D6 E6 F#6 G6 A6', 'F#6:8 D6:4 C6'] },
+      A2: { base: 'A', p2: 'echo' } },
+    order: ['A', 'B', 'A2'] },
+
+  select: { name: 'CHOOSE YOUR RIVAL', jp: 'ステージセレクト：つぎは誰を助ける？', mood: 'upbeat A minor "pick your boss" groove', bpm: 152,
+    lead: { duty: 0.25, vol: 0.065, gate: 0.8 }, p2v: { duty: 0.125, vol: 0.04 },
+    sections: {
+      A: { chords: ['Am', 'F', 'G', 'Am', 'Am', 'F', 'G', 'E'], p2: 'stab', bass: 'pop',
+        drums: ['k.h.s.hkk.hks.h.'], fill: 'k.s.k.s.ssssx.x.',
+        mel: ['A5:2 r A5 C6 E6:4 C6:2 A5', 'F5:2 A5 C6 A5 F6:4 E6', 'D6:2 B5 G5 B5 D6 G6:4 F6:2', 'E6:6 C6:2 A5:8',
+              'A5:2 r A5 C6 E6:4 A6', 'G6:2 F6 E6 C6 A5:8', 'B5:2 D6 G6 F6 D6 B5 G5 D6', 'E6:4 G#5 B5 E6'] },
+      B: { chords: ['Dm', 'Am', 'Dm', 'E', 'F', 'G', 'E', 'E7'], p2: 'arp16', bass: 'oct8',
+        drums: ['k.hks.hkk.hks.hk'], fill: 'k.s.k.s.sssscsss',
+        mel: ['D6:4 F6:2 E6 D6:4 A5', 'C6:4 E6:2 D6 C6:4 E5', 'F5:2 A5 D6 F6 A6:8', 'G#6:8 E6:8',
+              'A6:4 G6:2 F6 C6:4 A5', 'B5:4 D6:2 G6 F6:4 D6', 'E6:2 r E6 F6 E6 D6 B5 G#5', 'B5:4 D6 E6 r'] },
+      A2: { base: 'A', p2: 'arp16' } },
+    order: ['A', 'B', 'A2'] },
+
+  // arrangement variant of BACKSTAGE PARTY! for the finale talk: slow, soft pulse + triangle, no drums, an octave down
+  finale_soft: { variant: 'ending', name: 'BACKSTAGE PARTY! -AFTERGLOW-', jp: 'フィナーレ：パーティーの前に（しっとりアレンジ）', mood: 'slow, gentle arrangement of the ending theme for Kanata\'s talk', bpm: 84, transpose: -12,
+    lead: { duty: 0.5, vol: 0.05, gate: 1 }, p2v: { duty: 0.125, vol: 0.022 },
+    sections: { A: { base: 'ending.A', p2: 'arp8', bass: 'half', drums: ['................'], fill: null },
+                B: { base: 'ending.B', p2: 'arp8', bass: 'half', drums: ['................'], fill: null } },
+    order: ['A', 'B'] },
+
+  // short jingles (once: play one time, no loop)
+  jingle_rescue: { once: true, name: 'JINGLE: ALLY JOINED!', jp: 'ジングル：なかま加入ファンファーレ', mood: 'bright fanfare when a rescued friend joins', bpm: 150,
+    lead: { duty: 0.25, vol: 0.075, gate: 0.95 }, p2v: { duty: 0.5, vol: 0.04 },
+    sections: { A: { chords: ['C', 'F,G', 'C'], p2: 'harm3', bass: 'half', drums: ['x...s.s.x.s.s.ss'], fill: 'c...............',
+      mel: ['G5:2 C6 E6 G6 E6 G6:6', 'A6:2 G6 F6 A6 B6:4 D7', 'C7:12 r:4'] } },
+    order: ['A'] },
+  jingle_warning: { once: true, name: 'JINGLE: WARNING!', jp: 'ジングル：ボス出現の警報', mood: 'tritone alarm before a boss theme', bpm: 150,
+    lead: { duty: 0.125, vol: 0.06, gate: 0.9 }, p2v: { duty: 0.5, vol: 0.03 },
+    sections: { A: { chords: ['A5', 'A5'], p2: 'echo', bass: 'drone', drums: ['t...t...t...t...'], fill: 'x.x.x.x.ssssc...',
+      mel: ['A5:4 D#6 A5 D#6', 'A5:4 D#6 A6:8'] } },
+    order: ['A'] },
+  jingle_gameover: { once: true, name: 'JINGLE: GAME OVER', jp: 'ジングル：ゲームオーバー', mood: 'short, sad falling phrase', bpm: 96,
+    lead: { duty: 0.5, vol: 0.065, gate: 1 }, p2v: { duty: 0.125, vol: 0.03 },
+    sections: { A: { chords: ['Am', 'Dm,Am'], p2: 'harm3', bass: 'half', drums: ['................'], fill: null,
+      mel: ['E5:2 D5 C5 B4 A4:8', 'F4:4 E4 A3:8'] } },
+    order: ['A'] },
 };
-const MUSIC_LIST = ['stage', 'tobiume', 'disaster', 'neenia', 'lily', 'shiranui', 'seiten', 'diceroll', 'astarte', 'final', 'ending', 'final_fast'];
+const MUSIC_LIST = ['title', 'select', 'stage', 'tobiume', 'disaster', 'neenia', 'lily', 'shiranui', 'seiten', 'diceroll', 'astarte', 'final', 'final_fast', 'finale_soft', 'ending',
+  'jingle_rescue', 'jingle_warning', 'jingle_gameover'];
+const BOSS_THEMES = new Set(['tobiume', 'disaster', 'neenia', 'lily', 'shiranui', 'seiten', 'diceroll', 'astarte', 'final_fast']);
 const BOSS_MUSIC = { tobiume: 'tobiume', disaster: 'disaster', neenia: 'neenia', lily: 'lily', shiranui: 'shiranui', seiten: 'seiten', diceroll: 'diceroll', astarte: 'astarte',
   darkumine: 'final_fast', kanata: 'final_fast', mimic: 'final_fast' };
 
@@ -204,7 +258,7 @@ function compileSong(id) {
     const chordAt = st => { let r = segs[0]; for (const g of segs) if (g.s <= st) r = g; return r; };
     // lead
     const lead = []; let st = bar0 * 16;
-    for (const barStr of S.mel) for (const n of parseMel(barStr)) { if (n.m !== null) { lead.push({ s: st, m: n.m, len: n.len }); push(st, { ch: 'p1', m: n.m, len: n.len * L.gate, vol: L.vol, duty: L.duty }); } st += n.len; }
+    for (const barStr of S.mel) for (const n0 of parseMel(barStr)) { const n = n0.m === null ? n0 : { m: n0.m + (song.transpose || 0), len: n0.len }; if (n.m !== null) { lead.push({ s: st, m: n.m, len: n.len }); push(st, { ch: 'p1', m: n.m, len: n.len * L.gate, vol: L.vol, duty: L.duty }); } st += n.len; }
     // pulse 2
     if (S.p2line) { for (let b = 0; b < bars; b++) { let t = (bar0 + b) * 16; for (const n of parseMel(S.p2line)) { if (n.m !== null) push(t, { ch: 'p2', m: n.m, len: n.len * 0.7, vol: V.vol, duty: V.duty }); t += n.len; } } }
     else if (S.p2 === 'echo') for (const n of lead) push(n.s + 3, { ch: 'p2', m: n.m, len: Math.max(1, n.len * L.gate - 0.5), vol: V.vol, duty: V.duty });
@@ -242,7 +296,7 @@ function compileSong(id) {
     bar0 += bars;
   }
   const steps = bar0 * 16, stepDur = 60 / song.bpm / 4;
-  return (MUSIC_CACHE[id] = { id, ev, steps, stepDur, dur: steps * stepDur, swing: song.swing || 0 });
+  return (MUSIC_CACHE[id] = { id, ev, steps, stepDur, dur: steps * stepDur, swing: song.swing || 0, once: !!song.once });
 }
 function musicStepTime(C, k) { return k * C.stepDur + ((k & 3) === 2 ? C.swing * C.stepDur * 2 : (k & 3) === 3 ? C.swing * C.stepDur : 0); }
 
@@ -306,11 +360,11 @@ function musicSchedule(ctx, dest, C, k0, k1, t0) {
 // ---------------------------------------------------------------------
 //  live player (Snd.ctx, under Snd.master so SOUND OFF mutes it)
 // ---------------------------------------------------------------------
-const Music = { id: null, C: null, bus: null, step: 0, loopT0: 0, vol: 0.4, plays: 0, history: [] };
+const Music = { id: null, want: null, C: null, bus: null, step: 0, loopT0: 0, vol: 0.4, plays: 0, history: [], done: false, endT: 0 };
 function musicPlay(id) {
   if (Music.id === id) return;
   musicStopBus();
-  Music.id = id; Music.C = null;
+  Music.id = id; Music.C = null; Music.done = false;
   if (id) { Music.plays++; Music.history.push(id); if (Music.history.length > 40) Music.history.shift(); }
 }
 function musicStopBus() {
@@ -319,8 +373,13 @@ function musicStopBus() {
   setTimeout(() => { try { b.disconnect(); } catch (_) {} }, 1500); Music.bus = null;
 }
 function musicTick() {
-  const want = musicWanted(); if (want !== Music.id) musicPlay(want);
-  const c = Snd.ctx; if (!c || !Music.id || c.state !== 'running') return;
+  const want = musicWanted(), c = Snd.ctx, live = !!c && c.state === 'running';
+  if (want !== Music.want) { // a boss theme entered during the boss intro gets the WARNING sting first
+    const prev = Music.want; Music.want = want;
+    musicPlay(live && want && state === 'bossIntro' && BOSS_THEMES.has(want) && want !== prev ? 'jingle_warning' : want);
+  }
+  if (Music.done && Music.id !== Music.want && c && c.currentTime >= Music.endT) musicPlay(Music.want); // sting finished -> the wanted track
+  if (!live || !Music.id || Music.done) return;
   if (!Music.bus) { // (re)start the current track
     Music.C = compileSong(Music.id); Music.bus = c.createGain(); Music.bus.gain.value = Music.vol; Music.bus.connect(Snd.master);
     Music.step = 0; Music.loopT0 = c.currentTime + 0.06;
@@ -332,18 +391,23 @@ function musicTick() {
   let n = 0;
   while (Music.loopT0 + musicStepTime(C, Music.step) < ahead && n++ < 64) {
     musicSchedule(c, Music.bus, C, Music.step, Music.step + 1, Music.loopT0);
-    if (++Music.step >= C.steps) { Music.step = 0; Music.loopT0 += C.dur; }
+    if (++Music.step >= C.steps) { if (C.once) { Music.done = true; Music.endT = Music.loopT0 + C.dur; break; } Music.step = 0; Music.loopT0 += C.dur; }
   }
 }
 // which track each scene wants
 function musicWanted() {
   if (state === 'soundtest') return SOUNDTEST.playing;
   if (state === 'ending') return 'ending';
-  if (state === 'title' || state === 'select' || state === 'areaIntro' || state === 'theEnd' || state === 'finale' || state === 'dying' || state === 'gameover' || state === 'clear') return null;
+  if (state === 'title') return 'title';
+  if (state === 'select') return 'select';
+  if (state === 'finale') return 'finale_soft';
+  if (state === 'gameover') return 'jingle_gameover';
+  if (state === 'clear') return curArea && !curArea.final ? 'jingle_rescue' : null;
+  if (state === 'areaIntro' || state === 'theEnd' || state === 'dying') return null;
   if (!curArea || !curArea.map) return null;
   if (state === 'climax') return 'final_fast';
   if (boss.triggered && boss.state !== 'off') {
-    if (boss.state === 'rescue' && !curArea.final) return null; // the rescue moment is left to the SFX
+    if (boss.state === 'rescue' && !curArea.final) return boss.t >= 76 ? 'jingle_rescue' : null; // the friend is back -> ally-join fanfare
     return BOSS_MUSIC[curArea.boss] || 'final_fast';
   }
   return curArea.final ? 'final' : 'stage';
@@ -352,38 +416,48 @@ function musicWanted() {
 // ---------------------------------------------------------------------
 //  SOUND TEST (title -> SOUND TEST / T key, ?soundtest=1)
 // ---------------------------------------------------------------------
-const SOUNDTEST = { cur: 0, playing: null };
-const ST_ROW0 = 27, ST_ROWH = 14, ST_BACK = { x: 88, y: 213, w: 80, h: 16 };
+const SOUNDTEST = { cur: 0, playing: null, scroll: 0 };
+const ST_ROW0 = 27, ST_ROWH = 14, ST_VIS = 11, ST_UP = { x: 222, y: 2, w: 30, h: 20 }, ST_DN = { x: 222, y: 211, w: 30, h: 20 }, ST_BACK = { x: 88, y: 213, w: 80, h: 16 };
 const TITLE_SOUND = { x: 70, y: 3, w: 68, h: 13 };
 function openSoundTest() { SOUNDTEST.playing = null; setState('soundtest'); sfx('start'); }
+function soundTestScrollTo(i) { SOUNDTEST.scroll = Math.max(0, Math.min(MUSIC_LIST.length - ST_VIS, Math.min(i, Math.max(SOUNDTEST.scroll, i - ST_VIS + 1)))); }
 function soundTestToggle(i) { const id = MUSIC_LIST[i]; SOUNDTEST.cur = i; SOUNDTEST.playing = SOUNDTEST.playing === id ? null : id; sfx('cursor'); }
 function updateSoundTest() {
   const n = MUSIC_LIST.length;
   if (inp.upPressed || inp.leftPressed) { SOUNDTEST.cur = (SOUNDTEST.cur + n - 1) % n; sfx('cursor'); }
   if (inp.downPressed || inp.rightPressed) { SOUNDTEST.cur = (SOUNDTEST.cur + 1) % n; sfx('cursor'); }
   if ((inp.startPressed || inp.shootPressed) && stateT > 8) soundTestToggle(SOUNDTEST.cur);
+  soundTestScrollTo(SOUNDTEST.cur);
+  if (Music.done && SOUNDTEST.playing === Music.id && Snd.ctx && Snd.ctx.currentTime >= Music.endT) SOUNDTEST.playing = null; // a jingle played once
   if (inp.backPressed) { SOUNDTEST.playing = null; setState('title'); }
 }
 function soundTestTap(x, y) {
   if (stateT < 8) return true;
   if (x >= ST_BACK.x && x < ST_BACK.x + ST_BACK.w && y >= ST_BACK.y && y < ST_BACK.y + ST_BACK.h) { inp.backPressed = true; return true; }
-  const i = Math.floor((y - ST_ROW0 + 2) / ST_ROWH);
-  if (i >= 0 && i < MUSIC_LIST.length && x > 6 && x < VW - 6) soundTestToggle(i);
+  const inB = R => x >= R.x && x < R.x + R.w && y >= R.y && y < R.y + R.h;
+  if (inB(ST_UP)) { SOUNDTEST.cur = Math.max(0, SOUNDTEST.scroll - 1); SOUNDTEST.scroll = Math.max(0, SOUNDTEST.scroll - ST_VIS + 1); sfx('cursor'); return true; }
+  if (inB(ST_DN)) { SOUNDTEST.scroll = Math.min(MUSIC_LIST.length - ST_VIS, SOUNDTEST.scroll + ST_VIS - 1); SOUNDTEST.cur = Math.min(MUSIC_LIST.length - 1, SOUNDTEST.scroll + ST_VIS); SOUNDTEST.cur = Math.max(SOUNDTEST.cur, SOUNDTEST.scroll); sfx('cursor'); return true; }
+  const r = Math.floor((y - ST_ROW0 + 2) / ST_ROWH), i = r + SOUNDTEST.scroll;
+  if (r >= 0 && r < ST_VIS && i < MUSIC_LIST.length && x > 6 && x < VW - 36) soundTestToggle(i);
   return true;
 }
 function renderSoundTest() {
   g.fillStyle = '#0c0a1e'; g.fillRect(0, 0, VW, VH);
   for (let i = 0; i < 30; i++) { const h = hash(i, 9); g.fillStyle = (h >> 8) & 1 ? '#2a3060' : '#5a6098'; g.fillRect(h % VW, (h >>> 9) % VH, 1, 1); }
   drawTextShadow('SOUND TEST', VW / 2, 8, 'y', 2, 'c');
-  for (let i = 0; i < MUSIC_LIST.length; i++) {
-    const S = MUSIC_SONGS[MUSIC_LIST[i]], y = ST_ROW0 + i * ST_ROWH, sel = i === SOUNDTEST.cur, on = SOUNDTEST.playing === MUSIC_LIST[i];
+  const n = MUSIC_LIST.length, sc = SOUNDTEST.scroll;
+  for (let i = sc; i < Math.min(n, sc + ST_VIS); i++) {
+    const S = MUSIC_SONGS[MUSIC_LIST[i]], y = ST_ROW0 + (i - sc) * ST_ROWH, sel = i === SOUNDTEST.cur, on = SOUNDTEST.playing === MUSIC_LIST[i];
     if (sel) { g.fillStyle = '#20204a'; g.fillRect(6, y - 2, VW - 12, ST_ROWH - 1); rectLine(6, y - 2, VW - 12, ST_ROWH - 1, '#5a6aa8'); }
-    const no = S.variant ? '10B' : String(S.no).padStart(2, '0');
+    const no = String(i + 1).padStart(2, '0');
     drawText(no, 12, y + 3, on ? 'g' : 'b', 1);
-    drawText(S.name.length > 30 ? S.name.slice(0, 30) : S.name, 34, y + 3, on ? 'g' : sel ? 'w' : 'c', 1);
+    drawText(S.name.length > 28 ? S.name.slice(0, 28) : S.name, 34, y + 3, on ? 'g' : sel ? 'w' : 'c', 1);
     if (on) { const k = (frame >> 3) & 3; g.fillStyle = '#8be07a'; for (let b = 0; b < 4; b++) { const h = 2 + ((hash(frame >> 3, b) >> 3) % 7); g.fillRect(VW - 30 + b * 4, y + 9 - h, 3, h); } }
     else if (sel) drawText('>', VW - 22, y + 3, 'y', 1);
   }
+  const tri = (R, up, on) => { g.fillStyle = on ? '#ffd84a' : '#3a4068'; const cx = R.x + R.w / 2, cy = R.y + R.h / 2; for (let k = 0; k < 6; k++) g.fillRect(cx - k, up ? cy - 3 + k : cy + 3 - k, k * 2 + 1, 1); };
+  tri(ST_UP, true, sc > 0); tri(ST_DN, false, sc + ST_VIS < n);
+  drawText((SOUNDTEST.cur + 1) + '/' + n, 12, 12, 'b', 1);
   rectLine(ST_BACK.x, ST_BACK.y, ST_BACK.w, ST_BACK.h, '#8fa2d8'); drawText('BACK', ST_BACK.x + ST_BACK.w / 2, ST_BACK.y + 6, 'w', 1, 'c');
   drawText('TAP / ENTER: PLAY-STOP', VW / 2, 234, 'b', 1, 'c');
   blit();
@@ -393,9 +467,9 @@ function renderSoundTest() {
 // offline render of one loop (same synth): returns a 16-bit mono WAV as base64. Used by tools/render_bgm.js.
 async function musicRenderWav(id, sampleRate, normalize) {
   const C = compileSong(id), sr = sampleRate || 44100, AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const len = Math.ceil(C.dur * 2 * sr), ctx = new AC(1, len, sr), bus = ctx.createGain(); bus.gain.value = Music.vol * 0.3 * 2.2; bus.connect(ctx.destination);
-  musicSchedule(ctx, bus, C, 0, C.steps, 0); musicSchedule(ctx, bus, C, 0, C.steps, C.dur); // 2 loops; keep the 2nd (it carries the 1st loop's tails = seamless)
-  const buf = await ctx.startRendering(), d = buf.getChannelData(0), s0 = Math.round(C.dur * sr), n = Math.round(C.dur * sr);
+  const len = Math.ceil((C.once ? C.dur + 0.8 : C.dur * 2) * sr), ctx = new AC(1, len, sr), bus = ctx.createGain(); bus.gain.value = Music.vol * 0.3 * 2.2; bus.connect(ctx.destination);
+  musicSchedule(ctx, bus, C, 0, C.steps, 0); if (!C.once) musicSchedule(ctx, bus, C, 0, C.steps, C.dur); // loops: 2 passes, keep the 2nd (it carries the 1st loop's tails = seamless)
+  const buf = await ctx.startRendering(), d = buf.getChannelData(0), s0 = C.once ? 0 : Math.round(C.dur * sr), n = C.once ? len : Math.round(C.dur * sr);
   const out = new DataView(new ArrayBuffer(44 + n * 2)), w = (o, s) => { for (let i = 0; i < s.length; i++) out.setUint8(o + i, s.charCodeAt(i)); };
   w(0, 'RIFF'); out.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
   out.setUint32(24, sr, true); out.setUint32(28, sr * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); w(36, 'data'); out.setUint32(40, n * 2, true);

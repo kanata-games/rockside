@@ -897,7 +897,7 @@ window.ROCKSIDE = { CONFIG, P, boss, enemies, stats, cam, layout, DEBUG, shots, 
   _test: { loadArea, isCleared, isRescued, keys, inp, portraitFace, solidAt: solid, barGeom, cellLabel }, BOSS_TYPES,
   get ending() { return { phase: ENDING.phase, t: ENDING.t, credY: ENDING.credY, thanksT: ENDING.thanksT, h: creditsHeight() }; },
   get final() { return { phase: FINAL.phase, rushIdx: FINAL.rushIdx, climaxT: FINAL.climaxT, finaleI: FINAL.finaleI, swallowed: FINAL.swallowed, boss: curArea.boss }; },
-  MUSIC_SONGS, MUSIC_LIST, BOSS_MUSIC, compileSong, musicRenderWav, musicWanted, get music() { return { id: Music.id, plays: Music.plays, history: Music.history.slice(), live: !!Music.bus, step: Music.step, cur: SOUNDTEST.cur, playing: SOUNDTEST.playing }; },
+  MUSIC_SONGS, MUSIC_LIST, BOSS_MUSIC, compileSong, musicRenderWav, musicWanted, get music() { return { id: Music.id, plays: Music.plays, history: Music.history.slice(), live: !!Music.bus, done: Music.done, step: Music.step, cur: SOUNDTEST.cur, playing: SOUNDTEST.playing }; },
   get roomX() { return ROOM_X; }, get cpX() { return CP_C * TS; }, get levelW() { return LEVEL_W; } };
 </script>
 </body>
