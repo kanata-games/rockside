@@ -3,11 +3,12 @@
 //  FINAL AREA: 闇海音 DARK UMINE - after the boss rush, before 清掃員カナタ.
 //  Kanata's mimic copied Umine's shadow. A mirror of Umine: water shots, a charge shot with an aim line,
 //  a jump over Umine with a gap fan (+ floor ripples when enraged), and a dark Umimi that drops water on floor marks.
-//  Placeholder art: umine_dark.png = shadow-tinted kanon.png (same 32x32 frames), umine_dark_face.png.
+//  Art: umine_dark.png (48x48 x 8: idle 0-1, move 2-3, staff windup + dark orb 4, staff thrust 5, hurt 6, defeat 7) + umine_dark_face.png.
+//  Shots leave from the thrust point (wave spawn 44,22) with a crimson splash; the charge gathers at the raised orb (38,7).
 //  ?darkumine=1 starts here (with ?area=9&boss=1). Dying against Kanata never sends you back to her (FINAL.phase checkpoint).
 // =====================================================================
 BOSS_TYPES.darkumine = { hud: 'DARK UMINE', speaker: '闇海音', speakerColor: '#c8a0ff', line: '', face: 'face_umine_dark',
-  clearEn: 'DARK UMINE', clearJp: '', dark: 'umineDark', normal: 'umineDark', w: 12, h: 24,
+  clearEn: 'DARK UMINE', clearJp: '', dark: 'umineDark', normal: 'umineDark', w: 14, h: 30, // body of the 48px sprite (hat brim to feet, no staff)
   aura: ['#1a0828', '#6a3ab0'], sparkle: '#c8e8ff', dust: '#8a7aa8' };
 BOSS_AI.darkumine = aiDarkUmine;
 Object.assign(BULLET_SIZE, { 40: [6, 4], 41: [12, 12], 42: [10, 8], 43: [6, 8] }); // 40 dark water shot, 41 charge orb, 42 floor ripple, 43 Umimi drop
@@ -25,7 +26,9 @@ function duChoose(b, B) {
   else if (p === 'jump') { bossSet('duJumpWind'); }
   else { bossSet('duSummon'); sfx('warn'); }
 }
-function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); const sz = BULLET_SIZE[kind]; return spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg); }
+function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); duSplash(b); const sz = BULLET_SIZE[kind]; return spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg); }
+function duSplash(b) { for (let i = 0; i < 5; i++) { const h = hash(frame + i, 71); spawnPart(b.mx, b.my, b.face * (0.5 + (h % 10) / 10), ((h >> 4) % 13 - 6) / 8, 10, 0, i & 1 ? '#8a1030' : '#2a0818'); } } // the crimson-black wave splash at the staff tip
+function duOrb(b) { const D = SHEET_DEFS.umineDark; return { x: b.x + b.w / 2 + b.face * (D.orbX - D.cx), y: b.y + b.h - D.fh + D.oy + D.orbY }; }
 function aiDarkUmine(b, B, pcx, pcy) {
   const bcx = b.x + b.w / 2, dist = Math.abs(pcx - bcx), rage = bossRage();
   if (b.gMarks) { for (const mk of b.gMarks) mk.t--; b.gMarks = b.gMarks.filter(mk => mk.t > -4); if (!b.gMarks.length) b.gMarks = null; }
@@ -42,28 +45,29 @@ function aiDarkUmine(b, B, pcx, pcy) {
         b.vy = -B.dodgeVel; b.onGround = false; b.y -= 1; b.dodgeCD = rage ? B.dodgeCDRage : B.dodgeCD; bossSeen('dodge'); b.dodgeShot = true;
       }
       if (b.dodgeShot && !b.onGround && b.vy >= -0.5) { // jump shot at the apex, aimed at Umine
-        b.dodgeShot = false; bossFacePlayer(); bossMuzzle(b, 19, 15); const dx = pcx - b.mx, dy = pcy - b.my, d = Math.hypot(dx, dy) || 1;
+        b.dodgeShot = false; bossFacePlayer(); bossMuzzle(b, 19, 15); duSplash(b); b.thrustT = 10; const dx = pcx - b.mx, dy = pcy - b.my, d = Math.hypot(dx, dy) || 1;
         spawnBullet(b.mx - 3, b.my - 2, dx / d * B.shotSpeed, dy / d * B.shotSpeed, 40, B.shotDamage); sfx('shoot');
       }
       if (!b.onGround) { b.pose = b.vy < 0 ? 'jump' : 'fall'; b.poseF = -1; }
+      if (b.thrustT > 0) { b.thrustT--; b.pose = 'thrust'; }
       if (b.wait === undefined) b.wait = B.idleFrames;
       if (b.t >= b.wait && b.onGround) duChoose(b, B);
       break; }
     case 'duShots': { // staff glint, then a volley of straight water shots at her staff height (jump them)
-      bossFall(b); bossFacePlayer(); b.pose = 'shoot'; b.poseF = -1;
+      bossFall(b); bossFacePlayer(); b.pose = b.t < B.shotWind - 6 ? 'windup' : 'thrust'; b.poseF = -1;
       const n = b.pr ? B.shotCountRage : B.shotCount, at = B.shotWind + b.shots * B.shotGap;
-      if (b.t < B.shotWind && b.t % 4 === 0) { bossMuzzle(b, 19, 15); spawnPart(b.mx, b.my, 0, 0, 8, 3, (b.t & 4) ? '#c8a0ff' : '#ffffff'); }
+      if (b.t < B.shotWind && b.t % 4 === 0) { bossMuzzle(b, 19, 15); const o = b.pose === 'windup' ? duOrb(b) : { x: b.mx, y: b.my }; spawnPart(o.x, o.y, 0, 0, 8, 3, (b.t & 4) ? '#c8a0ff' : '#ffffff'); }
       if (b.t === B.shotWind - 12) sfx('tink');
       if (b.shots < n && b.t === at) { duShot(b, B, b.face * B.shotSpeed, 0, 40, B.shotDamage); b.shots++; sfx('shoot'); }
       if (b.shots >= n && b.t > at + 14) duNext(b, B);
       break; }
     case 'duCharge': { // dark water gathers at the staff + dotted aim line that locks before the big orb flies
-      bossFall(b); b.pose = 'shoot'; b.poseF = -1;
+      bossFall(b); b.poseF = -1;
       const wind = b.shots === 0 ? (b.pr ? B.chargeWindRage : B.chargeWind) : B.chargeWind2, n = b.pr ? 2 : 1;
       bossMuzzle(b, 19, 15);
       if (b.t < wind - B.chargeLock) { bossFacePlayer(); b.aimX = pcx; b.aimY = Math.min(FLOOR_Y - 6, pcy); }
-      b.aimShow = b.t < wind; b.chargeK = Math.min(1, b.t / wind);
-      if (b.t % 3 === 0 && b.t < wind) { const h = hash(b.t, 31), a = (h % 628) / 100; spawnPart(b.mx + Math.cos(a) * 14, b.my + Math.sin(a) * 14, -Math.cos(a) * 0.9, -Math.sin(a) * 0.9, 14, 4, (h >> 4) & 1 ? '#6a3ab0' : '#c8a0ff'); }
+      b.aimShow = b.t < wind; b.chargeK = Math.min(1, b.t / wind); b.pose = b.t < wind ? 'windup' : 'thrust';
+      if (b.t % 3 === 0 && b.t < wind) { const o = duOrb(b), h = hash(b.t, 31), a = (h % 628) / 100; spawnPart(o.x + Math.cos(a) * 14, o.y + Math.sin(a) * 14, -Math.cos(a) * 0.9, -Math.sin(a) * 0.9, 14, 4, (h >> 4) & 1 ? '#6a3ab0' : '#c8a0ff'); }
       if (b.t === wind - B.chargeLock) sfx('tink');
       if (b.t === wind) {
         const dx = b.aimX - b.mx, dy = b.aimY - b.my, d = Math.hypot(dx, dy) || 1;
@@ -83,9 +87,9 @@ function aiDarkUmine(b, B, pcx, pcy) {
       if (b.t >= B.jumpWind) { b.vy = -B.jumpVel; b.vx = (b.leapX - b.x) / B.jumpAir; b.onGround = false; b.y -= 1; b.fired = false; bossSet('duJump'); sfx('jump'); }
       break; }
     case 'duJump': {
-      b.x += b.vx; b.pose = b.vy < 0 ? 'jump' : 'fall'; b.poseF = -1;
+      b.x += b.vx; if (!b.fired) b.pose = b.vy < 0 ? 'jump' : 'fall'; b.poseF = -1;
       if (!b.fired && b.vy >= -0.4) { // apex: fan aimed at Umine with the gap on her (standing still is safe)
-        b.fired = true; bossFacePlayer(); b.pose = 'shoot'; bossMuzzle(b, 19, 15);
+        b.fired = true; bossFacePlayer(); b.pose = 'thrust'; bossMuzzle(b, 19, 15); duSplash(b);
         const base = Math.atan2(pcy - b.my, pcx - b.mx), offs = b.pr ? [-0.62, -0.31, 0.31, 0.62] : [-0.34, 0.34];
         for (const o of offs) spawnBullet(b.mx - 3, b.my - 2, Math.cos(base + o) * B.fanSpeed, Math.sin(base + o) * B.fanSpeed, 40, B.shotDamage);
         sfx('shoot');
@@ -98,7 +102,7 @@ function aiDarkUmine(b, B, pcx, pcy) {
       break; }
     case 'duLand': bossFall(b); b.pose = 'idle'; b.poseF = -1; if (b.t > B.recover) duNext(b, B); break;
     case 'duSummon': { // raises the staff: a dark Umimi appears and drops water on marked spots, one by one
-      bossFall(b); bossFacePlayer(); b.pose = 'shoot'; b.poseF = -1;
+      bossFall(b); bossFacePlayer(); b.pose = b.t < 50 || (b.t - 50) % B.summonShotGap > 8 ? 'windup' : 'thrust'; b.poseF = -1;
       if (b.t === 20) {
         const n = b.pr ? B.dropCountRage : B.dropCount, xs = [];
         const lo = ROOM_L + 20, hi = ROOM_R - 20, c = Math.max(lo, Math.min(hi, pcx)), dir = c < (ROOM_L + ROOM_R) / 2 ? 1 : -1;
@@ -138,7 +142,7 @@ function drawDarkUmineWorld(camX) {
   const b = boss, U = DU.umimi;
   if (b.gMarks) drawFinalMarks(camX, b.gMarks, b.state === 'duJumpWind' || b.state === 'duJump' ? '#b07aff' : '#c8a0ff');
   if (b.chargeK > 0 && b.state === 'duCharge') { // dark charge orb at the staff
-    const r = 2 + b.chargeK * 5 + Math.sin(frame * 0.5), x = Math.round(b.mx - camX), y = Math.round(b.my);
+    const o = duOrb(b), r = 2 + b.chargeK * 5 + Math.sin(frame * 0.5), x = Math.round(o.x - camX), y = Math.round(o.y); // grows on the orb she raises (frame 4)
     g.globalAlpha = 0.4; g.fillStyle = '#6a3ab0'; g.beginPath(); g.arc(x, y, r + 3, 0, 6.283); g.fill(); g.globalAlpha = 1;
     g.fillStyle = '#2a1040'; g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); g.fillStyle = '#c8a0ff'; g.fillRect(x - 1, y - 1, 2, 2);
   }
@@ -177,7 +181,7 @@ function duIntroLines() {
 }
 function duRescue(b) {
   b.poseF = -1; b.aimShow = false; b.gMarks = null; b.chargeK = 0;
-  b.pose = b.t < 60 ? 'hurt' : 'idle';
+  b.pose = b.t < 40 ? 'hurt' : b.t < 110 ? 'defeat' : 'idle';
   if (b.y + b.h < FLOOR_Y) b.y = Math.min(FLOOR_Y - b.h, b.y + 1.2);
   if (b.t === 1) { FINAL.queue = null; finalSay(DARK_SPEAKER, '……あったかい。…ねえ、あなたの中に、帰っても…いい？', 150); }
   if (b.t === 120) finalSay(UMINE_SPEAKER, 'うん。こわいのも、さみしいのも…ぜんぶ、わたしだもん。おかえり。', 160);

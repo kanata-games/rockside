@@ -652,11 +652,12 @@ async function touches(cdp, type, pts) { await cdp.send('Input.dispatchTouchEven
     ok('boss rush: all 8 shadows in order, then 闇海音 (DARK UMINE)', fr.phase === 'darkumine' && fr.boss === 'darkumine' && order.slice(0, 8).join() === 'tobiume,neenia,seiten,astarte,disaster,lily,shiranui,diceroll', { order, fr });
     ok('boss rush: HP refilled after every shadow', refillOk && (await G(page, () => ROCKSIDE.P.hp === ROCKSIDE.playerMaxHP)));
     await ctx.close();
-    // v12 闇海音 DARK UMINE: after the rush, before Kanata (placeholder shadow-tinted kanon sheet)
+    // v12 闇海音 DARK UMINE: after the rush, before Kanata (v0.13.2: final 48x48 art)
     ({ ctx, page } = await newPage(browser, 390, 844, FILE + '?area=9&god=1&boss=1&darkumine=1'));
     await waitState(page, 'play', 4000); await page.keyboard.down('ArrowRight'); await waitState(page, 'bossIntro', 15000); await page.keyboard.up('ArrowRight');
     await waitState(page, 'play', 20000);
     ok('?darkumine=1: 闇海音 (HP 38) with the shadow sheet + face icon', await G(page, () => ROCKSIDE.final.boss === 'darkumine' && ROCKSIDE.boss.hp === 38 && ROCKSIDE.BOSS_TYPES.darkumine.dark === 'umineDark' && ROCKSIDE.SHEETS_LOADED.includes('umineDark') && ROCKSIDE.SHEETS_LOADED.includes('face_umine_dark')));
+    ok('闇海音 final art: 48x48 x 8 sheet (cx 24, feet on the floor), 14x30 body hitbox, thrust/windup/hurt/defeat frames mapped', await G(page, () => { const D = SHEET_DEFS.umineDark, S = SHEETS.umineDark; return D.fw === 48 && D.fh === 48 && D.frames === 8 && D.cx === 24 && D.oy === 1 && S && S.length === 8 && ROCKSIDE.boss.w === 14 && ROCKSIDE.boss.h === 30 && D.map.windup[0] === 4 && D.map.thrust[0] === 5 && D.map.hurt[0] === 6 && D.map.defeat[0] === 7 && D.muzX === 44 && D.muzY === 22 && D.orbX === 38 && D.orbY === 7; }));
     await G(page, BOT.BOSS); await G(page, () => { window.__botCfg.fire = true; });
     let duAim = false, duKinds = new Set();
     { const t0 = Date.now(); while (Date.now() - t0 < 120000) {

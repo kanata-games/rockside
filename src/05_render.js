@@ -262,7 +262,10 @@ function drawBoss(camX) {
     const cx = D.cxF ? D.cxF[fi] : D.cx;
     if (curArea.boss === 'diceroll' && b.dark && b.flash > 0 && (b.flash & 2) && b.state !== 'rescue') { if (D.map && b.flash > 7) fi = D.map.hurt[0]; g.drawImage(dicerollRedFrame(sh, fi, b.face), Math.round(mx - (b.face >= 0 ? cx : D.fw - cx)), by - D.fh); }
     else if (curArea.boss === 'shiranui' && b.dark) { if (D.map && b.flash > 7 && b.state !== 'shIllusion') fi = D.map.hurt[0]; drawShiranuiBody(b, sh, D, fi, mx, by, camX); }
-    else g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh);
+    else {
+      if (curArea.boss === 'darkumine' && b.dark && D.map.hurt && b.flash > 7 && b.state !== 'rescue') fi = D.map.hurt[0]; // flinch on a hit
+      g.drawImage(pick(sh[fi], b.face, white), mx - (b.face >= 0 ? cx : D.fw - cx), by - D.fh + (D.oy || 0));
+    }
     if (curArea.boss === 'lily' && b.dark && lilySongFxActive(b) && SHEETS.lilySongWave) {
       const W = SHEET_DEFS.lilySongWave, fx = SHEETS.lilySongWave[0];
       g.drawImage(pick(fx, b.face, false), mx - (b.face >= 0 ? W.cx : W.fw - W.cx), by - W.fh);

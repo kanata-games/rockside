@@ -204,8 +204,9 @@ const SHEET_DEFS = {
   // 0-1 ghost bullet, 2 ghost fireball, 3 paper, 4 plank, 5 can, 6 rock, 7 plate shard (face right; debris centre 12,12)
   kanataBullets: { file: 'assets/kanata_bullets.png', fw: 24, fh: 24, frames: 8, cx: 12 },
   kanataWind: { file: 'assets/kanata_bullets_wind.png', fw: 48, fh: 24, frames: 3, cx: 4 },      // suction streaks; converge at (4,12)
-  umineDark: { file: 'assets/umine_dark.png', fw: 32, fh: 32, frames: 14, cx: 11, muzX: 30, muzY: 17,   // placeholder: shadow-tinted kanon.png
-    map: { idle: [0, 2], run: [2, 4], walk: [2, 4], jump: [6, 1], fall: [7, 1], leap: [6, 1], shoot: [8, 1], attack: [8, 1], runshoot: [9, 4], hurt: [13, 1], defeat: [13, 1] } },
+  // 闇海音 final art (2026-10-12): 48x48, body centre x=24, feet y=46 (oy 1 = feet on the floor). spawn: wave (staff thrust, frame 5) = muz 44,22; orb (windup, frame 4) = 38,7
+  umineDark: { file: 'assets/umine_dark.png', fw: 48, fh: 48, frames: 8, cx: 24, oy: 1, muzX: 44, muzY: 22, orbX: 38, orbY: 7,
+    map: { idle: [0, 2], run: [2, 2], walk: [2, 2], jump: [3, 1], fall: [3, 1], leap: [3, 1], windup: [4, 1], thrust: [5, 1], shoot: [5, 1], attack: [4, 2], hurt: [6, 1], defeat: [7, 1] } },
   seaSplit: { file: 'assets/sea_split.png', fw: 48, fh: 96, frames: 5, cx: 45 },                  // LEFT wall; 4 = tileable body (32px)
   umineSpell: { file: 'assets/umine_spell.png', fw: 48, fh: 48, frames: 6, cx: 24 },              // 海音's awakening: 0 ready .. 5 staff up + circle (feet y=46)
   partyProps: { file: 'assets/party_props.png', fw: 376, fh: 32, frames: 1, cx: 0 },              // cut by PARTY_PROPS rects
