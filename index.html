@@ -3319,7 +3319,7 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null; b.laneY = undefined;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
@@ -4680,6 +4680,7 @@ function updateBullets() {
     }
     if (b.g) b.vy += b.g;
     if (!b.orbit) { b.x += b.vx; b.y += b.vy; }
+    if (b.laneY !== undefined && b.y < b.laneY) b.y = Math.min(b.laneY, b.y + 2.5); // 闇海音's straight shots settle into their lane
     if (b.kind === 11) b.y = b.baseY + Math.sin(b.t * 0.12 + b.ang) * 12; // note wobble
     if (b.kind === 8 && b.wobbleAmp) {
       b.y = b.baseY + Math.sin(b.t * b.wobbleRate + b.wobblePhase) * b.wobbleAmp;
@@ -6794,7 +6795,9 @@ function duChoose(b, B) {
   else if (p === 'jump') { bossSet('duJumpWind'); }
   else { bossSet('duSummon'); sfx('warn'); }
 }
-function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); duSplash(b); const sz = BULLET_SIZE[kind]; return spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg); }
+function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); duSplash(b); const sz = BULLET_SIZE[kind], q = spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg);
+  if (q && kind === 40 && vy === 0) q.laneY = FLOOR_Y - 15 - sz[1] / 2; // straight shots dip from the 48px staff tip to the old jump-over lane (same dodge as before)
+  return q; }
 function duSplash(b) { for (let i = 0; i < 5; i++) { const h = hash(frame + i, 71); spawnPart(b.mx, b.my, b.face * (0.5 + (h % 10) / 10), ((h >> 4) % 13 - 6) / 8, 10, 0, i & 1 ? '#8a1030' : '#2a0818'); } } // the crimson-black wave splash at the staff tip
 function duOrb(b) { const D = SHEET_DEFS.umineDark; return { x: b.x + b.w / 2 + b.face * (D.orbX - D.cx), y: b.y + b.h - D.fh + D.oy + D.orbY }; }
 function aiDarkUmine(b, B, pcx, pcy) {

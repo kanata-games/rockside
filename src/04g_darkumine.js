@@ -26,7 +26,9 @@ function duChoose(b, B) {
   else if (p === 'jump') { bossSet('duJumpWind'); }
   else { bossSet('duSummon'); sfx('warn'); }
 }
-function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); duSplash(b); const sz = BULLET_SIZE[kind]; return spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg); }
+function duShot(b, B, vx, vy, kind, dmg) { bossMuzzle(b, 19, 15); duSplash(b); const sz = BULLET_SIZE[kind], q = spawnBullet(b.mx - sz[0] / 2, b.my - sz[1] / 2, vx, vy, kind, dmg);
+  if (q && kind === 40 && vy === 0) q.laneY = FLOOR_Y - 15 - sz[1] / 2; // straight shots dip from the 48px staff tip to the old jump-over lane (same dodge as before)
+  return q; }
 function duSplash(b) { for (let i = 0; i < 5; i++) { const h = hash(frame + i, 71); spawnPart(b.mx, b.my, b.face * (0.5 + (h % 10) / 10), ((h >> 4) % 13 - 6) / 8, 10, 0, i & 1 ? '#8a1030' : '#2a0818'); } } // the crimson-black wave splash at the staff tip
 function duOrb(b) { const D = SHEET_DEFS.umineDark; return { x: b.x + b.w / 2 + b.face * (D.orbX - D.cx), y: b.y + b.h - D.fh + D.oy + D.orbY }; }
 function aiDarkUmine(b, B, pcx, pcy) {

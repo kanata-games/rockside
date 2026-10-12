@@ -611,7 +611,7 @@ function updateEnemies() {
 function spawnBullet(x, y, vx, vy, kind, dmg) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i]; if (b.active) continue;
-    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null;
+    b.active = true; b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.kind = kind; b.dmg = dmg; b.life = 0; b.t = 0; b.orbit = false; b.g = 0; b.bnc = 0; b.ret = 0; b.returned = false; b.dspr = -1; b.sspr = -1; b.hook = null; b.laneY = undefined;
     const sz = BULLET_SIZE[kind] || BULLET_SIZE[2]; b.w = sz[0]; b.h = sz[1];
     return b;
   }
@@ -1972,6 +1972,7 @@ function updateBullets() {
     }
     if (b.g) b.vy += b.g;
     if (!b.orbit) { b.x += b.vx; b.y += b.vy; }
+    if (b.laneY !== undefined && b.y < b.laneY) b.y = Math.min(b.laneY, b.y + 2.5); // 闇海音's straight shots settle into their lane
     if (b.kind === 11) b.y = b.baseY + Math.sin(b.t * 0.12 + b.ang) * 12; // note wobble
     if (b.kind === 8 && b.wobbleAmp) {
       b.y = b.baseY + Math.sin(b.t * b.wobbleRate + b.wobblePhase) * b.wobbleAmp;
